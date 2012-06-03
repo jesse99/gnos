@@ -1,0 +1,207 @@
+http://htmldog.com/reference/htmltags/
+http://www.metaltoad.com/html5-reference
+http://dev.w3.org/html5/html-author/
+https://github.com/jesse99/gnos
+
+http://code.google.com/apis/chart/
+http://code.google.com/apis/gdata/
+
+http://www.skills-1st.co.uk/papers/jane/open_source_mgmt_options.pdf
+http://www.apress.com/web-development/html/9781430239604
+http://www.apress.com/web-development/html/9781430238645
+http://www.apress.com/web-development/html/9781590598047
+http://www.backtoessentials.com/tools/40-useful-print-ready-cheat-sheet-for-web-developers/
+http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=13&ved=0CIYBEBYwAjgK&url=http%3A%2F%2Fnet.tutsplus.com%2Ftutorials%2Fhtml-css-techniques%2F30-html-best-practices-for-beginners%2F&ei=CuSjT5WvG_POiALRrdWABA&usg=AFQjCNFd0gD9wjSLpiSRWcUkUgR8RUH91w&sig2=oINB1YByitNzzJHODujABg
+
+
+* May want to add to github
+	- add a markdown readme
+	- get rid of snmp-walk-grs.txt
+* Break gnos.rs into a bunch of helper modules:
+	- maybe have views.rs and snmp_modeler.rs
+	- replace gnos.rs with main.rs, should be mostly just command-line processing
+	- should start unit testing stuff
+* Work on home view:
+	- get some sort of side bar or something showing device links
+	- client needs to request updates
+	- client needs to use the DOM to update the view
+		` if small number of devices just use a list
+		` otherwise use a disclosure widget
+	- links should be color coded depending on device status
+* Figure out how to get data into gnos:
+	- how big is the store? should the home page have an estimate of the store size?
+	- gnos needs to scp over config file
+	- gnos needs to startup the modeler script
+	- move the snmp modeler crap into its own module
+	- gnos needs to restart the modeler script if it dies
+	- display the model info, for now maybe just a sidebar with links
+	- need a way for users to configure the config file
+	- if the config changes need to restart the script
+	
+	- need a home page with a sidebar showing links to machine names
+	- might want to make these disclosure widgets with whatever is under the host names
+	- get rid of get_graph (might want to save it off somewhere)
+* Run the script with ssh
+	- will need to scp the config file over
+	- when gnos dies kill the ssh
+	- if we need to do a rehup sort of thing just restart the ssh
+* Provide a view of the model.
+	- probably just a page showing the entire store.
+	- device pages should have a link to their version of the store (i.e. statements that include their admin ip)
+	- model page should support user queries
+	- device page could be a link with a canned query
+* Need to support ifXTable.
+* Information flow is:
+	- scripts gather data using snmp get, traps, vtysh, etc
+	- scripts PUT the data using json into gnos
+	- gnos saves the data into a series of time-stamped triplet stores
+	- clients registers queries with the server which replies with json
+	- server auto-magically pushes new updates
+* send some meta-info back
+	keys will become subject paths under /model/network
+	values need a type (could be implicit via json types)
+   server
+	should persist everything
+	stick it in a triplet store
+	add a timestamp
+	
+	when charting
+		do a query and build x and y vectors
+		when new data arrives ship it off to clients
+* Gracefully handle device down.
+* Might want an alert if ipForwarding is off and its a router
+	- how do we know if its a router? quagga is running?
+* What about icmp mib?
+* Should be an alert if the server logs an #error.
+* Alert if snmp-modeler takes to long to put:
+	- either automatically or manually restart the script
+* Probably want a second script to do a (possibly partial) snmpwalk
+	- reuse config?
+* Dashboard should show network health:
+	- list devices
+	- sort by health and then by name
+	- admin should be able to adjust and set health thresholds
+	  e.g. machine and process uptimes, peers, link costs, cpu, memory
+	- probably want optional email too
+* Work on schema:
+	- define the bulk of basic NMS, probably want to stick this in an rtf file
+	- may want to install zenoss locally
+	- review http://www.science.uva.nl/research/sne/ndl/?c=12-Layer-Schema
+	- review http://www.ninebynine.org/SWAD-E/Scenario-HomeNetwork/HomeNetworkConfig-20021215.html
+* Read up on rust
+	prototype, scriptaculous
+	hidden urls to display entities?
+	can we generate schema docs?
+	dir with template html
+		register munger
+	check (but no ui) for admin rights
+	do functions have preconditions or not?
+* Both go and python have simple http servers.
+* Crates can have dir attributes?
+* net-snmp does not enable the host mib by default
+	- need to enable it via configure script
+* Quagga:
+	- http://www.nongnu.org/quagga/docs/docs-info.html#SEC143
+	   has lots of info on setting up quagga
+	- http://www.net-track.ch/opensource/quagga-snmp/
+	   patch for quagga to add snmp support to bdpd
+* Examples:
+	- zenoss
+	- cacti
+* Work on infrastructure:
+	- arcitecture doc
+	- need a make file
+	- create an in-memory rdf db
+	- sampler: gather datapoint(s) often
+	- modeler: gather info infrequently
+	- views: registered url responders
+	- daemons: auto-started, usually have a view or modeler
+	- may want a restful rust web project (rrweb)
+	- is there a standard rdf vocabulary for network devices?
+	- would be cool to generate a dot file for the rdf
+
+* Get the web UI working
+	- uv module has support for handling async events.
+	- use hard-coded info (and not even a db)
+	- use window.json not eval
+	- can we push (the new) model to views and let them handle updates?
+	- maybe for now can serve up some simple html
+	- should have a layer of indirection from URLs to actions
+	- markup should not be in code
+	- most graphics should be done using svg
+	- server sent events allow for a push model
+	- should be able to hover over nodes to get info
+	- graphvix and webdot
+	- should be a way to specify multiple modelerer nodes
+
+* Get a database schema setup
+	- database rows can be added, but not changed or removed
+	  how does this work with admin capabilities?
+	  is there a separate database for admin settings? maybe call it settings?
+	- modeling should create a brand-new rdf database
+	- MySQL supports referential integrity (and there are several go libs for it)
+	- need to provide an abstraction for db access
+	- active record pattern
+	- data object access (dao)
+	- can multiple procceses write to sqlite?
+	- would need to version the tables
+	- could maybe use off-line storage to save last 10mins of data
+* Might need some sort of rdd database, see rrdtool
+* Rmon
+	- supports packet level stats
+	- allows traps for stats that go above or below a threshold
+* Syslog can be used to send logs elsewhere?
+* Next generation network management
+	- http://books.google.com/books?id=9WWereKFb54C&dq=rdf+schema+%22network+management%22&source=gbs_navlinks_s
+
+* Get plugins working
+	- could do this by installing core packages somewhere, then link them with custom
+	  packages
+	- these would have to be either external tools run periodically
+	- or daemon processes that talk to the db
+	- probably need some way for a daemon to register an url for custom web pages
+	- could get some decoupling by having modelers and samplers posting changes
+	- for simple views can just point to secondary file system roots
+	  this would also work for more complex views if the plugin generated files
+	
+* Get gatherers working
+	- snmp
+	- ssh
+	- port scanners
+	- syslogs
+* OpenId can be used to identify users. OpenAuth can be used to authenticate them.
+
+can we leverage R?
+could use graphviz to create maps (but hit testing and such would suck)
+
+would be great to have a pim view
+live monitor maps vtysh pim goo to rdf
+simple reuseable goo to map rdf to tables and whatnot
+
+/Users/jessejones/Documents/Developer/rust.rtf
+
+
+{{name}}					variable
+<name's value>
+if name is not present expansion will be empty
+
+
+{{#in_ca}}
+	true	=> body is expanded
+	[]		=> body is expanded for each element
+	fn 		=> fn is passed the pre-expanded body
+	map	=> body is expanded using the map
+{{/in_ca}}
+
+{{^repo}}
+	expanded if repo doesn't exist, or is false, or is empty list
+{{/repo}}
+
+{{! is a comment}}		may contain new lines
+
+{{> file}}					include file
+
+
+do we get a log or anything on empty expansions?
+probably want a mustache language
+
