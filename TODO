@@ -14,9 +14,6 @@ http://www.backtoessentials.com/tools/40-useful-print-ready-cheat-sheet-for-web-
 http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=13&ved=0CIYBEBYwAjgK&url=http%3A%2F%2Fnet.tutsplus.com%2Ftutorials%2Fhtml-css-techniques%2F30-html-best-practices-for-beginners%2F&ei=CuSjT5WvG_POiALRrdWABA&usg=AFQjCNFd0gD9wjSLpiSRWcUkUgR8RUH91w&sig2=oINB1YByitNzzJHODujABg
 
 
-* May want to add to github
-	- add a markdown readme
-	- get rid of snmp-walk-grs.txt
 * Break gnos.rs into a bunch of helper modules:
 	- maybe have views.rs and snmp_modeler.rs
 	- replace gnos.rs with main.rs, should be mostly just command-line processing

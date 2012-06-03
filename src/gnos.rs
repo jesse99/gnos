@@ -122,135 +122,29 @@ fn validate_options(options: options)
 	}
 }
 
-fn get_graph() -> [triple]
+fn subject_view(_options: options, _settings: hashmap<str, str>, _request: server::request, response: server::response) -> server::response
 {
-	[
-		{subject: iri("gnos:network"), property: "gnos:devices", object: seq(
-			[
-				reference(iri("gnos:device-10.101.100.2")),
-				reference(iri("gnos:device-10.102.100.2"))
-			])},
-		{subject: iri("gnos:network"), property: "gnos:last_update", object: primitive(date("today"))},
-		
-		// GRS-A
-		{subject: iri("gnos:device-10.101.100.2"), property: "gnos:name", object: primitive(string("GRS-A"))},
-		{subject: iri("gnos:device-10.101.100.2"), property: "gnos:description", object: primitive(string("CoCo Router"))},
-		{subject: iri("gnos:device-10.101.100.2"), property: "gnos:managed_ip", object: typed_literal("10.101.100.2", "gnos:ip_address")},
-		{subject: iri("gnos:device-10.101.100.2"), property: "gnos:os", object: primitive(string("Linux"))},
-		{subject: iri("gnos:device-10.101.100.2"), property: "gnos:os_version", object: primitive(string("x.y"))},
-		{subject: iri("gnos:device-10.101.100.2"), property: "gnos:architecture", object: primitive(string("i386"))},
-		{subject: iri("gnos:device-10.101.100.2"), property: "gnos:interfaces", object: seq(
-			[
-				reference(iri("gnos:interface-10.101.100.2-0")),
-				reference(iri("gnos:interface-10.101.100.2-1")),
-				reference(iri("gnos:interface-10.101.100.2-2")),
-				reference(iri("gnos:interface-10.101.100.2-3"))
-			])},
-		
-		{subject: iri("gnos:interface-10.101.100.2-0"), property: "gnos:name", object: primitive(string("eth0"))},
-		{subject: iri("gnos:interface-10.101.100.2-0"), property: "gnos:ip", object: typed_literal("10.101.100.2", "gnos:ip_address")},
-		{subject: iri("gnos:interface-10.101.100.2-0"), property: "gnos:netmask", object: typed_literal("0xFFFFFF00", "gnos:ip_mask")},
-		{subject: iri("gnos:interface-10.101.100.2-0"), property: "gnos:mac", object: typed_literal("00:30:18:A5:7A:AF", "gnos:mac_address")},
-		{subject: iri("gnos:interface-10.101.100.2-0"), property: "gnos:flags", object: primitive(string("UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST"))},
-		{subject: iri("gnos:interface-10.101.100.2-0"), property: "gnos:mtu", object: primitive(int(1500_i32))},
-		{subject: iri("gnos:interface-10.101.100.2-0"), property: "gnos:enabled", object: primitive(boolean(true))},
-		
-		{subject: iri("gnos:interface-10.101.100.2-1"), property: "gnos:name", object: primitive(string("eth1"))},
-		{subject: iri("gnos:interface-10.101.100.2-1"), property: "gnos:ip", object: typed_literal("10.101.1.2", "gnos:ip_address")},
-		{subject: iri("gnos:interface-10.101.100.2-1"), property: "gnos:netmask", object: typed_literal("0xFFFFFF00", "gnos:ip_mask")},
-		{subject: iri("gnos:interface-10.101.100.2-1"), property: "gnos:mac", object: typed_literal("00:30:18:A5:7A:B0", "gnos:mac_address")},
-		{subject: iri("gnos:interface-10.101.100.2-1"), property: "gnos:flags", object: primitive(string("UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST"))},
-		{subject: iri("gnos:interface-10.101.100.2-1"), property: "gnos:mtu", object: primitive(int(1500_i32))},
-		{subject: iri("gnos:interface-10.101.100.2-1"), property: "gnos:enabled", object: primitive(boolean(true))},
-		
-		{subject: iri("gnos:interface-10.101.100.2-2"), property: "gnos:name", object: primitive(string("eth2"))},
-		{subject: iri("gnos:interface-10.101.100.2-2"), property: "gnos:ip", object: typed_literal("10.0.15.2", "gnos:ip_address")},
-		{subject: iri("gnos:interface-10.101.100.2-2"), property: "gnos:netmask", object: typed_literal("0xFFFFFF00", "gnos:ip_mask")},
-		{subject: iri("gnos:interface-10.101.100.2-2"), property: "gnos:mac", object: typed_literal("00:30:18:A5:7A:B1", "gnos:mac_address")},
-		{subject: iri("gnos:interface-10.101.100.2-2"), property: "gnos:flags", object: primitive(string("UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST"))},
-		{subject: iri("gnos:interface-10.101.100.2-2"), property: "gnos:mtu", object: primitive(int(1500_i32))},
-		{subject: iri("gnos:interface-10.101.100.2-2"), property: "gnos:enabled", object: primitive(boolean(true))},
-		
-		{subject: iri("gnos:interface-10.101.100.2-3"), property: "gnos:name", object: primitive(string("eth3"))},
-		{subject: iri("gnos:interface-10.101.100.2-3"), property: "gnos:ip", object: typed_literal("10.101.3.2", "gnos:ip_address")},
-		{subject: iri("gnos:interface-10.101.100.2-3"), property: "gnos:netmask", object: typed_literal("0xFFFFFF00", "gnos:ip_mask")},
-		{subject: iri("gnos:interface-10.101.100.2-3"), property: "gnos:mac", object: typed_literal("00:30:18:AB:0F:A1", "gnos:mac_address")},
-		{subject: iri("gnos:interface-10.101.100.2-3"), property: "gnos:flags", object: primitive(string("UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST"))},
-		{subject: iri("gnos:interface-10.101.100.2-3"), property: "gnos:mtu", object: primitive(int(1500_i32))},
-		{subject: iri("gnos:interface-10.101.100.2-3"), property: "gnos:enabled", object: primitive(boolean(true))},
-		
-		// GRS-B
-		{subject: iri("gnos:device-10.102.100.2"), property: "gnos:name", object: primitive(string("GRS-B"))},
-		{subject: iri("gnos:device-10.102.100.2"), property: "gnos:description", object: primitive(string("CoCo Router"))},
-		{subject: iri("gnos:device-10.102.100.2"), property: "gnos:managed_ip", object: typed_literal("10.102.100.2", "gnos:ip_address")},
-		{subject: iri("gnos:device-10.102.100.2"), property: "gnos:os", object: primitive(string("Linux"))},
-		{subject: iri("gnos:device-10.102.100.2"), property: "gnos:os_version", object: primitive(string("x.y"))},
-		{subject: iri("gnos:device-10.102.100.2"), property: "gnos:architecture", object: primitive(string("i386"))},
-		{subject: iri("gnos:device-10.102.100.2"), property: "gnos:interfaces", object: seq(
-			[
-				reference(iri("gnos:interface-10.102.100.2-0")),
-				reference(iri("gnos:interface-10.102.100.2-1")),
-				reference(iri("gnos:interface-10.102.100.2-2")),
-				reference(iri("gnos:interface-10.102.100.2-3"))
-			])},
-		
-		{subject: iri("gnos:interface-10.102.100.2-0"), property: "gnos:name", object: primitive(string("eth0"))},
-		{subject: iri("gnos:interface-10.102.100.2-0"), property: "gnos:ip", object: typed_literal("10.102.100.2", "gnos:ip_address")},
-		{subject: iri("gnos:interface-10.102.100.2-0"), property: "gnos:netmask", object: typed_literal("0xFFFFFF00", "gnos:ip_mask")},
-		{subject: iri("gnos:interface-10.102.100.2-0"), property: "gnos:mac", object: typed_literal("00:30:18:A5:7A:F4", "gnos:mac_address")},
-		{subject: iri("gnos:interface-10.102.100.2-0"), property: "gnos:flags", object: primitive(string("UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST"))},
-		{subject: iri("gnos:interface-10.102.100.2-0"), property: "gnos:mtu", object: primitive(int(1500_i32))},
-		{subject: iri("gnos:interface-10.102.100.2-0"), property: "gnos:enabled", object: primitive(boolean(true))},
-		
-		{subject: iri("gnos:interface-10.102.100.2-1"), property: "gnos:name", object: primitive(string("eth1"))},
-		{subject: iri("gnos:interface-10.102.100.2-1"), property: "gnos:ip", object: typed_literal("10.102.1.2", "gnos:ip_address")},
-		{subject: iri("gnos:interface-10.102.100.2-1"), property: "gnos:netmask", object: typed_literal("0xFFFFFF00", "gnos:ip_mask")},
-		{subject: iri("gnos:interface-10.102.100.2-1"), property: "gnos:mac", object: typed_literal("00:30:18:A5:7A:F5", "gnos:mac_address")},
-		{subject: iri("gnos:interface-10.102.100.2-1"), property: "gnos:flags", object: primitive(string("UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST"))},
-		{subject: iri("gnos:interface-10.102.100.2-1"), property: "gnos:mtu", object: primitive(int(1500_i32))},
-		{subject: iri("gnos:interface-10.102.100.2-1"), property: "gnos:enabled", object: primitive(boolean(true))},
-		
-		{subject: iri("gnos:interface-10.102.100.2-2"), property: "gnos:name", object: primitive(string("eth2"))},
-		{subject: iri("gnos:interface-10.102.100.2-2"), property: "gnos:ip", object: typed_literal("10.0.14.2", "gnos:ip_address")},
-		{subject: iri("gnos:interface-10.102.100.2-2"), property: "gnos:netmask", object: typed_literal("0xFFFFFF00", "gnos:ip_mask")},
-		{subject: iri("gnos:interface-10.102.100.2-2"), property: "gnos:mac", object: typed_literal("00:30:18:A5:7A:F6", "gnos:mac_address")},
-		{subject: iri("gnos:interface-10.102.100.2-2"), property: "gnos:flags", object: primitive(string("UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST"))},
-		{subject: iri("gnos:interface-10.102.100.2-2"), property: "gnos:mtu", object: primitive(int(1500_i32))},
-		{subject: iri("gnos:interface-10.102.100.2-2"), property: "gnos:enabled", object: primitive(boolean(true))},
-		
-		{subject: iri("gnos:interface-10.102.100.2-3"), property: "gnos:name", object: primitive(string("eth3"))},
-		{subject: iri("gnos:interface-10.102.100.2-3"), property: "gnos:ip", object: typed_literal("10.102.3.2", "gnos:ip_address")},
-		{subject: iri("gnos:interface-10.102.100.2-3"), property: "gnos:netmask", object: typed_literal("0xFFFFFF00", "gnos:ip_mask")},
-		{subject: iri("gnos:interface-10.102.100.2-3"), property: "gnos:mac", object: typed_literal("00:30:18:AA:92:89", "gnos:mac_address")},
-		{subject: iri("gnos:interface-10.102.100.2-3"), property: "gnos:flags", object: primitive(string("UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST"))},
-		{subject: iri("gnos:interface-10.102.100.2-3"), property: "gnos:mtu", object: primitive(int(1500_i32))},
-		{subject: iri("gnos:interface-10.102.100.2-3"), property: "gnos:enabled", object: primitive(boolean(true))}
-	]
-}
- 
-fn subject_view(_options: options, _settings: hashmap<str, str>, graph: [triple], request: server::request, response: server::response) -> server::response
-{
-	let subject = request.matches.get("subject");
-	let matches = vec::filter(graph) {|elem| elem.subject == iri(subject)};
+	//let subject = request.matches.get("subject");
+	//let matches = vec::filter(graph) {|elem| elem.subject == iri(subject)};
 	
-	fn le(&&a: triple, &&b: triple) -> bool {a.property <= b.property}
-	let matches = std::sort::merge_sort(le, matches);
+	//fn le(&&a: triple, &&b: triple) -> bool {a.property <= b.property}
+	//let matches = std::sort::merge_sort(le, matches);
 	
-	let mut properties = [];
-	for vec::eachi(matches)
-	{|index, match|
-		let map = std::map::str_hash();
-		let (urls, normals) = subject_utils::object_to_context(match.object);
-		map.insert("row-class", mustache::str(if index & 1u == 0u {"even"} else {"odd"}));
-		map.insert("property", mustache::str(match.property));
-		map.insert("has-urls", vec::is_not_empty(urls).to_mustache());
-		map.insert("url-objects", urls.to_mustache());
-		map.insert("normal-objects", normals.to_mustache());
-		vec::push(properties, mustache::map(map));
-	};
+	//let mut properties = [];
+	//for vec::eachi(matches)
+	//{|index, match|
+	//	let map = std::map::str_hash();
+	//	let (urls, normals) = subject_utils::object_to_context(match.object);
+	//	map.insert("row-class", mustache::str(if index & 1u == 0u {"even"} else {"odd"}));
+	//	map.insert("property", mustache::str(match.property));
+	//	map.insert("has-urls", vec::is_not_empty(urls).to_mustache());
+	//	map.insert("url-objects", urls.to_mustache());
+	//	map.insert("normal-objects", normals.to_mustache());
+	//	vec::push(properties, mustache::map(map));
+	//};
 	
-	response.context.insert("subject", mustache::str(subject));
-	response.context.insert("properties", mustache::vec(properties));
+	//response.context.insert("subject", mustache::str(subject));
+	//response.context.insert("properties", mustache::vec(properties));
 	
 	{template: "(private)/subject.html" with response}
 }
@@ -493,8 +387,7 @@ fn main(args: [str])
 	
 	let state_chan = task::spawn_listener {|port| manage_state(port)};
 	
-	let graph = get_graph();
-	let subject_v: server::response_handler = {|settings, request, response| subject_view(options, settings, graph, request, response)};	// need a unique pointer (bind won't work)
+	let subject_v: server::response_handler = {|settings, request, response| subject_view(options, settings, request, response)};	// need a unique pointer (bind won't work)
 	let home_v: server::response_handler = {|settings, request, response| home_view(options, state_chan, settings, request, response)};
 	let modeler_p: server::response_handler = {|_settings, request, response| modeler_put(state_chan, request, response)};
 	
