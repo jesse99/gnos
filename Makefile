@@ -44,10 +44,10 @@ dist:
 
 # ------------------
 # Binary targets 
-bin/gnos: src/gnos.rc src/*.rs
+bin/gnos: src/gnos.rc src/*.rs src/views/*.rs
 	rustc -g -L bin -o $@ $<
 
-bin/test-gnos: src/gnos.rc src/*.rs
+bin/test-gnos: src/gnos.rc src/*.rs src/views/*.rs
 	rustc -g -L bin --test -o $@ $<
 
 bin/hello: katas/hello.rs

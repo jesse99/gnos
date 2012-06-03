@@ -10,4 +10,11 @@ use mustache (name = "mustache", vers = "0.1");
 use rrdf (name = "rrdf", vers = "0.1");
 use rwebserve (name = "rwebserve", vers = "0.1");
 
+mod model;
 mod subject_utils;
+mod views
+{
+	mod get_home;
+	mod get_model;
+	mod put_snmp;
+}
