@@ -1,6 +1,5 @@
 // The manage_state function runs within a dedicated task and allows
 // other tasks to get a snapshot of the model or update the model.
-
 enum msg
 {
 	getter(comm::chan<[triple]>),
@@ -25,4 +24,12 @@ fn manage_state(port: comm::port<msg>)
 			}
 		}
 	}
+}
+
+fn get_state(channel: comm::chan<msg>) -> [triple]
+{
+	let port = comm::port::<[triple]>();
+	let chan = comm::chan::<[triple]>(port);
+	comm::send(channel, getter(chan));
+	ret comm::recv(port);
 }

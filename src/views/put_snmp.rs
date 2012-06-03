@@ -144,17 +144,6 @@ fn json_to_triples(remote_addr: str, data: std::json::json) -> [triple]
 
 fn put_snmp(state_chan: comm::chan<msg>, request: server::request, response: server::response) -> server::response
 {
-	// TODO:
-	// have the home page show something about the json
-	// test the error case
-	
-	// may want to verify that the json is a dict
-	// convert the json into triples
-	// send the triples to the state manager task
-	// change home so that it shows the devices in the store
-	// home should have (in admin/debug) a metric for the store size
-	// commit and push rwebserve changes
-	
 	alt std::json::from_str(request.body)
 	{
 		result::ok(data)

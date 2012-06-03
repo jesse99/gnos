@@ -1,12 +1,31 @@
 // This is the entry point into gnos web sites. It's designed to provide a quick visual
 // indication of the health of the network as well as convenient navigation to other
 // parts of the web site.
-fn get_home(options: options, state_chan: comm::chan<msg>, _settings: hashmap<str, str>, _request: server::request, response: server::response) -> server::response
+
+// TODO:
+// Home	Issues		Model	Admin
+// 
+// Alerts
+// 
+// Devices
+// -------------------------------
+// Home is a link to this page.
+// Issues is a link to a page showing history of alerts and warnings (maybe issues for today/yesterday and disclosure widgets for N previous days).
+//     Might want issues to include alerts, errors, and warnings.
+// Model is a link to a page showing the triple store.
+// Admin allows configuration (managed devices, alert thresholds, etc).
+//
+// If there are no alerts or recent warnings Alerts should be big, green, and say "No Alerts".
+// Alerts should be red and bold links.
+// Device alerts should be a link to the device page.
+// New warnings should cause a "2 new warnings" alert with a link to the issues page. 
+//
+// Devices should contain sorted links to device pages.
+// Links should be color coded based on alert and warning status.
+
+fn get_home(options: options, channel: comm::chan<msg>, _settings: hashmap<str, str>, _request: server::request, response: server::response) -> server::response
 {
-	let port = comm::port::<[triple]>();
-	let chan = comm::chan::<[triple]>(port);
-	comm::send(state_chan, getter(chan));
-	let state = comm::recv(port);
+	let state = get_state(channel);
 	
 	let mut triples = [];
 	for vec::each(state)

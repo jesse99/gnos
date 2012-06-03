@@ -14,10 +14,6 @@ http://www.backtoessentials.com/tools/40-useful-print-ready-cheat-sheet-for-web-
 http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=13&ved=0CIYBEBYwAjgK&url=http%3A%2F%2Fnet.tutsplus.com%2Ftutorials%2Fhtml-css-techniques%2F30-html-best-practices-for-beginners%2F&ei=CuSjT5WvG_POiALRrdWABA&usg=AFQjCNFd0gD9wjSLpiSRWcUkUgR8RUH91w&sig2=oINB1YByitNzzJHODujABg
 
 
-* Break gnos.rs into a bunch of helper modules:
-	- maybe have views.rs and snmp_modeler.rs
-	- replace gnos.rs with main.rs, should be mostly just command-line processing
-	- should start unit testing stuff
 * Work on home view:
 	- get some sort of side bar or something showing device links
 	- client needs to request updates
@@ -37,7 +33,6 @@ http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=13&ved=0CIYBEBYwAjg
 	
 	- need a home page with a sidebar showing links to machine names
 	- might want to make these disclosure widgets with whatever is under the host names
-	- get rid of get_graph (might want to save it off somewhere)
 * Run the script with ssh
 	- will need to scp the config file over
 	- when gnos dies kill the ssh
@@ -47,6 +42,14 @@ http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=13&ved=0CIYBEBYwAjg
 	- device pages should have a link to their version of the store (i.e. statements that include their admin ip)
 	- model page should support user queries
 	- device page could be a link with a canned query
+		http://jena.sourceforge.net/ARQ/Tutorial/data.html
+* Work on alerts
+	- managed ip that doesn't exist
+	- small up time
+* Work on warnings
+	- need issue page
+	- need to persist warnings and alerts
+	- snmp modeler (or maybe #error/#warning) should add warnings to store
 * Need to support ifXTable.
 * Information flow is:
 	- scripts gather data using snmp get, traps, vtysh, etc
