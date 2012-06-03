@@ -1,0 +1,39 @@
+<!-- Used to view rdf triplets associated with a particular subject. -->
+<!DOCTYPE html>
+<meta charset=utf-8>
+
+<html lang="en">
+	<head>
+		<title><{{subject}} Properties</title>
+		<base href="{{base-path}}"/>
+		<link rel="stylesheet" type="text/css" href="subject.css"/>
+		<h2>{{subject}} Properties</h2>
+	</head>
+	
+	<body>
+		<table border="1">
+			<tr>
+				<th>Property</th>
+				<th>Object</th>
+			</tr>
+			{{#properties}}
+			<tr class="{{row-class}}">
+				<td class="property">{{property}}</td>
+				<td class="value"><span>
+					{{#has-urls}}
+						<ul class="list">
+						{{#url-objects}}
+								<li><a href="{{url}}">{{text}}</a></li>
+						{{/url-objects}}
+						</ul>
+					{{/has-urls}}
+					
+					{{#normal-objects}}
+						{{object}} 
+					{{/normal-objects}}
+				</span></td>
+			</tr>
+			{{/properties}}
+		</table> 
+	</body>
+<html>

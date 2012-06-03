@@ -1,0 +1,13 @@
+// If vers is changed then change the version in gnos.rs and in the scripts.
+#[link(name = "gnos", vers = "0.1", uuid = "3043445D-FD01-4543-9B1C-1FD96BE62CEF")];
+
+#[author = "Jesse Jones"];
+#[license = "MIT"];
+#[doc = "Web based network management system"];
+
+use std;
+use mustache (name = "mustache", vers = "0.1");
+use rrdf (name = "rrdf", vers = "0.1");
+use rwebserve (name = "rwebserve", vers = "0.1");
+
+mod subject_utils;
