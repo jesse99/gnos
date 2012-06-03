@@ -36,7 +36,7 @@ update-libraries:
 	cp /usr/local/lib/rust/librparse-*-0.3.dylib bin
 	cp /usr/local/lib/rust/librrdf-*-0.1.dylib bin
 	cp /usr/local/lib/rust/librwebserve-*-0.1.dylib bin
-	rm bin/gnos
+	rm -f bin/gnos
 
 dist:
 	tar --create --compress --exclude \*/.git --exclude \*/.git/\* --file=gnos-0.1.tar.gz \
