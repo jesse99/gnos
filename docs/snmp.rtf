@@ -13,42 +13,15 @@ good summary, as well as oid links\
 snmp links
 \f0\fs28 \
 \
-PySNMP			pure python\
-				bit of a pain to get working\
-				http://stackoverflow.com/questions/7731411/how-can-i-check-the-data-transfer-on-a-network-interface-in-python\
-				threads: http://stackoverflow.com/questions/10381963/is-pysnmp-thread-safe\
-NetSNMP\
-					had great bindings\
-					didn't support some bulk operations\
-pynetsnmp\
-\
-Twisted-Snmp\
-seafelt's libsnmp\
-\
-\
-single requests\
-	get\
-	getnext\
-	\
-multiple requests\
-	walk\
-	tanke\
-	delta\
-	\
 snmpd is extensible (and part of net-snmp)\
 \
-\
-.iso.org.dod.internet.mgmt.mib-2.interfaces.ifTable.ifEntry.ifDescr.4 = STRING: gre0\
- 1   3   6     1           2       1        2.2.1.22.5 = OID: .0.0\
-
-\f1\fs24 \
-
-\f0\fs28 .1.3.6.1.2.1.2.2.1.22.5 = OID: .0.0\
-.iso.org.dod.internet.mgmt.mib-2.ifMIB.ifMIBObjects.ifXTable.ifXEntry.ifName.1 = STRING: lo\
-
-\f1\fs24 \
-
+\pard\pardeftab480\pardirnatural
+\cf0 RFC1213
+\f1\fs24  has routing
 \f0\fs28 \
+\pard\pardeftab480\pardirnatural
+\cf0 \
+\
 \
 modeler should poll using bulk queries\
 modeler should listen for generic traps and at least a few custom ones admins can add\
@@ -90,13 +63,10 @@ if we use ssh will the remote app close down when the ssh session does?\
 	\
 	\
 	\
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
 
-\b\fs24 \cf0 make TERM="dumb" run-snmp\
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\li720\fi-720\pardirnatural
+\b\fs24 make TERM="dumb" run-snmp\
 
-\f2\b0 \cf0 scp scripts/sat.json jjones@10.8.0.149: && scp scripts/snmp-modeler.py jjones@10.8.0.149: && ssh jjones@10.8.0.149 "python snmp-modeler.py -vvv --stdout  --duration=1 sat.json"\
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\f2\b0 scp scripts/sat.json jjones@10.8.0.149: && scp scripts/snmp-modeler.py jjones@10.8.0.149: && ssh jjones@10.8.0.149 "python snmp-modeler.py -vvv --stdout  --duration=1 sat.json"\
 \cf2 \{\
     "10.101.100.2": \{\
         "ipDefaultTTL": "64", \
