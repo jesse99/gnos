@@ -8,8 +8,13 @@
 	</head>
 	
 	<body>
-		<p>Content would go <a href="/hello/kurt">here</a></p>
-
+		<h2>Devices:</h2>
+		<ul class="url-list">
+		{{#devices}}
+			<li><a href="{{url}}" class="{{class}}">{{text}}</a></li>
+		{{/devices}}
+		</ul>
+		
 		<p>State is:</p>
 		{{#store}}
 			<p>{{subject}}  {{property}}  {{object}}</p>
