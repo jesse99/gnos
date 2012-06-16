@@ -14,6 +14,35 @@ http://www.backtoessentials.com/tools/40-useful-print-ready-cheat-sheet-for-web-
 http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=13&ved=0CIYBEBYwAjgK&url=http%3A%2F%2Fnet.tutsplus.com%2Ftutorials%2Fhtml-css-techniques%2F30-html-best-practices-for-beginners%2F&ei=CuSjT5WvG_POiALRrdWABA&usg=AFQjCNFd0gD9wjSLpiSRWcUkUgR8RUH91w&sig2=oINB1YByitNzzJHODujABg
 
 
+* Front page needs to use a rather fancy query:
+	- page contains list of <device name> <status> <note>
+	- where status is "UP" or "DOWN"
+	- node is typically a recent alert
+	- for now store can look like:
+		gnos:10.101.0.10	gnos:device_name		"GRS-1"
+		gnos:10.101.0.10	gnos:status				"UP"
+		gnos:10.101.0.10	gnos:alert					_:alert1
+		
+		_:alert1				gnos:alert_text			"blah blah"
+		_:alert1				gnos:alert_date			"Jan 1"
+	- query could be:
+		SELECT ?name ?status ?alert			# alert may be option:none
+		WHERE
+		{
+			?device			gnos:device_name	?name .
+			?device			gnos:status			?status .
+			OPTIONAL
+			{
+				?device		gnos:alert				?alert_ref .
+				?alert_ref		gnos:alert_text		?alert .
+				?alert_ref		gnos:alert_date		?date .
+				FILTER (?date < 24 hours)		# filter syntax isn't quite right
+			}
+		}
+* May want to use deps directory
+	- update-libraries eithe git clones/pulls or uses subtrees
+	- check-all runs all unit tests
+	- make defaults to building everything
 * Work on home view:
 	- get some sort of side bar or something showing device links
 	- client needs to request updates
@@ -21,6 +50,11 @@ http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=13&ved=0CIYBEBYwAjg
 		` if small number of devices just use a list
 		` otherwise use a disclosure widget
 	- links should be color coded depending on device status
+	- get rid of the greeting code
+* Etho can only be named using a device so it should be a blank node.
+* Should subjects have time stamps?
+* Store last N snapshots? Separate stores?
+* Protege is an open source ontology editor.
 * Figure out how to get data into gnos:
 	- how big is the store? should the home page have an estimate of the store size?
 	- gnos needs to scp over config file
@@ -43,6 +77,10 @@ http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=13&ved=0CIYBEBYwAjg
 	- model page should support user queries
 	- device page could be a link with a canned query
 		http://jena.sourceforge.net/ARQ/Tutorial/data.html
+		http://www.w3.org/TR/rdf-sparql-protocol/
+		http://www.w3.org/Submission/2003/SUBM-rdf-netapi-20031002/
+* Make the licensing explicit
+	- need to do this for other projects as well
 * Work on alerts
 	- managed ip that doesn't exist
 	- small up time
