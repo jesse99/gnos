@@ -1,3 +1,5 @@
+Built with: d7823de5e2bfc749c2fb4fcfe4d65d54b28e3a92
+
 http://htmldog.com/reference/htmltags/
 http://www.metaltoad.com/html5-reference
 http://dev.w3.org/html5/html-author/
@@ -12,7 +14,8 @@ http://www.apress.com/web-development/html/9781430238645
 http://www.apress.com/web-development/html/9781590598047
 http://www.backtoessentials.com/tools/40-useful-print-ready-cheat-sheet-for-web-developers/
 http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=13&ved=0CIYBEBYwAjgK&url=http%3A%2F%2Fnet.tutsplus.com%2Ftutorials%2Fhtml-css-techniques%2F30-html-best-practices-for-beginners%2F&ei=CuSjT5WvG_POiALRrdWABA&usg=AFQjCNFd0gD9wjSLpiSRWcUkUgR8RUH91w&sig2=oINB1YByitNzzJHODujABg
-
+restful uris: http://redrata.com/restful-uri-design/
+javascript model/view: http://documentcloud.github.com/backbone/
 
 * Front page needs to use a rather fancy query:
 	- page contains list of <device name> <status> <note>
@@ -36,9 +39,13 @@ http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=13&ved=0CIYBEBYwAjg
 				?device		gnos:alert				?alert_ref .
 				?alert_ref		gnos:alert_text		?alert .
 				?alert_ref		gnos:alert_date		?date .
-				FILTER (?date < 24 hours)		# filter syntax isn't quite right
+				FILTER (?date >= {{threshold}})	
 			}
 		}
+* OpenOntologyRepository (OOR) and Xmdr
+	- also can use swoogle to search for ontologies
+* Make gnos a sparql endpoint?
+	- note that there is a protocol for this
 * May want to use deps directory
 	- update-libraries eithe git clones/pulls or uses subtrees
 	- check-all runs all unit tests
@@ -51,7 +58,8 @@ http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=13&ved=0CIYBEBYwAjg
 		` otherwise use a disclosure widget
 	- links should be color coded depending on device status
 	- get rid of the greeting code
-* Etho can only be named using a device so it should be a blank node.
+* Use valid time? Also look at Owl-Time
+* Eth0 can only be named using a device so it should be a blank node.
 * Should subjects have time stamps?
 * Store last N snapshots? Separate stores?
 * Protege is an open source ontology editor.

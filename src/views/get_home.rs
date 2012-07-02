@@ -1,6 +1,9 @@
 // This is the entry point into gnos web sites. It's designed to provide a quick visual
 // indication of the health of the network as well as convenient navigation to other
 // parts of the web site.
+import rrdf::object::*;
+import rrdf::store::*;
+//import rrdf::store::store_methods;
 
 // TODO:
 // Home	Issues		Model	Admin Shutdown
@@ -28,16 +31,17 @@
 // need a query like
 //    select name and managed_ip
 //    where subject.starts_with("gnos:device")
-fn get_home(options: options, channel: comm::chan<msg>, _settings: hashmap<str, str>, _request: server::request, response: server::response) -> server::response
+fn get_home(options: options, channel: comm::chan<msg>, _settings: hashmap<str, str>, 
+	_request: server::request, response: server::response) -> server::response
 {
 	let state = get_state(channel);
 	
-	let mut triples = [];
-	for vec::each(state)
+	let mut triples = []/~;
+	for state.each
 	{|triple|
 		let map = std::map::str_hash();
-		map.insert("subject", mustache::str(triple.subject.to_str()));
-		map.insert("property", mustache::str(triple.property));
+		map.insert("subject", mustache::str(triple.subject));
+		map.insert("property", mustache::str(triple.predicate));
 		map.insert("object", mustache::str(triple.object.to_str()));
 		vec::push(triples, mustache::map(map));
 	};

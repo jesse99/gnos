@@ -21,20 +21,13 @@ run-snmp:
 check: bin/test-gnos
 	./bin/test-gnos
 
-hello: bin/hello
-	export RUST_LOG=hello && ./bin/$@
-
-#export RUST_LOG=::rt::backtrace && ./bin/$@
-kata2: bin/kata2
-	./bin/$@
-
 # You can either use this target (assuming that the libraries are in /usr/local/lib/rust)
 # or install them via cargo.
 update-libraries:
 	cp /usr/local/lib/rust/libmustache-*-0.1.dylib bin
 	cp /usr/local/lib/rust/libsocket-*-0.1.dylib bin
-	cp /usr/local/lib/rust/librparse-*-0.3.dylib bin
-	cp /usr/local/lib/rust/librrdf-*-0.1.dylib bin
+	cp /usr/local/lib/rust/librparse-*-0.4.dylib bin
+	cp /usr/local/lib/rust/librrdf-*-0.2.dylib bin
 	cp /usr/local/lib/rust/librwebserve-*-0.1.dylib bin
 	rm -f bin/gnos
 
@@ -45,13 +38,7 @@ dist:
 # ------------------
 # Binary targets 
 bin/gnos: src/gnos.rc src/*.rs src/views/*.rs
-	rustc -g -L bin -o $@ $<
+	rustc -L bin -o $@ $<
 
 bin/test-gnos: src/gnos.rc src/*.rs src/views/*.rs
-	rustc -g -L bin --test -o $@ $<
-
-bin/hello: katas/hello.rs
-	rustc -o $@ $<
-
-bin/kata2: katas/kata2.rs
-	rustc -g --test -o $@ $<
+	rustc -L bin --test -o $@ $<
