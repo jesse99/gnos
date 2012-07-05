@@ -1,3 +1,4 @@
+// TODO: Should be able to simply import rrdf. See https://github.com/mozilla/rust/issues/1935
 import rrdf::object::*;
 import rrdf::store::*;
 
@@ -14,7 +15,11 @@ enum msg
 // other tasks to get a snapshot of the model or update the model.
 fn manage_state(port: comm::port<msg>)
 {
-	let store = create_store([{prefix: "gnos", path: "http://www.gnos.org/2012/schema#"}]/~);
+	let store = create_store(
+		[
+			{prefix: "gnos", path: "http://www.gnos.org/2012/schema#"},
+			{prefix: "snmp", path: "http://www.gnos.org/2012/snmp/"},
+		]/~, []/~);
 	
 	loop
 	{
@@ -27,6 +32,11 @@ fn manage_state(port: comm::port<msg>)
 			setter(f, data)
 			{
 				f(store, data);
+				//#info["Store set to:"];
+				//for store.each
+				//{|triple|
+				//	#info["%s", triple.to_str()];
+				//};
 			}
 		}
 	}

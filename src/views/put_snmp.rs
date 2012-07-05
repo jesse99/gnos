@@ -5,66 +5,42 @@ import rrdf::store::*;
 
 export put_snmp;
 
-fn add_string(store: store, subject: str, property: str, value: str)
+fn lookup(table: std::map::hashmap<str, std::json::json>, key: str, default: str) -> str
 {
-	store.add_triple([]/~, make_triple_str(store, subject, property, value));
-}
-
-fn add_strings(store: store, subject: str, value: [str])
-{
-	let values = vec::map(value) {|v| literal_to_object(v, "http://www.w3.org/2001/XMLSchema#string", "")};
-	store.add_seq(subject, values);
-}
-
-fn add_str_default(store: store, subject: str, property: str, data: std::map::hashmap<str, std::json::json>, 
-	key: str, default: str)
-{
-	let object = alt data.find(key)
+	alt table.find(key)
 	{
-		some(value)
+		option::some(std::json::string(s))
 		{
-			alt value
-			{
-				std::json::string(s)
-				{
-					s
-				}
-				_
-				{
-					// This is something that should never happen so it's not so bad that we don't provide a lot of context
-					// (if it does somehow happen admins can crank up the logging level to see where it is coming from).
-					#error["%s was expected to be a string but is a %?", key, value];	// TODO: would be nice if the site could somehow show logs
-					@default
-				}
-			}
+			*s
 		}
-		none
+		option::some(value)
 		{
-			@default
+			// This is something that should never happen so it's not so bad that we don't provide a lot of context
+			// (if it does somehow happen admins can crank up the logging level to see where it is coming from).
+			#error["%s was expected to be a string but is a %?", key, value];	// TODO: would be nice if the site could somehow show logs
+			default
 		}
-	};
-	add_string(store, subject, property, *object);
-}
-
-// We save the most important bits of data that we receive from json into gnos statements
-// so that we can more easily model devices that don't use snmp.
-fn add_device(store: store, subject: str, device: std::map::hashmap<str, std::json::json>)
-{
-	add_str_default(store, subject, "gnos:name", device, "sysName", "<unknown>");	// TODO: admin property, if set, should override this
-	add_str_default(store, subject, "gnos:description", device, "sysDescr", "");			// TODO: admin property, if set, should override this
+		option::none
+		{
+			default
+		}
+	}
 }
 
 // We store snmp data for various objects in the raw so that views are able to use it
 // and so admins can view the complete raw data.
-fn add_snmp(store: store, subject: str, object: std::map::hashmap<str, std::json::json>)
+fn add_snmp(store: store, label: str, object: std::map::hashmap<str, std::json::json>) -> str
 {
-	for object.each()
+	let mut entries = [];
+	vec::reserve(entries, object.size());
+	
+	for object.each()			// unfortunately hashmap doesn't support the base_iter protocol so there's no nice way to do this
 	{|name, value|
 		alt value
 		{
 			std::json::string(s)
 			{
-				add_string(store, subject, name, *s);
+				vec::push(entries, ("snmp:" + name, string_value(*s, "")));
 			}
 			std::json::dict(_d)
 			{
@@ -72,15 +48,112 @@ fn add_snmp(store: store, subject: str, object: std::map::hashmap<str, std::json
 			}
 			std::json::list(_l)
 			{
-				// this is the interfaces list
-				// TODO: can probably nuke this once we start processing the interfaces
+				// this is the interfaces list (handled in add_device)
 			}
 			_
 			{
-				#error["%s was expected to contain string, dict, and list items but had a %?", subject, value];
+				#error["%s was expected to contain string, dict, and list items but %s was %?", label, name, value];
 			}
 		}
 	};
+	
+	let subject = get_blank_name(store, #fmt["%s-snmp", label]);
+	store.add(subject, entries);
+	ret subject;
+}
+
+ // "ifAdminStatus": "up(1)", 
+  // "ifDescr": "eth3", 
+  // "ifInDiscards": "74", 
+  // "ifInOctets": "13762376", 
+  // "ifInUcastPkts": "155115", 
+  // "ifLastChange": "1503", 
+  // "ifMtu": "1500", 
+  // "ifOperStatus": "up(1)", 
+  // "ifOutOctets": "12213444", 
+  // "ifOutUcastPkts": "148232", 
+  // "ifPhysAddress": "00:30:18:ab:0f:a1", 
+  // "ifSpeed": "100000000", 
+  // "ifType": "ethernetCsmacd(6)", 
+  // "ipAdEntAddr": "10.101.3.2", 
+  // "ipAdEntNetMask": "255.255.255.0"
+fn add_interface(store: store, managed_ip: str, data: std::json::json) -> (str, object)
+{
+	alt data
+	{
+		std::json::dict(interface)
+		{
+			let name = lookup(interface, "ifDescr", "");
+			let label = #fmt["%s-%s", managed_ip, name];
+			
+			let entries = [
+				("gnos:ifname", string_value(name, "")),
+				("gnos:ip", string_value(lookup(interface, "ipAdEntAddr", ""), "")),
+				("gnos:netmask", string_value(lookup(interface, "ipAdEntNetMask", ""), "")),
+				("gnos:mac", string_value(lookup(interface, "ifPhysAddress", ""), "")),
+				("gnos:mtu", literal_to_object(lookup(interface, "ifMtu", ""), "http://www.w3.org/2001/XMLSchema#integer", "")),
+				("gnos:enabled", bool_value(str::contains(lookup(interface, "ifOperStatus", ""), "(1)"))),	// TODO: verify that we want this and not ifAdminStatus
+				("gnos:snmp", blank_value(add_snmp(store, label, interface))),
+			];
+			
+			let subject = get_blank_name(store, label);
+			store.add(subject, entries);
+			("gnos:interface", blank_value(subject))
+		}
+		_
+		{
+			#error["Expected dict for %s interfaces but found %?", managed_ip, data];
+			("gnos:missing-interface", string_value("", ""))
+		}
+	}
+}
+
+fn add_interfaces(store: store, managed_ip: str, device: std::map::hashmap<str, std::json::json>) -> [(str, object)]/~
+{
+	alt device["interfaces"]
+	{
+		std::json::list(interfaces)
+		{
+			vec::map(*interfaces)
+			{|interface|
+				add_interface(store, managed_ip, interface)
+			}
+		}
+		_
+		{
+			#error["Expected list for %s interfaces but found %?", managed_ip, device.get("interfaces")];
+			[]/~
+		}
+	}
+}
+
+// We save the most important bits of data that we receive from json into gnos statements
+// so that we can more easily model devices that don't use snmp.
+//
+// "ipDefaultTTL": "64", 
+// "ipForwDatagrams": "8", 
+// "ipForwarding": "forwarding(1)", 
+// "ipInDelivers": "338776", 
+// "ipInReceives": "449623", 
+// "ipNetToMediaType": "dynamic(3)", 
+// "ipOutDiscards": "1", 
+// "ipOutRequests": "325767", 
+// "sysContact": "support@cococorp.com", 
+// "sysDescr": "Linux GRS-A 2.6.39.4 #1 Wed Apr 4 02:43:16 PDT 2012 i686", 
+// "sysLocation": "air", 
+// "sysName": "GRS", 
+// "sysUpTime": "5080354"
+fn add_device(store: store, managed_ip: str, device: std::map::hashmap<str, std::json::json>)
+{
+	let entries = [
+		("gnos:managed_ip", typed_value(managed_ip, "gnos:ip_address")),
+		("gnos:name", string_value(lookup(device, "sysName", "unknown"), "")),	// TODO: admin property, if set, should override this
+		("gnos:description", string_value(lookup(device, "sysDescr", ""), "")),		// TODO: admin property, if set, should override this
+		("gnos:snmp", blank_value(add_snmp(store, managed_ip, device))),
+	] + add_interfaces(store, managed_ip, device);
+	
+	let subject = get_blank_name(store, managed_ip);
+	store.add(subject, entries);
 }
 
 // Format is:
@@ -107,9 +180,7 @@ fn json_to_store(remote_addr: str, store: store, body: str)
 		result::ok(data)
 		{
 			store.clear();
-			
-			// TODO: This should come from some data structure under the control of an admin.
-			add_strings(store, "gnos:managed-ips", ["10.101.100.2"]);
+			store.add_triple([]/~, {subject: "gnos:system", predicate: "gnos:last_update", object: dateTime_value(std::time::now())});
 			
 			alt data
 			{
@@ -121,11 +192,7 @@ fn json_to_store(remote_addr: str, store: store, body: str)
 						{
 							std::json::dict(device)
 							{
-								let subject = #fmt["gnos:device-%s", managed_ip];
-								add_device(store, subject, device);
-								
-								let subject = #fmt["gnos:snmp-device-%s", managed_ip];
-								add_snmp(store, subject, device);
+								add_device(store, managed_ip, device);
 							}
 							_
 							{
@@ -164,4 +231,3 @@ fn put_snmp(state_chan: comm::chan<msg>, request: server::request, response: ser
 	comm::send(state_chan, setter({|s, d| json_to_store(addr, s, d)}, request.body));
 	{body: "" with response}
 }
-

@@ -13,10 +13,10 @@ all: bin/gnos
 # gnos doesn't return so we start the client before the browser.
 run: bin/gnos
 	git web--browse 'http://localhost:8080'
-	export RUST_LOG=gnos=3,rwebserve::server=3,socket=1 && ./bin/gnos --admin --root=html --address=localhost --address=10.6.210.132 --port=8080
+	export RUST_LOG=gnos=3,rwebserve::server=2,socket=1 && ./bin/gnos --admin --root=html --address=localhost --address=10.6.210.145 --port=8080
 
 run-snmp:
-	scp scripts/sat.json jjones@10.8.0.149: && scp scripts/snmp-modeler.py jjones@10.8.0.149: && ssh jjones@10.8.0.149 "python snmp-modeler.py -vvv --stdout  --duration=1 sat.json"
+	scp scripts/sat.json scripts/snmp-modeler.py jjones@10.8.0.149: && ssh jjones@10.8.0.149 "python snmp-modeler.py -vvv --stdout  --duration=1 sat.json"
 
 check: bin/test-gnos
 	./bin/test-gnos
@@ -26,7 +26,7 @@ check: bin/test-gnos
 update-libraries:
 	cp /usr/local/lib/rust/libmustache-*-0.1.dylib bin
 	cp /usr/local/lib/rust/libsocket-*-0.1.dylib bin
-	cp /usr/local/lib/rust/librparse-*-0.4.dylib bin
+	cp /usr/local/lib/rust/librparse-*-0.5.dylib bin
 	cp /usr/local/lib/rust/librrdf-*-0.2.dylib bin
 	cp /usr/local/lib/rust/librwebserve-*-0.1.dylib bin
 	rm -f bin/gnos

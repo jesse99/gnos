@@ -7,17 +7,23 @@
 \f0\fs28 \cf0 This is the RDF schema for the information recorded by the default gnos modelers. Other information may be recorded by plugins, but that information will be defined by different schemas and stored in different rdf graphs. The information stored in the network model is assumed to be relatively stable.\
 \
 The schema is defined with the aid of a couple of different namespace prefixes:\
+\pard\pardeftab480\pardirnatural
 
-\i gnos
+\i \cf0 gnos
 \i0  - http://<server address>/gnos#\
 
 \i xsd
 \i0  - http://www.w3.org/2001/XMLSchema#\
 \
 There are a few custom literal types:\
+\pard\pardeftab480\pardirnatural
 
-\i gnos:ip_address
+\i \cf0 gnos:ip_address
 \i0  - IPv4 or IPv6 ip address\
+\pard\pardeftab480\pardirnatural
+
+\i \cf0 gnos:ip_addresses
+\i0  - space separated list of ip_address\
 
 \i gnos:ip_mask
 \i0  - netmask\
@@ -28,19 +34,20 @@ There are a few custom literal types:\
 The schema is listed below. Note that the listed properties will always be\
 present.\
 \
+\pard\pardeftab480\pardirnatural
 
-\b gnos:admin\
+\b \cf0 gnos:system
+\b0 \
+\pard\pardeftab480\pardirnatural
+\cf0 gnos:last_update	xsd:dateTime\
+\
+\pard\pardeftab480\pardirnatural
 
-\b0 gnos:managed-ips	[gnos:ip-address]\
-gnos:last_update	xsd:date
-\b \
-
-\f1\b0\fs24 \
-
-\f0\b\fs28 gnos:device-<managed-ip>\
-
-\b0 gnos:name			xsd:string								may be "<unknown>"\
-gnos:description		xsd:string                                 may be ""\
+\b \cf0 _:10.1.0.1
+\b0 \
+gnos:managed_ip	gnos:ip_address						"10.1.0.1"\
+gnos:name			xsd:string								may be "<unknown>"\
+gnos:description		xsd:string                                  may be ""\
 \
 gnos:os				xsd:string                                 "Darwin"
 \b \
@@ -51,25 +58,25 @@ gnos:os				xsd:string                                 "Darwin"
 \b0 gnos:architecture	xsd:string                                 "i386"
 \b \
 
-\b0 gnos:gateway		gnos:ip_address                        <default gateway> or ""
-\b \
+\b0 gnos:gateway		gnos:ip_address                        <default gateway> or ""\
 \
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:snmp-device-<managed-ip>					
-\b0 raw snmp data
+gnos:interface		blank									_:iface1
 \b \
-\pard\pardeftab480\pardirnatural
 
-\b0 \cf0 snmp:sysUpTime	xsd:string								all objects are string data
+\b0 gnos:interface		blank									_:iface2
+\b \
+
+\b0 gnos:snmp			blank									_:device-snmp1
 \b \
 \pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
 
 \f1\b0\fs24 \cf0 \
 \pard\pardeftab480\pardirnatural
 
-\f0\b\fs28 \cf0 gnos:<name>-interface-<managed-ip>\
+\f0\b\fs28 \cf0 _:10.1.0.1-eth1\
 
-\b0 gnos:ip				gnos:ip_address
+\b0 gnos:ifname			xsd:string								"eth1"\
+gnos:ip				gnos:ip_address
 \b \
 
 \b0 gnos:netmask		gnos:ip_mask
@@ -78,19 +85,33 @@ gnos:os				xsd:string                                 "Darwin"
 \b0 gnos:mac				gnos:mac_address
 \b \
 
-\b0 gnos:flags			xsd:string                                 "UP,LOOPBACK,RUNNING,MULTICAST"\
-gnos:mtu				xsd:int                                     1500\
+\b0 \strike \strikec0 gnos:flags			xsd:string                                 "UP,LOOPBACK,RUNNING,MULTICAST"\
+\strike0\striked0 gnos:mtu				xsd:integer                                1500\
 gnos:enabled			xsd:boolean
 \f1\fs24 \
-\pard\pardeftab480\pardirnatural
 
-\f0\b\fs28 \cf0 \
-gnos:<name>-snmp-interface-<managed-ip>	
+\f0\fs28 gnos:snmp			blank									_:iface-snmp1
+\b \
+\pard\pardeftab480\pardirnatural
+\cf0 \
+_:10.1.0.1-snmp											
 \b0 raw snmp data
+\b \
+
+\b0 snmp:sysUpTime	xsd:string								all objects are string data\
+...
 \b \
 \pard\pardeftab480\pardirnatural
 
-\b0 \cf0 snmp:ifMtu			xsd:string								all objects are string data
+\f1\b0\fs24 \cf0 \
+\pard\pardeftab480\pardirnatural
+
+\f0\b\fs28 \cf0 _:10.1.0.1-eth1-snmp									
+\b0 raw snmp data
+\b \
+
+\b0 snmp:ifMtu			xsd:string								all objects are string data\
+...
 \b \
 \pard\pardeftab480\pardirnatural
 
@@ -112,7 +133,7 @@ gnos:<name>-snmp-interface-<managed-ip>
 \cf3 could provide an snmp viewer that pulls in MIBs to show help info\cf0 \
 \cf2 hard to manage both snmp and non-snmp devices\
 
-\b \cf2 \
+\b \
 \pard\pardeftab480\pardirnatural
 \cf0 store has standardized properties\
 \pard\pardeftab480\pardirnatural
@@ -120,7 +141,7 @@ gnos:<name>-snmp-interface-<managed-ip>
 \b0 \cf2 difficult to preserve the detailed smnp semantics\
 leads to lowest common denominator data\
 
-\b \cf2 \
+\b \
 \pard\pardeftab480\pardirnatural
 \cf0 store has standardized properties as well as raw snmp\
 
@@ -135,4 +156,58 @@ views can still make use of modeler specific data\
 \b \
 
 \b0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\b \cf0 get names and status for all devices\
+
+\b0 \
+SELECT\
+	?name ?status\
+WHERE\
+	?device gnos:managed_ip ?ip .   # managed_ip is unique to devices so we can use it to enumerate devices\
+	?device gnos:name ?name .\
+	?device gnos:status ?status\
+\
+
+\b get details for device with a specific ip\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f1\b0\fs24 \cf0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f0\fs28 \cf0 SELECT\
+	?name ?status\
+WHERE\
+	?device gnos:managed_ip \{\{ip\}\} .\
+	?device gnos:name ?name .\
+	?device gnos:status ?status\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f1\fs24 \cf0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f0\b\fs28 \cf0 get specific interface for specific device\
+
+\b0 \
+SELECT\
+	?status\
+WHERE\
+	?device gnos:managed_ip \{\{ip\}\} .\
+	?device gnos:interface ?iface .\
+	?iface gnos:name \{\{name\}\} .\
+	?iface gnos:status ?status\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f1\fs24 \cf0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f0\b\fs28 \cf0 get snmp for a device with specific ip\
+\
+
+\b0 SELECT\
+	?key ?value\
+WHERE\
+	?device gnos:managed_ip \{\{ip\}\} .\
+	?device gnos:snmp ?snmp .\
+	?snmp ?key ?value\
 }
