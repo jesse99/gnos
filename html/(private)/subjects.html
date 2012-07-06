@@ -1,0 +1,24 @@
+<!-- Used to view subjects for all rdf triplets in the model. -->
+<!DOCTYPE html>
+<meta charset=utf-8>
+
+<html lang="en">
+	<head>
+		<title>Model Subjects</title>
+		<base href="{{base-path}}"/>
+		<link rel="stylesheet" type="text/css" href="subjects.css"/>
+		<h2>Model Subjects</h2>
+	</head>
+	
+	<body>
+		<table border="1">
+			{{#subjects}}
+			<tr class="{{row-class}}">
+				<td class="value"><span>
+					<a href="{{url}}">{{text}}</a>
+				</span></td>
+			</tr>
+			{{/subjects}}
+		</table> 
+	</body>
+<html>

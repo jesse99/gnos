@@ -138,7 +138,8 @@ fn main(args: [str])
 	
 	let state_chan = task::spawn_listener {|port| manage_state(port)};
 	
-	let subject_v: server::response_handler = {|settings, request, response| get_model::get_model(options, settings, request, response)};	// need a unique pointer (bind won't work)
+	let subjects_v: server::response_handler = {|_settings, request, response| get_model::get_subjects(state_chan, request, response)};	// need a unique pointer (bind won't work)
+	let subject_v: server::response_handler = {|_settings, request, response| get_model::get_subject(state_chan, request, response)};	// need a unique pointer (bind won't work)
 	let home_v: server::response_handler = {|settings, request, response| get_home::get_home(options, state_chan, settings, request, response)};
 	let modeler_p: server::response_handler = {|_settings, request, response| put_snmp::put_snmp(state_chan, request, response)};
 	
@@ -150,11 +151,13 @@ fn main(args: [str])
 		routes: [
 			("GET", "/", "home"),
 			("GET", "/hello/{name}", "greeting"),
+			("GET", "/model", "subjects"),
 			("GET", "/subject/{subject}", "subject"),
 			("PUT", "/snmp-modeler", "modeler")],
 		views: [
 			("home",  home_v),
 			("greeting", greeting_view),
+			("subjects",  subjects_v),
 			("subject",  subject_v),
 			("modeler",  modeler_p)],
 		settings: [("debug",  "true")]			// TODO: make this a command-line option

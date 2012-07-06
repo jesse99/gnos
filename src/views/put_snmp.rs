@@ -207,11 +207,8 @@ fn json_to_store(remote_addr: str, store: store, body: str)
 				}
 			}
 			
-			#debug["Data received from %s:", remote_addr];
-			for store.each
-			{|triple|
-				#debug["   %s", triple.to_str()];
-			};
+			#info["Received data from %s:", remote_addr];
+			//for store.each {|triple| #debug["   %s", triple.to_str()];};
 		}
 		result::err(err)
 		{

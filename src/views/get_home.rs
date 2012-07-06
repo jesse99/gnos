@@ -31,22 +31,32 @@ import rrdf::store::*;
 // need a query like
 //    select name and managed_ip
 //    where subject.starts_with("gnos:device")
-fn get_home(options: options, channel: comm::chan<msg>, _settings: hashmap<str, str>, 
+fn get_home(options: options, _channel: comm::chan<msg>, _settings: hashmap<str, str>, 
 	_request: server::request, response: server::response) -> server::response
 {
-	let state = get_state(channel);
-	
-	let mut triples = []/~;
-	for state.each
-	{|triple|
-		let map = std::map::str_hash();
-		map.insert("subject", mustache::str(triple.subject));
-		map.insert("property", mustache::str(triple.predicate));
-		map.insert("object", mustache::str(triple.object.to_str()));
-		vec::push(triples, mustache::map(map));
-	};
-	
-	response.context.insert("store", mustache::vec(triples));
+//	let rows = get_state(state_chan, "
+//		PREFIX gnos: <http://www.gnos.org/2012/schema#>
+//		SELECT
+//			?name
+//		WHERE
+//		{
+//			?device gnos:managed_ip ?ip .
+//			?device gnos:name ?name
+//		} ORDER BY ?name");
+
+//	let state = get_state(channel);
+//	
+//	let mut triples = []/~;
+//	for state.each
+//	{|triple|
+//		let map = std::map::str_hash();
+//		map.insert("subject", mustache::str(triple.subject));
+//		map.insert("property", mustache::str(triple.predicate));
+//		map.insert("object", mustache::str(triple.object.to_str()));
+//		vec::push(triples, mustache::map(map));
+//	};
+//	
+//	response.context.insert("store", mustache::vec(triples));
 	response.context.insert("admin", mustache::bool(options.admin));
 	{template: "home.html" with response}
 }
