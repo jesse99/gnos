@@ -18,6 +18,7 @@ mod subject_utils;
 mod views
 {
 	mod get_home;
-	mod get_model;
 	mod put_snmp;
+	mod get_subject;
+	mod get_subjects;
 }
