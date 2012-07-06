@@ -35,7 +35,8 @@ fn add_snmp(store: store, label: str, object: std::map::hashmap<str, std::json::
 	vec::reserve(entries, object.size());
 	
 	for object.each()			// unfortunately hashmap doesn't support the base_iter protocol so there's no nice way to do this
-	{|name, value|
+	|name, value|
+	{
 		alt value
 		{
 			std::json::string(s)
@@ -114,8 +115,9 @@ fn add_interfaces(store: store, managed_ip: str, device: std::map::hashmap<str, 
 	{
 		std::json::list(interfaces)
 		{
-			vec::map(*interfaces)
-			{|interface|
+			do vec::map(*interfaces)
+			|interface|
+			{
 				add_interface(store, managed_ip, interface)
 			}
 		}
@@ -187,7 +189,8 @@ fn json_to_store(remote_addr: str, store: store, body: str)
 				std::json::dict(d)
 				{
 					for d.each()
-					{|managed_ip, the_device|
+					|managed_ip, the_device|
+					{
 						alt the_device
 						{
 							std::json::dict(device)
@@ -225,6 +228,6 @@ fn put_snmp(state_chan: comm::chan<msg>, request: server::request, response: ser
 	// Of course that shouldn't happen...
 	#info["got new modeler data"];
 	let addr = request.remote_addr;
-	comm::send(state_chan, setter({|s, d| json_to_store(addr, s, d)}, request.body));
+	comm::send(state_chan, setter(|s, d| {json_to_store(addr, s, d)}, request.body));
 	{body: "" with response}
 }

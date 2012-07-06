@@ -136,12 +136,12 @@ fn main(args: [str])
 	let options = parse_command_line(args);
 	validate_options(options);
 	
-	let state_chan = task::spawn_listener {|port| manage_state(port)};
+	let state_chan = do task::spawn_listener |port| {manage_state(port)};
 	
-	let subjects_v: server::response_handler = {|_settings, request, response| get_model::get_subjects(state_chan, request, response)};	// need a unique pointer (bind won't work)
-	let subject_v: server::response_handler = {|_settings, request, response| get_model::get_subject(state_chan, request, response)};	// need a unique pointer (bind won't work)
-	let home_v: server::response_handler = {|settings, request, response| get_home::get_home(options, state_chan, settings, request, response)};
-	let modeler_p: server::response_handler = {|_settings, request, response| put_snmp::put_snmp(state_chan, request, response)};
+	let subjects_v: server::response_handler = |_settings, request, response| {get_model::get_subjects(state_chan, request, response)};	// need a unique pointer (bind won't work)
+	let subject_v: server::response_handler = |_settings, request, response| {get_model::get_subject(state_chan, request, response)};	// need a unique pointer (bind won't work)
+	let home_v: server::response_handler = |settings, request, response| {get_home::get_home(options, state_chan, settings, request, response)};
+	let modeler_p: server::response_handler = |_settings, request, response| {put_snmp::put_snmp(state_chan, request, response)};
 	
 	let config = {
 		hosts: options.addresses,

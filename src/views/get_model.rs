@@ -19,7 +19,8 @@ fn get_subjects(state_chan: comm::chan<msg>, _request: server::request, response
 	let mut subjects = [];
 	
 	for vec::eachi(rows)
-	{|index, row|
+	|index, row|
+	{
 		let name = row.get("name").as_str();
 		
 		let map = std::map::str_hash();

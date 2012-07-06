@@ -52,7 +52,8 @@ fn map_to_vector<K: copy, V: copy>(map: std::map::hashmap<K, V>) -> [(K, V)]/~
 	vec::reserve(result, map.size());
 	
 	for map.each()
-	{|key, value|
+	|key, value|
+	{
 		vec::push(result, (key, value));
 	};
 	result
@@ -62,10 +63,10 @@ fn map_to_vector<K: copy, V: copy>(map: std::map::hashmap<K, V>) -> [(K, V)]/~
 fn str_map_to_str(self: str_map) -> str
 {
 	let v = map_to_vector(self);
-	"{" + str::connect(vec::map(v, {|t| #fmt["\"%s\" => \"%s\"", tuple::first(t), tuple::second(t)]}), ", ") + "}"
+	"{" + str::connect(vec::map(v, |t| {#fmt["\"%s\" => \"%s\"", tuple::first(t), tuple::second(t)]}), ", ") + "}"
 }
 
 fn str_maps_to_str(self: [str_map]) -> str
 {
-	"[" + str::connect(vec::map(self, {|f| str_map_to_str(f)}), ", ") + "]"
+	"[" + str::connect(vec::map(self, |f| {str_map_to_str(f)}), ", ") + "]"
 }
