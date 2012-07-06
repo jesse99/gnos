@@ -196,6 +196,7 @@ javascript model/view: http://documentcloud.github.com/backbone/
 * Rmon
 	- supports packet level stats
 	- allows traps for stats that go above or below a threshold
+* Admins should be able to set which origins the server accepts.
 * Syslog can be used to send logs elsewhere?
 * Next generation network management
 	- http://books.google.com/books?id=9WWereKFb54C&dq=rdf+schema+%22network+management%22&source=gbs_navlinks_s

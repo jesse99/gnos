@@ -1,19 +1,28 @@
 import std::map::hashmap;
 import rrdf::object::*;
 import rrdf::store::*;
+import mustache::to_mustache;
 
-export str_map, object_to_context, str_map_to_str, str_maps_to_str;
+export str_map, object_to_context;
 
-type str_map = std::map::hashmap<str, str>;
+type str_map = std::map::hashmap<str, mustache::data>;
 
-fn append_uri(&urls: [str_map]/~, url: str, name: str)
+fn append_uri(context: str_map, url: str, name: str)
 {
-	vec::push(urls, std::map::hash_from_strs([("url", #fmt["/subject/%s", url]), ("text", name)]));
+	let mut urls = ~[];
+	
+	let map = std::map::str_hash();
+	map.insert("url", mustache::str(#fmt["/subject/%s", url]));
+	map.insert("text", mustache::str(name));
+	vec::push(urls, map);
+	
+	context.insert("urls", urls.to_mustache());
 }
 
-fn append_normal(&normals: [str_map]/~, value: str)
+fn append_normal(context: str_map, value: str)
 {
-	vec::push(normals, std::map::hash_from_strs([("object", value)]));
+	context.insert("urls", false.to_mustache());
+	context.insert("normal", mustache::str(value));
 }
 
 // Returns maps looking like:
@@ -23,30 +32,25 @@ fn append_normal(&normals: [str_map]/~, value: str)
 //    )
 // If the object is a scalar one list will have a single value. If it is a
 // seq, bag, or alt_ each list may have multiple values (which must be scalars).
-fn object_to_context(object: object) -> ([str_map]/~, [str_map]/~)
+fn object_to_context(object: object, context: str_map)
 {
-	let mut url_objects = []/~;
-	let mut normal_objects = []/~;
-	
 	// TODO: scalar discussion above is out of date: do we want to special case
 	// rdf containers?
 	alt object
 	{
-		iri_value(_)			{append_uri(normal_objects, object.to_str(), object.to_str())}
-		blank_value(_)		{append_uri(normal_objects, object.to_str(), object.to_str())}
+		iri_value(_)			{append_uri(context, object.to_str(), object.to_str())}
+		blank_value(_)		{append_uri(context, object.to_str(), object.to_str())}
 		
 		// TODO: need to special case these and use some error css
-		unbound_value(_)	{append_normal(normal_objects, object.to_str())}
-		invalid_value(*)		{append_normal(normal_objects, object.to_str())}
-		error_value(_)		{append_normal(normal_objects, object.to_str())}
+		unbound_value(_)	{append_normal(context, object.to_str())}
+		invalid_value(*)		{append_normal(context, object.to_str())}
+		error_value(_)		{append_normal(context, object.to_str())}
 		
-		_						{append_normal(normal_objects, object.to_str())}
+		_						{append_normal(context, object.to_str())}
 	}
-	
-	(url_objects, normal_objects)
 }
 
-fn map_to_vector<K: copy, V: copy>(map: std::map::hashmap<K, V>) -> [(K, V)]/~
+fn map_to_vector<K: copy, V: copy>(map: std::map::hashmap<K, V>) -> ~[(K, V)]
 {
 	let mut result = []/~;
 	vec::reserve(result, map.size());
@@ -60,13 +64,13 @@ fn map_to_vector<K: copy, V: copy>(map: std::map::hashmap<K, V>) -> [(K, V)]/~
 }
 
 // TODO: would be better to have a to_str impl, but was getting multiple definition errors...
-fn str_map_to_str(self: str_map) -> str
-{
-	let v = map_to_vector(self);
-	"{" + str::connect(vec::map(v, |t| {#fmt["\"%s\" => \"%s\"", tuple::first(t), tuple::second(t)]}), ", ") + "}"
-}
-
-fn str_maps_to_str(self: [str_map]) -> str
-{
-	"[" + str::connect(vec::map(self, |f| {str_map_to_str(f)}), ", ") + "]"
-}
+//fn str_map_to_str(self: str_map) -> str
+//{
+//	let v = map_to_vector(self);
+//	"{" + str::connect(vec::map(v, |t| {#fmt["\"%s\" => \"%s\"", tuple::first(t), tuple::second(t)]}), ", ") + "}"
+//}
+//
+//fn str_maps_to_str(self: [str_map]) -> str
+//{
+//	"[" + str::connect(vec::map(self, |f| {str_map_to_str(f)}), ", ") + "]"
+//}

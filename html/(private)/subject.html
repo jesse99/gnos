@@ -4,36 +4,31 @@
 
 <html lang="en">
 	<head>
-		<title><{{subject}} Properties</title>
+		<title><{{subject}} Predicates</title>
 		<base href="{{base-path}}"/>
 		<link rel="stylesheet" type="text/css" href="subject.css"/>
-		<h2>{{subject}} Properties</h2>
+		<h2>{{subject}} Predicates</h2>
 	</head>
 	
 	<body>
 		<table border="1">
 			<tr>
-				<th>Property</th>
+				<th>Predicate</th>
 				<th>Object</th>
 			</tr>
-			{{#properties}}
+			{{#predicates}}
 			<tr class="{{row-class}}">
-				<td class="property">{{property}}</td>
+				<td class="predicate">{{predicate}}</td>
 				<td class="value"><span>
-					{{#has-urls}}
-						<ul class="list">
-						{{#url-objects}}
-								<li><a href="{{url}}">{{text}}</a></li>
-						{{/url-objects}}
-						</ul>
-					{{/has-urls}}
-					
-					{{#normal-objects}}
-						{{object}} 
-					{{/normal-objects}}
+					{{#urls}}
+						<a href="{{url}}">{{text}}</a>
+					{{/urls}}
+					{{^urls}}
+						{{normal}}
+					{{/urls}}
 				</span></td>
 			</tr>
-			{{/properties}}
+			{{/predicates}}
 		</table> 
 	</body>
 <html>
