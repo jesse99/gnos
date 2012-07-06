@@ -27,9 +27,3 @@ tr.odd
 	background-color: azure;
 }
 
-ul.list
-{
-	list-style-type: none;
-	padding: 0;
-	margin-left: 0;
-}
