@@ -1,7 +1,6 @@
 // This is the code that handles PUTs from the snmp-modeler script. It parses the
 // incoming json, converts it into triplets, and updates the model.
-import rrdf::object::*;
-import rrdf::store::*;
+import rrdf::*;
 
 export put_snmp;
 

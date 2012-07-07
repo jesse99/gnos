@@ -1,8 +1,7 @@
 // Provides a view onto the back-end model used by gnos. This is not intended
 // to be something used very often: it's just a convenient mechanism by which
 // users can inspect the raw data used by the other views..
-import rrdf::object::object_methods;
-import rrdf::solution::solution_row_methods;
+import rrdf::*;
 import mustache::to_mustache;
 
 fn get_subjects(state_chan: comm::chan<msg>, _request: server::request, response: server::response) -> server::response

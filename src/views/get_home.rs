@@ -1,9 +1,7 @@
 // This is the entry point into gnos web sites. It's designed to provide a quick visual
 // indication of the health of the network as well as convenient navigation to other
 // parts of the web site.
-import rrdf::object::*;
-import rrdf::store::*;
-//import rrdf::store::store_methods;
+import rrdf::*;
 
 // TODO:
 // Home	Issues		Model	Admin Shutdown

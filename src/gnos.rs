@@ -3,7 +3,6 @@ import io::writer_util;
 import std::getopts::*;
 import std::map::hashmap;
 import server = rwebserve::server;
-import rrdf::*;
 import model::*;
 import views::*;
 

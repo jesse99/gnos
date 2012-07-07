@@ -1,7 +1,5 @@
 // TODO: Should be able to simply import rrdf. See https://github.com/mozilla/rust/issues/1935
-import rrdf::object::*;
-import rrdf::solution::*;
-import rrdf::store::*;
+import rrdf::*;
 
 // Data can be anything, but is typically json.
 type store_setter = fn~ (store: store, data: str) -> ();
