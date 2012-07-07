@@ -32,5 +32,5 @@ fn get_subjects(state_chan: comm::chan<msg>, _request: server::request, response
 	}
 	
 	response.context.insert("subjects", mustache::vec(subjects));
-	{template: "(private)/subjects.html" with response}
+	{template: "subjects.html" with response}
 }

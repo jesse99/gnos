@@ -76,6 +76,6 @@ fn get_subject(state_chan: comm::chan<msg>, request: server::request, response: 
 	response.context.insert("subject", mustache::str(subject));
 	response.context.insert("predicates", mustache::vec(predicates));
 	
-	{template: "(private)/subject.html" with response}
+	{template: "subject.html" with response}
 }
 
