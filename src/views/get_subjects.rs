@@ -1,6 +1,6 @@
 // Provides a view onto the back-end model used by gnos. This is not intended
 // to be something used very often: it's just a convenient mechanism by which
-// users can inspect the raw data used by the other views..
+// users can inspect the raw data used by the other views.
 import rrdf::*;
 import mustache::to_mustache;
 

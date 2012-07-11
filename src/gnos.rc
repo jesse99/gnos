@@ -17,7 +17,8 @@ mod model;
 mod views
 {
 	mod get_home;
-	mod put_snmp;
+	mod get_query;
 	mod get_subject;
 	mod get_subjects;
+	mod put_snmp;
 }
