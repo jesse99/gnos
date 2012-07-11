@@ -14,7 +14,7 @@ use rrdf (name = "rrdf", vers = "0.2");
 use rwebserve (name = "rwebserve", vers = "0.1");
 
 mod model;
-mod views
+mod handlers
 {
 	mod get_home;
 	mod get_query;

@@ -4,7 +4,7 @@ import std::getopts::*;
 import std::map::hashmap;
 import server = rwebserve;
 import model::*;
-import views::*;
+import handlers::*;
 
 type options = {root: str, admin: bool, addresses: [str], port: u16};
 
