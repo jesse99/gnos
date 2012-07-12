@@ -13,7 +13,7 @@ all: bin/gnos
 # gnos doesn't return so we start the client before the browser.
 run: bin/gnos
 	git web--browse 'http://localhost:8080'
-	export RUST_LOG=gnos=2,rwebserve=2,socket=1 && ./bin/gnos --admin --root=html --address=localhost --address=10.6.210.145 --port=8080
+	export RUST_LOG=gnos=2,rwebserve=1,socket=1 && ./bin/gnos --admin --root=html --address=localhost --address=10.6.210.148 --port=8080
 
 run-snmp:
 	scp scripts/sat.json scripts/snmp-modeler.py jjones@10.8.0.149: && ssh jjones@10.8.0.149 "python snmp-modeler.py -vvv --stdout  --duration=1 sat.json"

@@ -141,7 +141,7 @@ fn main(args: [str])
 	let subject_v: server::response_handler = |_settings, request, response| {get_subject::get_subject(state_chan, request, response)};	// need a unique pointer (bind won't work)
 	let home_v: server::response_handler = |settings, request, response| {get_home::get_home(options, state_chan, settings, request, response)};
 	let modeler_p: server::response_handler = |_settings, request, response| {put_snmp::put_snmp(state_chan, request, response)};
-	let query_s: server::response_handler = |_settings, request, response| {get_query::get_query(state_chan, request, response)};
+	let query_s: server::open_sse = |_settings, request, push| {get_query::get_query(state_chan, request, push)};
 	
 	let config = {
 		hosts: options.addresses,

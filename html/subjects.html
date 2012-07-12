@@ -12,15 +12,8 @@
 	</head>
 	
 	<body>
-		<p>foobar</p>
-		<table border="1">
-			{{#subjects}}
-			<tr class="{{row-class}}">
-				<td class="value"><span>
-					<a href="{{url}}">{{text}}</a>
-				</span></td>
-			</tr>
-			{{/subjects}}
+		<table border="1" id="subjects">
+			<!-- subjects.js populates this -->
 		</table> 
 	</body>
 <html>
