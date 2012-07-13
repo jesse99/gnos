@@ -14,7 +14,16 @@ String.prototype.format = function()
 
 window.onload = function()
 {
-	var source = new EventSource('/query');
+	var expr = '\
+PREFIX gnos: <http://www.gnos.org/2012/schema#> \
+SELECT DISTINCT \
+	?name \
+WHERE \
+{ \
+	?subject ?predicate ?object \
+	BIND(rrdf:pname(?subject) AS ?name) \
+} ORDER BY ?name';
+	var source = new EventSource('/query?expr='+encodeURIComponent(expr));
 	source.addEventListener('message', function(event)
 	{
 		var table = document.getElementById('subjects');

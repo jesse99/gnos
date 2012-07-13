@@ -2,6 +2,7 @@
 import rrdf::*;
 import std::json::to_json;
 import std::json::to_str;
+import rwebserve::imap::imap_methods;
 
 export get_query;
 
@@ -59,21 +60,13 @@ fn solution_to_json(solution: solution) -> std::json::json
 	)
 }
 
-fn get_query(state_chan: comm::chan<msg>, _request: server::request, push: server::push_chan) -> server::control_chan
+fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server::push_chan) -> server::control_chan
 {
+	let query = request.params.get("expr");
+
 	do task::spawn_listener
 	|control_port: server::control_port|
 	{
-		let query = "
-PREFIX gnos: <http://www.gnos.org/2012/schema#>
-SELECT DISTINCT
-	?name
-WHERE
-{
-	?subject ?predicate ?object .
-	BIND(rrdf:pname(?subject) AS ?name)
-} ORDER BY ?name";
-		
 		#info["starting query stream"];
 		let notify_port = comm::port();
 		let notify_chan = comm::chan(notify_port);
@@ -90,7 +83,7 @@ WHERE
 				{
 					if new_solution != solution
 					{
-						solution = new_solution;	// TODO: need to escape the json
+						solution = new_solution;	// TODO: need to escape the json?
 						comm::send(push, #fmt["retry: 5000\ndata: %s\n\n", solution_to_json(solution).to_str()]);
 					}
 				}
