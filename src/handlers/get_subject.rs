@@ -13,8 +13,8 @@ fn append_uri(context: str_map, url: str, name: str)
 	let mut urls = ~[];
 	
 	let map = std::map::str_hash();
-	map.insert("url", mustache::str(#fmt["/subject/%s", url]));
-	map.insert("text", mustache::str(name));
+	map.insert("url", mustache::str(@#fmt["/subject/%s", url]));
+	map.insert("text", mustache::str(@name));
 	vec::push(urls, map);
 	
 	context.insert("urls", urls.to_mustache());
@@ -23,7 +23,7 @@ fn append_uri(context: str_map, url: str, name: str)
 fn append_normal(context: str_map, value: str)
 {
 	context.insert("urls", false.to_mustache());
-	context.insert("normal", mustache::str(value));
+	context.insert("normal", mustache::str(@value));
 }
 
 fn object_to_context(object: object, context: str_map)
@@ -65,14 +65,14 @@ fn get_subject(state_chan: comm::chan<msg>, request: server::request, response: 
 		let object = row.get("object");
 		
 		let map = std::map::str_hash();
-		map.insert("row-class", mustache::str(if index & 1u == 0u {"even"} else {"odd"}));
-		map.insert("predicate", mustache::str(predicate));
+		map.insert("row-class", mustache::str(@if index & 1u == 0u {"even"} else {"odd"}));
+		map.insert("predicate", mustache::str(@predicate));
 		object_to_context(object, map);
 		vec::push(predicates, mustache::map(map));
 	}
 	
-	response.context.insert("subject", mustache::str(subject));
-	response.context.insert("predicates", mustache::vec(predicates));
+	response.context.insert("subject", mustache::str(@subject));
+	response.context.insert("predicates", mustache::vec(@predicates));
 	
 	{template: "subject.html" with response}
 }

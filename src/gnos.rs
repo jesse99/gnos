@@ -123,7 +123,7 @@ fn validate_options(options: options)
 // TODO: get rid of this
 fn greeting_view(_settings: hashmap<str, str>, request: server::request, response: server::response) -> server::response
 {
-	response.context.insert("user-name", mustache::str(request.matches.get("name")));
+	response.context.insert("user-name", mustache::str(@request.matches.get("name")));
 	{template: "hello.html" with response}
 }
 
@@ -164,5 +164,6 @@ fn main(args: [str])
 		settings: [("debug",  "true")]			// TODO: make this a command-line option
 		with server::initialize_config()};
 	server::start(config);
+
 	#info["exiting gnos"];						// won't normally land here
 }

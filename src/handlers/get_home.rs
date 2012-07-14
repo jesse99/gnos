@@ -48,9 +48,9 @@ fn get_home(options: options, _channel: comm::chan<msg>, _settings: hashmap<str,
 //	for state.each
 //	{|triple|
 //		let map = std::map::str_hash();
-//		map.insert("subject", mustache::str(triple.subject));
-//		map.insert("property", mustache::str(triple.predicate));
-//		map.insert("object", mustache::str(triple.object.to_str()));
+//		map.insert("subject", mustache::str(@triple.subject));
+//		map.insert("property", mustache::str(@triple.predicate));
+//		map.insert("object", mustache::str(@triple.object.to_str()));
 //		vec::push(triples, mustache::map(map));
 //	};
 //	
