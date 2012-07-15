@@ -24,8 +24,9 @@ WHERE 													\
 			var row = data[i];
 			var klass = i & 1 ? "odd" : "even";
 			html += '<tr class="{0}"><td class="value"><span>\
-							<a href="/subject/{1}">{1}</a>\
-						</span></td></tr>\n'.format(klass, row.name);
+							<a href="/subject/{1}">{2}</a>\
+						</span></td></tr>\n'.format(
+							klass, encodeURIComponent(row.name), escapeHtml(row.name));
 		}
 		table.innerHTML = html;
 	});
