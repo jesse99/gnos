@@ -15,8 +15,7 @@ impl of to_json for object
 		{
 			iri_value(value) | blank_value(value)
 			{
-				let s = #fmt["<a href=\"%s\">%s</a>", value, value];
-				s.to_json()
+				value.to_json()
 			}
 			unbound_value(*) | invalid_value(*) | error_value(*)
 			{
