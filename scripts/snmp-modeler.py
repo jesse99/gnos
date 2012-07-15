@@ -286,14 +286,16 @@ class Poll(object):
 			
 			self.__connection.request("PUT", self.__config['path'], body, headers)
 			response = self.__connection.getresponse()
+			response.read()			# we don't use this but we must call it (or, on the second call, we'll get ResponseNotReady errors)
 			if not str(response.status).startswith('2'):
 				logger.error("Error PUTing: %s %s" % (response.status, response.reason))
 				sys.exit(3)
 		except Exception as e:
-			logger.error("Error PUTing to %s:%s: %s" % (self.__config['server'], self.__config['path'], e), exc_info = False)
-			#logger.error("Error PUTing to %s:%s" % (self.__config['server'], self.__config['path']), exc_info = True)	# TODO: should do these instead
-			#sys.exit(3)	
-				
+			logger.error("Error PUTing to %s:%s: %s" % (self.__config['server'], self.__config['path'], e), exc_info = True)
+			#self.__connection.close()
+			#self.__connection = httplib.HTTPConnection(self.__config['server'], strict = True, timeout = 10)
+			sys.exit(3)
+			
 	def __print(self, query, result):
 		logger.info("%s:" % query.adminName)
 		if self.__args.verbose <= 2:
