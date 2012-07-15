@@ -62,6 +62,7 @@ javascript model/view: http://documentcloud.github.com/backbone/
 * Eth0 can only be named using a device so it should be a blank node.
 * Should subjects have time stamps?
 * Store last N snapshots? Separate stores?
+* Might be nice if subject page color coded fields that change as new results come in.
 * Protege is an open source ontology editor.
 * Figure out how to get data into gnos:
 	- how big is the store? should the home page have an estimate of the store size?

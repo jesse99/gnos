@@ -12,13 +12,20 @@ String.prototype.format = function()
 	);
 };
 
+function escapeHtml(str)
+{
+	var div = document.createElement('div');
+	div.appendChild(document.createTextNode(str));
+	return div.innerHTML;
+};
+
 function make_link(url, label)
 {
 	if (url != label)
 	{
 		// url: http://www.gnos.org/2012/schema#foo
 		// label: gnos:foo
-		return label;
+		return escapeHtml(label);
 	}
 	else
 	{
@@ -26,18 +33,18 @@ function make_link(url, label)
 		{
 			// url & value: http://some/random/web/site#foo
 			// Shouldn't normally hit this case.
-			return '<a href="{0}">{1}</a>'.format(url, url.substr(0, url.length - 7));
+			return '<a href="{0}">{1}</a>'.format(encodeURI(url), escapeHtml(url.substr(0, url.length - 7)));
 		}
 		else if (url.indexOf("_:") == 0)
 		{
 			// url & value: _:blank-node
-			return '<a href="/subject/{0}">{1}</a>'.format(url, url);
+			return '<a href="/subject/{0}">{1}</a>'.format(encodeURIComponent(url), escapeHtml(url));
 		}
 		else
 		{
 			// url & value: something that isn't http
 			// Shouldn't hit this case.
-			return label;
+			return escapeHtml(label);
 		}
 	}
 }
@@ -83,7 +90,7 @@ WHERE 																		\
 			}
 			else
 			{
-				html += '		{0}'.format(row.value_label);
+				html += '		{0}'.format(escapeHtml(row.value_label));
 			}
 			html += '	</span></td>';
 			
