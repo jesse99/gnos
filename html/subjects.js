@@ -1,17 +1,5 @@
 "use strict";
 
-// Replaces {0} with argument 0, {1} with argument 1, etc.
-String.prototype.format = function()
-{
-	var args = arguments;
-	return this.replace(/{(\d+)}/g,
-		function(match, number)
-		{ 
-			return typeof args[number] != 'undefined' ? args[number] : match;
-		}
-	);
-};
-
 window.onload = function()
 {
 	var expr = '											\
