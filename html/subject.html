@@ -4,6 +4,7 @@
 
 <html lang="en">
 	<head>
+		<script defer="true" src="/subject.js"></script>
 		<title><{{subject}} Predicates</title>
 		<base href="{{base-path}}"/>
 		<link rel="stylesheet" type="text/css" href="subject.css"/>
@@ -11,24 +12,12 @@
 	</head>
 	
 	<body>
-		<table border="1">
+		<table border="1" id="subject" data-about="{{subject}}">
 			<tr>
 				<th>Predicate</th>
 				<th>Object</th>
 			</tr>
-			{{#predicates}}
-			<tr class="{{row-class}}">
-				<td class="predicate">{{predicate}}</td>
-				<td class="value"><span>
-					{{#urls}}
-						<a href="{{url}}">{{text}}</a>
-					{{/urls}}
-					{{^urls}}
-						{{normal}}
-					{{/urls}}
-				</span></td>
-			</tr>
-			{{/predicates}}
+				<!-- subject.js populates this -->
 		</table> 
 	</body>
 <html>

@@ -14,14 +14,15 @@ String.prototype.format = function()
 
 window.onload = function()
 {
-	var expr = '\
-PREFIX gnos: <http://www.gnos.org/2012/schema#> \
-SELECT DISTINCT \
-	?name \
-WHERE \
-{ \
-	?subject ?predicate ?object \
-	BIND(rrdf:pname(?subject) AS ?name) \
+	var expr = '											\
+PREFIX 													\
+	gnos: <http://www.gnos.org/2012/schema#>	\
+SELECT DISTINCT 										\
+	?name 												\
+WHERE 													\
+{ 															\
+	?subject ?predicate ?object . 						\
+	BIND(rrdf:pname(?subject) AS ?name) 			\
 } ORDER BY ?name';
 	var source = new EventSource('/query?expr='+encodeURIComponent(expr));
 	source.addEventListener('message', function(event)
@@ -43,14 +44,14 @@ WHERE \
 	
 	source.addEventListener('open', function(event)
 	{
-		console.log('> stream opened');
+		console.log('> subjects stream opened');
 	});
 	
 	source.addEventListener('error', function(event)
 	{
 		if (event.eventPhase == 2)
 		{
-			console.log('> stream closed');
+			console.log('> subjects stream closed');
 		}
 	});
 }

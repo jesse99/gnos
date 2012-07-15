@@ -138,7 +138,7 @@ fn main(args: [str])
 	let state_chan = do task::spawn_listener |port| {manage_state(port)};
 	
 	let subjects_v: server::response_handler = |_settings, _request, response| {get_subjects::get_subjects(response)};	// need a unique pointer (bind won't work)
-	let subject_v: server::response_handler = |_settings, request, response| {get_subject::get_subject(state_chan, request, response)};	// need a unique pointer (bind won't work)
+	let subject_v: server::response_handler = |_settings, request, response| {get_subject::get_subject(request, response)};	// need a unique pointer (bind won't work)
 	let home_v: server::response_handler = |settings, request, response| {get_home::get_home(options, state_chan, settings, request, response)};
 	let modeler_p: server::response_handler = |_settings, request, response| {put_snmp::put_snmp(state_chan, request, response)};
 	let query_s: server::open_sse = |_settings, request, push| {get_query::get_query(state_chan, request, push)};
