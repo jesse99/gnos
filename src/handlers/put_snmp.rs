@@ -62,21 +62,21 @@ fn add_snmp(store: store, label: str, object: std::map::hashmap<str, std::json::
 	ret subject;
 }
 
- // "ifAdminStatus": "up(1)", 
-  // "ifDescr": "eth3", 
-  // "ifInDiscards": "74", 
-  // "ifInOctets": "13762376", 
-  // "ifInUcastPkts": "155115", 
-  // "ifLastChange": "1503", 
-  // "ifMtu": "1500", 
-  // "ifOperStatus": "up(1)", 
-  // "ifOutOctets": "12213444", 
-  // "ifOutUcastPkts": "148232", 
-  // "ifPhysAddress": "00:30:18:ab:0f:a1", 
-  // "ifSpeed": "100000000", 
-  // "ifType": "ethernetCsmacd(6)", 
-  // "ipAdEntAddr": "10.101.3.2", 
-  // "ipAdEntNetMask": "255.255.255.0"
+// "ifAdminStatus": "up(1)", 
+// "ifDescr": "eth3", 
+// "ifInDiscards": "74", 
+// "ifInOctets": "13762376", 
+// "ifInUcastPkts": "155115", 
+// "ifLastChange": "1503", 
+// "ifMtu": "1500", 
+// "ifOperStatus": "up(1)", 
+// "ifOutOctets": "12213444", 
+// "ifOutUcastPkts": "148232", 
+// "ifPhysAddress": "00:30:18:ab:0f:a1", 
+// "ifSpeed": "100000000", 
+// "ifType": "ethernetCsmacd(6)", 
+// "ipAdEntAddr": "10.101.3.2", 
+// "ipAdEntNetMask": "255.255.255.0"
 fn add_interface(store: store, managed_ip: str, data: std::json::json) -> (str, object)
 {
 	alt data
