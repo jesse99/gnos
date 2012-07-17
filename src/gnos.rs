@@ -2,11 +2,12 @@ import io;
 import io::writer_util;
 import std::getopts::*;
 import std::map::hashmap;
+import core::option::extensions;
 import server = rwebserve;
 import model::*;
 import handlers::*;
 
-type options = {root: str, admin: bool, addresses: [str], port: u16};
+type options = {root: str, admin: bool, addresses: [str], port: u16, cleanup: ~[task_runner::exit_fn]};
 
 // str constants aren't supported yet.
 // TODO: get this (somehow) from the link attribute in the rc file (going the other way
@@ -107,7 +108,8 @@ fn parse_command_line(args: [str]) -> options
 		root: opt_str(match, "root"),
 		admin: opt_present(match, "admin"),
 		addresses: opt_strs_or_default(match, "address", ["0.0.0.0"]),
-		port: port
+		port: port,
+		cleanup: ~[],
 	}
 }
 
@@ -120,6 +122,41 @@ fn validate_options(options: options)
 	}
 }
 
+fn copy_scripts(root: str, user: str, host: str) -> option::option<str>
+{
+	let dir = core::path::dirname(root);						// gnos/html => /gnos
+	let dir = core::path::connect(dir, "scripts");				// /gnos => /gnos/scripts
+	let files = utils::list_dir_path(dir, ~[".json", ".py"]);
+	
+	utils::scp_files(files, user, host)
+}
+
+fn run_snmp(user: str, host: str) -> option::option<str>
+{
+	utils::run_remote_command(user, host, "python snmp-modeler.py -vv sat.json")
+}
+
+fn setup(options: options) 
+{
+	let root = options.root;
+	let cleanup = copy options.cleanup;
+	
+	let action: task_runner::job_fn = || copy_scripts(root, "jjones", "10.8.0.149");		// TODO: get login from somewhere
+	let cp = {action: action, policy: task_runner::exit_on_failure};
+	
+	let action: task_runner::job_fn = || run_snmp("jjones", "10.8.0.149");
+	let run = {action: action, policy: task_runner::restart_on_failure(60)};
+	
+	task_runner::sequence(~[cp, run], cleanup);
+}
+
+fn get_shutdown(options: options) -> !
+{
+	#info["received shutdown request"];
+	for options.cleanup.each |f| {f()};
+	libc::exit(0)
+}
+
 // TODO: get rid of this
 fn greeting_view(_settings: hashmap<str, str>, request: server::request, response: server::response) -> server::response
 {
@@ -127,21 +164,25 @@ fn greeting_view(_settings: hashmap<str, str>, request: server::request, respons
 	{template: "hello.html" with response}
 }
 
-// TODO: Will it be too expensive to copy the entire state? Do we need to support partial updates
-// and queries?
 fn main(args: [str])
 {
 	#info["starting up gnos"];
-	let options = parse_command_line(args);
+	let c1: task_runner::exit_fn = || {utils::run_remote_command("jjones", "10.8.0.149", "pgrep -f snmp-modeler.py | xargs --no-run-if-empty kill -9");};
+	let options = {cleanup: ~[c1] with parse_command_line(args)};
 	validate_options(options);
+	
+	setup(options);
 	
 	let state_chan = do task::spawn_listener |port| {manage_state(port)};
 	
+	let options2 = copy options;
+	let options3 = copy options;
 	let subjects_v: server::response_handler = |_settings, _request, response| {get_subjects::get_subjects(response)};	// need a unique pointer (bind won't work)
 	let subject_v: server::response_handler = |_settings, request, response| {get_subject::get_subject(request, response)};	// need a unique pointer (bind won't work)
-	let home_v: server::response_handler = |settings, request, response| {get_home::get_home(options, state_chan, settings, request, response)};
+	let home_v: server::response_handler = |settings, request, response| {get_home::get_home(options2, state_chan, settings, request, response)};
 	let modeler_p: server::response_handler = |_settings, request, response| {put_snmp::put_snmp(state_chan, request, response)};
 	let query_s: server::open_sse = |_settings, request, push| {get_query::get_query(state_chan, request, push)};
+	let bail_v: server::response_handler = |_settings, _request, _response| {get_shutdown(options3)};
 	
 	let config = {
 		hosts: options.addresses,
@@ -150,12 +191,14 @@ fn main(args: [str])
 		resources_root: options.root,
 		routes: [
 			("GET", "/", "home"),
+			("GET", "/shutdown", "shutdown"),		// TODO: enable this via debug cfg (or maybe via a command line option)
 			("GET", "/hello/{name}", "greeting"),
 			("GET", "/model", "subjects"),
 			("GET", "/subject/{subject}", "subject"),
 			("PUT", "/snmp-modeler", "modeler")],
 		views: [
 			("home",  home_v),
+			("shutdown",  bail_v),
 			("greeting", greeting_view),
 			("subjects",  subjects_v),
 			("subject",  subject_v),
