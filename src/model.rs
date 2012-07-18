@@ -1,8 +1,16 @@
 import rrdf::*;
 
-// Data can be anything, but is typically json.
+export update_fn, msg, query_msg, update_msg, register_msg, deregister_msg, manage_state, get_state;
+
+/// Function used to update the store within the model task.
+///
+/// Data can be anything, but is typically json.
 type update_fn = fn~ (store: store, data: str) -> ();
 
+/// Enum used to communicate with the model task.
+///
+/// Used to query the model, to update the model, and to (un)register
+/// server-sent events.
 enum msg
 {
 	query_msg(str, comm::chan<solution>),		// SPARQL query + channel to send results back along
@@ -11,6 +19,60 @@ enum msg
 	register_msg(str, str, comm::chan<solution>),	// key + SPARQL query + channel to send results back along
 	deregister_msg(str),								// key
 }
+
+/// Runs within a task and manages the triple store containing the state of the network.
+///
+/// Other tasks (e.g. views) can query or update the state this function manages.
+fn manage_state(port: comm::port<msg>)
+{
+	let queries = std::map::str_hash();
+	let mut listeners = std::map::str_hash();
+	let store = create_store(
+		~[
+			{prefix: "gnos", path: "http://www.gnos.org/2012/schema#"},
+			{prefix: "snmp", path: "http://www.gnos.org/2012/snmp/"},
+		], ~[]);
+	
+	loop
+	{
+		alt comm::recv(port)
+		{
+			query_msg(query, channel)
+			{
+				send_solution(store, queries, query, channel);
+			}
+			update_msg(f, data)
+			{
+				f(store, data);
+				#info["Updated store"];
+				listeners = update_listeners(store, queries, listeners);
+			}
+			register_msg(key, query, channel)
+			{
+				let added = listeners.insert(key, (query, channel));
+				assert added;
+				
+				send_solution(store, queries, query, channel);
+			}
+			deregister_msg(key)
+			{
+				listeners.remove(key);
+			}
+		}
+	}
+}
+
+/// Helper used to query model state.
+fn get_state(channel: comm::chan<msg>, query: str) -> solution
+{
+	let port = comm::port::<solution>();
+	let chan = comm::chan::<solution>(port);
+	comm::send(channel, query_msg(query, chan));
+	let result = comm::recv(port);
+	ret result;
+}
+
+// ---- Internal functions ----------------------------------------------------
 
 // In general the same queries will be used over and over again so it will be
 // much more efficient to cache the selectors.
@@ -99,52 +161,3 @@ fn update_listeners(store: store, queries: hashmap<str, selector>, listeners: ha
 	ret new_listeners;
 }
 
-// The manage_state function runs within a dedicated task and allows
-// other tasks to get a snapshot of the model or update the model.
-fn manage_state(port: comm::port<msg>)
-{
-	let queries = std::map::str_hash();
-	let mut listeners = std::map::str_hash();
-	let store = create_store(
-		~[
-			{prefix: "gnos", path: "http://www.gnos.org/2012/schema#"},
-			{prefix: "snmp", path: "http://www.gnos.org/2012/snmp/"},
-		], ~[]);
-	
-	loop
-	{
-		alt comm::recv(port)
-		{
-			query_msg(query, channel)
-			{
-				send_solution(store, queries, query, channel);
-			}
-			update_msg(f, data)
-			{
-				f(store, data);
-				#info["Updated store"];
-				listeners = update_listeners(store, queries, listeners);
-			}
-			register_msg(key, query, channel)
-			{
-				let added = listeners.insert(key, (query, channel));
-				assert added;
-				
-				send_solution(store, queries, query, channel);
-			}
-			deregister_msg(key)
-			{
-				listeners.remove(key);
-			}
-		}
-	}
-}
-
-fn get_state(channel: comm::chan<msg>, query: str) -> solution
-{
-	let port = comm::port::<solution>();
-	let chan = comm::chan::<solution>(port);
-	comm::send(channel, query_msg(query, chan));
-	let result = comm::recv(port);
-	ret result;
-}
