@@ -60,6 +60,7 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- get rid of the greeting code
 * Use valid time? Also look at Owl-Time
 * Eth0 can only be named using a device so it should be a blank node.
+* Should validate the network.json file.
 * Should subjects have time stamps?
 * Store last N snapshots? Separate stores?
 * Might be nice if subject page color coded fields that change as new results come in.

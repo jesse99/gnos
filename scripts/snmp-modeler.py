@@ -243,7 +243,8 @@ class Poll(object):
 		self.__startTime = time.time()
 		self.__queries = [QueryDevice(name, device["ip"], device["community"]) for name, device in config["devices"].items()]
 		if self.__args.put:
-			self.__connection = httplib.HTTPConnection(self.__config['server'], strict = True, timeout = 10)
+			address = "%s:%s" % (self.__config['server'], self.__config['port'])
+			self.__connection = httplib.HTTPConnection(address, strict = True, timeout = 10)
 		else:
 			self.__connection = None
 	
@@ -291,7 +292,8 @@ class Poll(object):
 				logger.error("Error PUTing: %s %s" % (response.status, response.reason))
 				sys.exit(3)
 		except Exception as e:
-			logger.error("Error PUTing to %s:%s: %s" % (self.__config['server'], self.__config['path'], e), exc_info = True)
+			address = "%s:%s" % (self.__config['server'], self.__config['port'])
+			logger.error("Error PUTing to %s:%s: %s" % (address, self.__config['path'], e), exc_info = True)
 			#self.__connection.close()
 			#self.__connection = httplib.HTTPConnection(self.__config['server'], strict = True, timeout = 10)
 			sys.exit(3)

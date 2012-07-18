@@ -1,13 +1,27 @@
 import io;
 import io::writer_util;
 import std::getopts::*;
+import std::json;
 import std::map::hashmap;
 import core::option::extensions;
 import server = rwebserve;
 import model::*;
 import handlers::*;
 
-type options = {root: str, admin: bool, addresses: [str], port: u16, cleanup: ~[task_runner::exit_fn]};
+type options = {
+	// these are from the command line
+	root: str,
+	admin: bool,
+	
+	// these are from the network.json file
+	// TODO: probably should also have device names (could then do an alert if no info for a device)
+	client: str,
+	server: str,
+	port: u16,
+	
+	// this is from main
+	cleanup: ~[task_runner::exit_fn],
+};
 
 // str constants aren't supported yet.
 // TODO: get this (somehow) from the link attribute in the rc file (going the other way
@@ -21,38 +35,100 @@ fn print_usage()
 {
 	io::println(#fmt["gnos %s - a web based network management system", get_version()]);
 	io::println("");
-	io::println("./gnos [options] --root=<dir>");
-	io::println("--address=IP ip address or 'localhost' to bind to [0.0.0.0]");
+	io::println("./gnos [options] --root=<dir> network.json");
 	io::println("--admin      allows web clients to shut the server down");
 	io::println("-h, --help   prints this message and exits");
-	io::println("--port=NUM   port to bind to [80]");
 	io::println("--root=DIR   path to the directory containing html files");
 	io::println("--version    prints the gnos version number and exits");
 	io::println("");
 	io::println("--address may appear multiple times");
-} 
+}
 
-fn opt_str_or_default(match: match, name: str, default: str) -> str
+fn get_network_str(path: str, data: std::map::hashmap<str, json::json>, key: str) -> str
 {
-	if opt_present(match, name)
+	alt data.find(key)
 	{
-		opt_str(match, name)
-	}
-	else
-	{
-		default
+		option::some(json::string(value))
+		{
+			*value
+		}
+		option::some(x)
+		{
+			io::stderr().write_line(#fmt["In '%s' %s was expected to be a json::string but was %?.", path, key, x]);
+			libc::exit(1)
+		}
+		option::none
+		{
+			io::stderr().write_line(#fmt["Expected to find %s in '%s'.", key, path]);
+			libc::exit(1)
+		}
 	}
 }
 
-fn opt_strs_or_default(match: match, name: str, default: [str]) -> [str]
+fn get_network_u16(path: str, data: std::map::hashmap<str, json::json>, key: str) -> u16
 {
-	if opt_present(match, name)
+	alt data.find(key)
 	{
-		opt_strs(match, name)
+		option::some(json::num(value))
+		{
+			if value > u16::max_value as float
+			{
+				io::stderr().write_line(#fmt["In '%s' %s was too large for a u16.", path, key]);
+				libc::exit(1);
+			}
+			if value < 0.0
+			{
+				io::stderr().write_line(#fmt["In '%s' %s was negative.", path, key]);
+				libc::exit(1);
+			}
+			value as u16
+		}
+		option::some(x)
+		{
+			io::stderr().write_line(#fmt["In '%s' %s was expected to be a json::num but was %?.", path, key, x]);
+			libc::exit(1)
+		}
+		option::none
+		{
+			io::stderr().write_line(#fmt["Expected to find %s in '%s'.", key, path]);
+			libc::exit(1)
+		}
 	}
-	else
+}
+
+fn load_network_file(path: str) -> {client: str, server: str, port: u16}
+{
+	alt io::file_reader(path)
 	{
-		default
+		result::ok(reader)
+		{
+			alt json::from_reader(reader)
+			{
+				result::ok(json::dict(data))
+				{
+					{
+						client: get_network_str(path, data, "client"),
+						server: get_network_str(path, data, "server"),
+						port: get_network_u16(path, data, "port")
+					}
+				}
+				result::ok(x)
+				{
+					io::stderr().write_line(#fmt["Error parsing '%s': expected json::dict but found %?.", path, x]);
+					libc::exit(1)
+				}
+				result::err(err)
+				{
+					io::stderr().write_line(#fmt["Error parsing '%s' on line %?: %s.", path, err.line, *err.msg]);
+					libc::exit(1)
+				}
+			}
+		}
+		result::err(err)
+		{
+			io::stderr().write_line(#fmt["Error reading '%s': %s.", path, err]);
+			libc::exit(1)
+		}
 	}
 }
 
@@ -75,41 +151,29 @@ fn parse_command_line(args: [str]) -> options
 	if opt_present(match, "h") || opt_present(match, "help")
 	{
 		print_usage();
-		libc::exit(0_i32);
+		libc::exit(0);
 	}
 	else if opt_present(match, "version")
 	{
 		io::println(#fmt["gnos %s", get_version()]);
-		libc::exit(0_i32);
+		libc::exit(0);
 	}
-	else if vec::is_not_empty(match.free)
+	else if match.free.len() != 1
 	{
-		io::stderr().write_line("Positional arguments are not allowed.");
-		libc::exit(1_i32);
+		io::stderr().write_line("Expected one positional argument: a network json file.");
+		libc::exit(1);
 	}
-	let port = alt uint::from_str(opt_str_or_default(match, "port", "80"))
-	{
-		option::some(v)
-		{
-			if v > u16::max_value as uint
-			{
-				io::stderr().write_line("Port is too large.");
-				libc::exit(1_i32);
-			}
-			v as u16
-		}
-		option::none
-		{
-			io::stderr().write_line("Port should be formatted as a unsigned 16-bit number.");
-			libc::exit(1_i32)
-		}
-	};
+	let network = load_network_file(match.free[0]);
+	
 	{
 		root: opt_str(match, "root"),
 		admin: opt_present(match, "admin"),
-		addresses: opt_strs_or_default(match, "address", ["0.0.0.0"]),
-		port: port,
-		cleanup: ~[],
+		
+		client: network.client,
+		server: network.server,
+		port: network.port,
+		
+		cleanup: ~[],		// set in main
 	}
 }
 
@@ -139,12 +203,13 @@ fn run_snmp(user: str, host: str) -> option::option<str>
 fn setup(options: options) 
 {
 	let root = options.root;
+	let client = options.client;
 	let cleanup = copy options.cleanup;
 	
-	let action: task_runner::job_fn = || copy_scripts(root, "jjones", "10.8.0.149");		// TODO: get login from somewhere
+	let action: task_runner::job_fn = || copy_scripts(root, #env["GNOS_USER"], client);
 	let cp = {action: action, policy: task_runner::exit_on_failure};
 	
-	let action: task_runner::job_fn = || run_snmp("jjones", "10.8.0.149");
+	let action: task_runner::job_fn = || run_snmp(#env["GNOS_USER"], client);
 	let run = {action: action, policy: task_runner::restart_on_failure(60)};
 	
 	task_runner::sequence(~[cp, run], cleanup);
@@ -167,10 +232,18 @@ fn greeting_view(_settings: hashmap<str, str>, request: server::request, respons
 fn main(args: [str])
 {
 	#info["starting up gnos"];
-	let c1: task_runner::exit_fn = || {utils::run_remote_command("jjones", "10.8.0.149", "pgrep -f snmp-modeler.py | xargs --no-run-if-empty kill -9");};
-	let options = {cleanup: ~[c1] with parse_command_line(args)};
+	if #env["GNOS_USER"].is_empty()
+	{
+		#error["GNOS_USER must be set to the name of a user able to ssh into the network json client."];
+		libc::exit(1)
+	}
+	
+	let options = parse_command_line(args);
 	validate_options(options);
 	
+	let client = options.client;
+	let c1: task_runner::exit_fn = || {utils::run_remote_command(#env["GNOS_USER"], client, "pgrep -f snmp-modeler.py | xargs --no-run-if-empty kill -9");};
+	let options = {cleanup: ~[c1] with options};
 	setup(options);
 	
 	let state_chan = do task::spawn_listener |port| {manage_state(port)};
@@ -185,7 +258,7 @@ fn main(args: [str])
 	let bail_v: server::response_handler = |_settings, _request, _response| {get_shutdown(options3)};
 	
 	let config = {
-		hosts: options.addresses,
+		hosts: if options.admin {~[options.server, "localhost"]} else {~[options.server]},
 		port: options.port,
 		server_info: "gnos " + get_version(),
 		resources_root: options.root,

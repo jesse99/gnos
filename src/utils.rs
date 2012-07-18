@@ -39,6 +39,30 @@ fn list_dir_path(dir: str, extensions: ~[str]) -> ~[str]
 	}
 }
 
+fn opt_str_or_default(match: match, name: str, default: str) -> str
+{
+	if opt_present(match, name)
+	{
+		opt_str(match, name)
+	}
+	else
+	{
+		default
+	}
+}
+
+fn opt_strs_or_default(match: match, name: str, default: [str]) -> [str]
+{
+	if opt_present(match, name)
+	{
+		opt_strs(match, name)
+	}
+	else
+	{
+		default
+	}
+}
+
 // ----------------------------------------------------------------------------
 
 fn run_command(tool: str, args: ~[str]) -> option::option<str>
