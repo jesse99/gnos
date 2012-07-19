@@ -2,57 +2,61 @@ import rrdf::*;
 
 export update_fn, msg, query_msg, update_msg, register_msg, deregister_msg, manage_state, get_state;
 
-/// Function used to update the store within the model task.
+/// Function used to update a store within the model task.
 ///
 /// Data can be anything, but is typically json.
 type update_fn = fn~ (store: store, data: str) -> ();
 
 /// Enum used to communicate with the model task.
 ///
-/// Used to query the model, to update the model, and to (un)register
-/// server-sent events.
+/// Used to query a model, to update a model, and to (un)register
+/// server-sent events. First argument of all of constructors (except
+/// deregister_msg) is the name of a store, e.g. "model" or "alerts".
 enum msg
 {
-	query_msg(str, comm::chan<solution>),		// SPARQL query + channel to send results back along
-	update_msg(update_fn, str),						// function to use to update the store + data to use
+	query_msg(str, str, comm::chan<solution>),			// SPARQL query + channel to send results back along
+	update_msg(str, update_fn, str),							// function to use to update the store + data to use
 	
-	register_msg(str, str, comm::chan<solution>),	// key + SPARQL query + channel to send results back along
-	deregister_msg(str),								// key
+	register_msg(str, str, str, comm::chan<solution>),	// key + SPARQL query + channel to send results back along
+	deregister_msg(str),										// key
 }
 
-/// Runs within a task and manages the triple store containing the state of the network.
+/// Runs within a task and manages triple stores holding gnos state.
 ///
 /// Other tasks (e.g. views) can query or update the state this function manages.
 fn manage_state(port: comm::port<msg>)
 {
 	let queries = std::map::str_hash();
 	let mut listeners = std::map::str_hash();
-	let store = create_store(
-		~[
-			{prefix: "gnos", path: "http://www.gnos.org/2012/schema#"},
-			{prefix: "snmp", path: "http://www.gnos.org/2012/snmp/"},
-		], ~[]);
+	let namespaces = ~[
+		{prefix: "gnos", path: "http://www.gnos.org/2012/schema#"},
+		{prefix: "snmp", path: "http://www.gnos.org/2012/snmp/"},
+	];
+	
+	let stores = std::map::str_hash();
+	stores.insert("model",  create_store(namespaces, @std::map::str_hash()));
+	stores.insert("alerts",  create_store(namespaces, @std::map::str_hash()));
 	
 	loop
 	{
 		alt comm::recv(port)
 		{
-			query_msg(query, channel)
+			query_msg(name, query, channel)
 			{
-				send_solution(store, queries, query, channel);
+				send_solution(stores.get(name), queries, query, channel);
 			}
-			update_msg(f, data)
+			update_msg(name, f, data)
 			{
-				f(store, data);
+				f(stores.get(name), data);
 				#info["Updated store"];
-				listeners = update_listeners(store, queries, listeners);
+				listeners = update_listeners(stores.get(name), queries, listeners);
 			}
-			register_msg(key, query, channel)
+			register_msg(name, key, query, channel)
 			{
 				let added = listeners.insert(key, (query, channel));
 				assert added;
 				
-				send_solution(store, queries, query, channel);
+				send_solution(stores.get(name), queries, query, channel);
 			}
 			deregister_msg(key)
 			{
@@ -63,11 +67,11 @@ fn manage_state(port: comm::port<msg>)
 }
 
 /// Helper used to query model state.
-fn get_state(channel: comm::chan<msg>, query: str) -> solution
+fn get_state(name: str, channel: comm::chan<msg>, query: str) -> solution
 {
 	let port = comm::port::<solution>();
 	let chan = comm::chan::<solution>(port);
-	comm::send(channel, query_msg(query, chan));
+	comm::send(channel, query_msg(name, query, chan));
 	let result = comm::recv(port);
 	ret result;
 }

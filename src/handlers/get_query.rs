@@ -61,6 +61,7 @@ fn solution_to_json(solution: solution) -> std::json::json
 
 fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server::push_chan) -> server::control_chan
 {
+	let name = request.params.get("name");
 	let query = request.params.get("expr");
 
 	do task::spawn_listener
@@ -71,7 +72,7 @@ fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server
 		let notify_chan = comm::chan(notify_port);
 		
 		let key = #fmt["query %?", ptr::addr_of(notify_port)];
-		comm::send(state_chan, register_msg(key, query, notify_chan));
+		comm::send(state_chan, register_msg(name, key, query, notify_chan));
 		
 		let mut solution = ~[];
 		loop

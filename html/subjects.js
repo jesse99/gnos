@@ -12,7 +12,7 @@ WHERE 													\
 	?subject ?predicate ?object . 						\
 	BIND(rrdf:pname(?subject) AS ?name) 			\
 } ORDER BY ?name';
-	var source = new EventSource('/query?expr='+encodeURIComponent(expr));
+	var source = new EventSource('/query?name=model&expr='+encodeURIComponent(expr));
 	source.addEventListener('message', function(event)
 	{
 		var table = document.getElementById('subjects');

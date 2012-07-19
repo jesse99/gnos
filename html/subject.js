@@ -47,7 +47,7 @@ WHERE 																		\
 	BIND(IF(?is_url, rrdf:pname(?value), ?value) AS ?value_label)	\
 } ORDER BY ?predicate_label ?value_label'.format(table.getAttribute("data-about"));
 
-	var source = new EventSource('/query?expr='+encodeURIComponent(expr));
+	var source = new EventSource('/query?name=model&expr='+encodeURIComponent(expr));
 	source.addEventListener('message', function(event)
 	{
 		var data = JSON.parse(event.data);
