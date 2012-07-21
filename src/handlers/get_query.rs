@@ -59,11 +59,12 @@ fn solution_to_json(solution: solution) -> std::json::json
 	)
 }
 
+// server-sent event handler
 fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server::push_chan) -> server::control_chan
 {
 	let name = request.params.get("name");
 	let query = request.params.get("expr");
-
+	
 	do task::spawn_listener
 	|control_port: server::control_port|
 	{
@@ -94,7 +95,7 @@ fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server
 				either::right(server::close_event)
 				{
 					#info["shutting down query stream"];
-					comm::send(state_chan, deregister_msg(key));
+					comm::send(state_chan, deregister_msg(name, key));
 					break;
 				}
 			}

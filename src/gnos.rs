@@ -8,6 +8,7 @@ import server = rwebserve;
 import model::*;
 import handlers::*;
 
+/// Various options derived from the command line and the network.json file.
 type options = {
 	// these are from the command line
 	root: str,
@@ -200,7 +201,14 @@ fn run_snmp(user: str, host: str) -> option::option<str>
 	utils::run_remote_command(user, host, "python snmp-modeler.py -vv sat.json")
 }
 
-fn setup(options: options) 
+fn snmp_restarted(err: str, state_chan: comm::chan<msg>)
+{
+	let mesg = #fmt["snmp-modeler.py failed: %s", err];
+	#error["%s", mesg];
+	comm::send(state_chan, update_msg("alerts", |store, _err| {add_alert(store, error_level, mesg)}, err));
+}
+
+fn setup(options: options, state_chan: comm::chan<msg>) 
 {
 	let root = options.root;
 	let client = options.client;
@@ -210,7 +218,7 @@ fn setup(options: options)
 	let cp = {action: action, policy: task_runner::exit_on_failure};
 	
 	let action: task_runner::job_fn = || run_snmp(#env["GNOS_USER"], client);
-	let run = {action: action, policy: task_runner::restart_on_failure(60)};
+	let run = {action: action, policy: task_runner::restart_on_failure(15, 4, |err| {snmp_restarted(err, state_chan)})};	// TODO: use 60s
 	
 	task_runner::sequence(~[cp, run], cleanup);
 }
@@ -244,9 +252,9 @@ fn main(args: [str])
 	let client = options.client;
 	let c1: task_runner::exit_fn = || {utils::run_remote_command(#env["GNOS_USER"], client, "pgrep -f snmp-modeler.py | xargs --no-run-if-empty kill -9");};
 	let options = {cleanup: ~[c1] with options};
-	setup(options);
 	
 	let state_chan = do task::spawn_listener |port| {manage_state(port)};
+	setup(options, state_chan);
 	
 	let options2 = copy options;
 	let options3 = copy options;
@@ -257,7 +265,14 @@ fn main(args: [str])
 	let query_s: server::open_sse = |_settings, request, push| {get_query::get_query(state_chan, request, push)};
 	let bail_v: server::response_handler = |_settings, _request, _response| {get_shutdown(options3)};
 	
+	comm::send(state_chan, update_msg("alerts", |store, msg| {add_alert(store, error_level, msg)}, "bite my tail"));
+	comm::send(state_chan, update_msg("alerts", |store, msg| {add_alert(store, error_level, msg)}, "bite my hand"));
+	comm::send(state_chan, update_msg("alerts", |store, msg| {add_alert(store, warning_level, msg)}, "pet my head"));
+	
 	let config = {
+		// We need to bind to the server addresses so that we receive modeler PUTs.
+		// We bind to localhost to ensure that we can hit the web server using a local
+		// browser.
 		hosts: if options.admin {~[options.server, "localhost"]} else {~[options.server]},
 		port: options.port,
 		server_info: "gnos " + get_version(),
@@ -280,6 +295,6 @@ fn main(args: [str])
 		settings: [("debug",  "true")]			// TODO: make this a command-line option
 		with server::initialize_config()};
 	server::start(config);
-
+	
 	#info["exiting gnos"];						// won't normally land here
 }

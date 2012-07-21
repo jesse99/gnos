@@ -1,6 +1,7 @@
 import rrdf::*;
 
-export update_fn, msg, query_msg, update_msg, register_msg, deregister_msg, manage_state, get_state;
+export update_fn, msg, query_msg, update_msg, register_msg, deregister_msg, manage_state, get_state,
+	alert_level, add_alert;
 
 /// Function used to update a store within the model task.
 ///
@@ -10,15 +11,23 @@ type update_fn = fn~ (store: store, data: str) -> ();
 /// Enum used to communicate with the model task.
 ///
 /// Used to query a model, to update a model, and to (un)register
-/// server-sent events. First argument of all of constructors (except
-/// deregister_msg) is the name of a store, e.g. "model" or "alerts".
+/// server-sent events. First argument of all of constructors is the 
+/// name of a store, e.g. "model" or "alerts".
 enum msg
 {
 	query_msg(str, str, comm::chan<solution>),			// SPARQL query + channel to send results back along
 	update_msg(str, update_fn, str),							// function to use to update the store + data to use
 	
 	register_msg(str, str, str, comm::chan<solution>),	// key + SPARQL query + channel to send results back along
-	deregister_msg(str),										// key
+	deregister_msg(str, str),									// key
+}
+
+enum alert_level
+{
+	error_level,
+	warning_level,
+	info_level,
+	debug_level,
 }
 
 /// Runs within a task and manages triple stores holding gnos state.
@@ -37,6 +46,9 @@ fn manage_state(port: comm::port<msg>)
 	stores.insert("model",  create_store(namespaces, @std::map::str_hash()));
 	stores.insert("alerts",  create_store(namespaces, @std::map::str_hash()));
 	
+	listeners.insert("model", std::map::str_hash());
+	listeners.insert("alerts", std::map::str_hash());
+	
 	loop
 	{
 		alt comm::recv(port)
@@ -48,19 +60,24 @@ fn manage_state(port: comm::port<msg>)
 			update_msg(name, f, data)
 			{
 				f(stores.get(name), data);
-				#info["Updated store"];
-				listeners = update_listeners(stores.get(name), queries, listeners);
+				#info["Updated %s store", name];
+				let updated = update_listeners(stores.get(name), queries, listeners[name]);
+				listeners.insert(name, updated);
+				if name == "alerts"
+				{
+					#info["---- %s", stores.get(name).to_str()];
+				}
 			}
 			register_msg(name, key, query, channel)
 			{
-				let added = listeners.insert(key, (query, channel));
+				let added = listeners[name].insert(key, (query, channel));
 				assert added;
 				
 				send_solution(stores.get(name), queries, query, channel);
 			}
-			deregister_msg(key)
+			deregister_msg(name, key)
 			{
-				listeners.remove(key);
+				listeners[name].remove(key);
 			}
 		}
 	}
@@ -74,6 +91,26 @@ fn get_state(name: str, channel: comm::chan<msg>, query: str) -> solution
 	comm::send(channel, query_msg(name, query, chan));
 	let result = comm::recv(port);
 	ret result;
+}
+
+/// Helper used to add a new alert to the "alerts" store.
+fn add_alert(store: store, level: alert_level, mesg: str)
+{
+	let level =
+		alt level
+		{
+			error_level		{"error"}
+			warning_level	{"warning"}
+			info_level			{"info"}
+			debug_level		{"debug"}
+		};
+		
+	let subject = get_blank_name(store, "alert");
+	store.add(subject, [
+		("gnos:timestamp", dateTime_value(std::time::now())),
+		("gnos:alert", string_value(mesg, "")),
+		("gnos:level", string_value(level, "")),
+	]);
 }
 
 // ---- Internal functions ----------------------------------------------------

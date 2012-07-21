@@ -1,19 +1,35 @@
 <!DOCTYPE html>
 <meta charset=utf-8>
 
+<!-- TODO: If we start using info alerts we should add a checkbox to
+toggle displaying them here. -->
 <html lang="en">
 	<head>
+		<script defer="true" src="/common.js"></script>
+		<script defer="true" src="/home.js"></script>
 		<title>gnos</title>
 		<link rel="stylesheet" type="text/css" href="home.css"/>
 	</head>
 	
 	<body>
-		<h2>Devices:</h2>
-		<ul class="url-list">
-		{{#devices}}
-			<li><a href="{{url}}" class="{{class}}">{{text}}</a></li>
-		{{/devices}}
+		<h2 id="h0">today</h2>
+		<ul id="l0" class="alert-list">
+			<!-- home.js populates these lists -->
 		</ul>
+		
+		<h2 id="h1">yesterday</h2>
+		<ul id="l1" class="alert-list">
+		</ul>
+		
+		<h2 id="h2">yesterday x2</h2>
+		<ul id="l2" class="alert-list">
+		</ul>
+		
+		<h2 id="h3">yesterday x3</h2>
+		<ul id="l3" class="alert-list">
+		</ul>
+		
+		<hr/>
 		
 		{{#admin}}
 		<ul class="url-list">
