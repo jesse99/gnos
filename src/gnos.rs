@@ -201,11 +201,13 @@ fn run_snmp(user: str, host: str) -> option::option<str>
 	utils::run_remote_command(user, host, "python snmp-modeler.py -vv sat.json")
 }
 
-fn snmp_restarted(err: str, state_chan: comm::chan<msg>)
+fn snmp_exited(err: option::option<str>, state_chan: comm::chan<msg>)
 {
-	let mesg = #fmt["snmp-modeler.py failed: %s", err];
+	let mesg = #fmt["snmp-modeler.py exited%s", if err.is_some() {" with error: " + err.get()} else {""}];
 	#error["%s", mesg];
-	comm::send(state_chan, update_msg("alerts", |store, _err| {add_alert(store, error_level, mesg)}, err));
+	
+	let alert = {device: "server", id: "snmp-modeler.py exited", level: error_level, mesg: mesg, resolution: "Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
+	comm::send(state_chan, update_msg("alerts", |store, _err| {open_alert(store, alert)}, ""));
 }
 
 fn setup(options: options, state_chan: comm::chan<msg>) 
@@ -215,10 +217,10 @@ fn setup(options: options, state_chan: comm::chan<msg>)
 	let cleanup = copy options.cleanup;
 	
 	let action: task_runner::job_fn = || copy_scripts(root, #env["GNOS_USER"], client);
-	let cp = {action: action, policy: task_runner::exit_on_failure};
+	let cp = {action: action, policy: task_runner::shutdown_on_failure};
 	
 	let action: task_runner::job_fn = || run_snmp(#env["GNOS_USER"], client);
-	let run = {action: action, policy: task_runner::restart_on_failure(15, 4, |err| {snmp_restarted(err, state_chan)})};	// TODO: use 60s
+	let run = {action: action, policy: task_runner::notify_on_exit(|err| {snmp_exited(err, state_chan)})};
 	
 	task_runner::sequence(~[cp, run], cleanup);
 }
@@ -258,16 +260,19 @@ fn main(args: [str])
 	
 	let options2 = copy options;
 	let options3 = copy options;
-	let subjects_v: server::response_handler = |_settings, _request, response| {get_subjects::get_subjects(response)};	// need a unique pointer (bind won't work)
-	let subject_v: server::response_handler = |_settings, request, response| {get_subject::get_subject(request, response)};	// need a unique pointer (bind won't work)
+	let subjects_v: server::response_handler = |_settings, _request, response| {get_subjects::get_subjects(response, state_chan)};
+	let subject_v: server::response_handler = |_settings, request, response| {get_subject::get_subject(request, response)};	
 	let home_v: server::response_handler = |settings, request, response| {get_home::get_home(options2, state_chan, settings, request, response)};
 	let modeler_p: server::response_handler = |_settings, request, response| {put_snmp::put_snmp(state_chan, request, response)};
 	let query_s: server::open_sse = |_settings, request, push| {get_query::get_query(state_chan, request, push)};
 	let bail_v: server::response_handler = |_settings, _request, _response| {get_shutdown(options3)};
 	
-	comm::send(state_chan, update_msg("alerts", |store, msg| {add_alert(store, error_level, msg)}, "bite my tail"));
-	comm::send(state_chan, update_msg("alerts", |store, msg| {add_alert(store, error_level, msg)}, "bite my hand"));
-	comm::send(state_chan, update_msg("alerts", |store, msg| {add_alert(store, warning_level, msg)}, "pet my head"));
+	comm::send(state_chan, update_msg("alerts", |store, _msg| {open_alert(store, {device: "server", id: "tail", level: error_level, mesg: "bite my tail", resolution: "Stop biting!"})}, ""));
+	comm::send(state_chan, update_msg("alerts", |store, _msg| {open_alert(store, {device: "server", id: "hand", level: error_level, mesg: "bite my hand", resolution: "Don't bite!"})}, ""));
+	comm::send(state_chan, update_msg("alerts", |store, _msg| {open_alert(store, {device: "server", id: "head", level: warning_level, mesg: "pet my head", resolution: "Why stop?"})}, ""));
+	comm::send(state_chan, update_msg("alerts", |store, _msg| {open_alert(store, {device: "server", id: "content", level: warning_level, mesg: "unexplored content", resolution: "Visit the subjects page."})}, ""));
+	
+	comm::send(state_chan, update_msg("alerts", |store, _msg| {open_alert(store, {device: "server", id: "content", level: warning_level, mesg: "unexplored content", resolution: "Visit the subjects page."})}, ""));
 	
 	let config = {
 		// We need to bind to the server addresses so that we receive modeler PUTs.

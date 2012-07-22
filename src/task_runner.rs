@@ -1,17 +1,18 @@
-export failure_policy, ignore_failures, exit_on_failure, restart_on_failure, exit_fn,
-	job_fn, job, run, sequence;
+export failure_policy, ignore_failures, notify_on_failure, notify_on_exit,
+	shutdown_on_failure, exit_fn, job_fn, job, run, sequence;
 
-/// Actions to take if a job returns with an error code.
+/// Actions to take after a job finishes.
 ///
 /// * ignore_failures - do nothing.
-/// * exit_on_failure - call cleanup actions and then exit.
-/// * restart_on_failure - call the job action again after waiting uint seconds, 
-/// with uint max restarts, after calling f with the error message.
+/// * notify_on_failure - call a function with the error.
+/// * notify_on_exit - call a function with the error or option::none.
+/// * shutdown_on_failure - call cleanup actions and then call exit.
 enum failure_policy
 {
 	ignore_failures,
-	exit_on_failure,
-	restart_on_failure(uint, uint, fn~ (str)),
+	notify_on_failure(fn~ (str)),
+	notify_on_exit(fn~ (option::option<str>)),
+	shutdown_on_failure,
 }
 
 /// A pointer to a function to call when the server shuts down.
@@ -58,7 +59,19 @@ fn do_run(job: job, cleanup: ~[exit_fn])
 				#info["%s", err.get()];
 			}
 		}
-		exit_on_failure
+		notify_on_failure(notify)
+		{
+			let err = job.action();
+			if err.is_some()
+			{
+				notify(err.get());
+			}
+		}
+		notify_on_exit(notify)
+		{
+			notify(job.action())
+		}
+		shutdown_on_failure
 		{
 			let err = job.action();
 			if err.is_some()
@@ -66,33 +79,6 @@ fn do_run(job: job, cleanup: ~[exit_fn])
 				#error["%s", err.get()];
 				for cleanup.each |f| {f()};
 				libc::exit(3);
-			}
-		}
-		restart_on_failure(delay, max_retries, notify)
-		{
-			let mut count = 0;
-			loop
-			{
-				alt job.action()
-				{
-					option::some(err)
-					{
-						notify(err);
-						count += 1;
-						if count <= max_retries
-						{
-							libc::funcs::posix88::unistd::sleep(delay as libc::c_uint);
-						}
-						else
-						{
-							break;
-						}
-					}
-					option::none
-					{
-						break;
-					}
-				}
 			}
 		}
 	}

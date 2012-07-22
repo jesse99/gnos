@@ -174,7 +174,7 @@ fn add_device(store: store, managed_ip: str, device: std::map::hashmap<str, std:
 //    },
 //    ...
 // }
-fn json_to_store(remote_addr: str, store: store, body: str)
+fn json_to_store(remote_addr: str, store: store, body: str) -> bool
 {
 	alt std::json::from_str(body)
 	{
@@ -211,12 +211,14 @@ fn json_to_store(remote_addr: str, store: store, body: str)
 			
 			#info["Received data from %s:", remote_addr];
 			//for store.each {|triple| #debug["   %s", triple.to_str()];};
+			true
 		}
 		result::err(err)
 		{
 			let intro = #fmt["Malformed json on line %? col %? from %s", err.line, err.col, remote_addr];
 			#error["Error getting new modeler data:"];
 			#error["%s: %s", intro, *err.msg];
+			false
 		}
 	}
 }
