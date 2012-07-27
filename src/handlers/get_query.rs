@@ -1,35 +1,35 @@
 // Uses Server Sent Events to send solutions for a query after the model is updated.
-import rrdf::*;
+//import rrdf::*;
 import std::json::to_json;
 import std::json::to_str;
-import rwebserve::imap::imap_methods;
+import model::{msg, deregister_msg, register_msg};
+import rrdf::{object, iri_value, blank_value, unbound_value, invalid_value, error_value, string_value,
+	solution_row, solution};
+import rwebserve::imap::{imap_methods, immutable_map};
 
 export get_query;
 
-impl of to_json for object
+// TODO: need to escape as html
+fn object_to_json(obj: object) -> std::json::json
 {
-	// TODO: need to escape as html
-	fn to_json() -> std::json::json
+	alt obj
 	{
-		alt self
+		iri_value(value) | blank_value(value)
 		{
-			iri_value(value) | blank_value(value)
-			{
-				value.to_json()
-			}
-			unbound_value(*) | invalid_value(*) | error_value(*)
-			{
-				// TODO: use custom css and render these in red
-				self.to_str().to_json()
-			}
-			string_value(value, "")
-			{
-				value.to_json()
-			}
-			_
-			{
-				self.to_str().to_json()
-			}
+			value.to_json()
+		}
+		unbound_value(*) | invalid_value(*) | error_value(*)
+		{
+			// TODO: use custom css and render these in red
+			obj.to_str().to_json()
+		}
+		string_value(value, ~"")
+		{
+			value.to_json()
+		}
+		_
+		{
+			obj.to_str().to_json()
 		}
 	}
 }
@@ -42,7 +42,7 @@ fn solution_row_to_json(row: solution_row) -> std::json::json
 			|entry|
 			{
 				let (key, value) = entry;
-				(key, value.to_json())
+				(key, object_to_json(value))
 			}
 		)
 	)
@@ -62,8 +62,8 @@ fn solution_to_json(solution: solution) -> std::json::json
 // server-sent event handler
 fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server::push_chan) -> server::control_chan
 {
-	let name = request.params.get("name");
-	let query = request.params.get("expr");
+	let name = request.params.get(~"name");
+	let query = request.params.get(~"expr");
 	
 	do task::spawn_listener
 	|control_port: server::control_port|

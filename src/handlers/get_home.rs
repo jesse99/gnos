@@ -1,7 +1,7 @@
 // This is the entry point into gnos web sites. It's designed to provide a quick visual
 // indication of the health of the network as well as convenient navigation to other
 // parts of the web site.
-import rrdf::*;
+import model::msg;
 
 // TODO:
 // Home	Issues		Model	Admin Shutdown
@@ -29,7 +29,7 @@ import rrdf::*;
 // need a query like
 //    select name and managed_ip
 //    where subject.starts_with("gnos:device")
-fn get_home(options: options, _state_chan: comm::chan<msg>, _settings: hashmap<str, str>, 
+fn get_home(options: options, _state_chan: comm::chan<msg>, _settings: hashmap<~str, ~str>, 
 	_request: server::request, response: server::response) -> server::response
 {
 //	let rows = get_state(state_chan, "
@@ -55,6 +55,6 @@ fn get_home(options: options, _state_chan: comm::chan<msg>, _settings: hashmap<s
 //	};
 //	
 //	response.context.insert("store", mustache::vec(triples));
-	response.context.insert("admin", mustache::bool(options.admin));
-	{template: "home.html" with response}
+	response.context.insert(~"admin", mustache::bool(options.admin));
+	{template: ~"home.html" with response}
 }

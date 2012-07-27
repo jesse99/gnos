@@ -1,10 +1,13 @@
 // This is the code that handles PUTs from the snmp-modeler script. It parses the
 // incoming json, converts it into triplets, and updates the model.
-import rrdf::*;
+import model::{msg, update_msg};
+import rrdf::{store, string_value, get_blank_name, object, literal_to_object, bool_value, blank_value, typed_value,
+	dateTime_value};
+import rrdf::store::{base_iter, store_trait};
 
 export put_snmp;
 
-fn lookup(table: std::map::hashmap<str, std::json::json>, key: str, default: str) -> str
+fn lookup(table: std::map::hashmap<~str, std::json::json>, key: ~str, default: ~str) -> ~str
 {
 	alt table.find(key)
 	{
@@ -28,9 +31,9 @@ fn lookup(table: std::map::hashmap<str, std::json::json>, key: str, default: str
 
 // We store snmp data for various objects in the raw so that views are able to use it
 // and so admins can view the complete raw data.
-fn add_snmp(store: store, label: str, object: std::map::hashmap<str, std::json::json>) -> str
+fn add_snmp(store: store, label: ~str, object: std::map::hashmap<~str, std::json::json>) -> ~str
 {
-	let mut entries = [];
+	let mut entries = ~[];
 	vec::reserve(entries, object.size());
 	
 	for object.each()			// unfortunately hashmap doesn't support the base_iter protocol so there's no nice way to do this
@@ -40,7 +43,7 @@ fn add_snmp(store: store, label: str, object: std::map::hashmap<str, std::json::
 		{
 			std::json::string(s)
 			{
-				vec::push(entries, ("snmp:" + name, string_value(*s, "")));
+				vec::push(entries, (~"snmp:" + name, string_value(*s, ~"")));
 			}
 			std::json::dict(_d)
 			{
@@ -77,40 +80,40 @@ fn add_snmp(store: store, label: str, object: std::map::hashmap<str, std::json::
 // "ifType": "ethernetCsmacd(6)", 
 // "ipAdEntAddr": "10.101.3.2", 
 // "ipAdEntNetMask": "255.255.255.0"
-fn add_interface(store: store, managed_ip: str, data: std::json::json) -> (str, object)
+fn add_interface(store: store, managed_ip: ~str, data: std::json::json) -> (~str, object)
 {
 	alt data
 	{
 		std::json::dict(interface)
 		{
-			let name = lookup(interface, "ifDescr", "");
+			let name = lookup(interface, ~"ifDescr", ~"");
 			let label = #fmt["%s-%s", managed_ip, name];
 			
-			let entries = [
-				("gnos:ifname", string_value(name, "")),
-				("gnos:ip", string_value(lookup(interface, "ipAdEntAddr", ""), "")),
-				("gnos:netmask", string_value(lookup(interface, "ipAdEntNetMask", ""), "")),
-				("gnos:mac", string_value(lookup(interface, "ifPhysAddress", ""), "")),
-				("gnos:mtu", literal_to_object(lookup(interface, "ifMtu", ""), "http://www.w3.org/2001/XMLSchema#integer", "")),
-				("gnos:enabled", bool_value(str::contains(lookup(interface, "ifOperStatus", ""), "(1)"))),	// TODO: verify that we want this and not ifAdminStatus
-				("gnos:snmp", blank_value(add_snmp(store, label, interface))),
+			let entries = ~[
+				(~"gnos:ifname", string_value(name, ~"")),
+				(~"gnos:ip", string_value(lookup(interface, ~"ipAdEntAddr", ~""), ~"")),
+				(~"gnos:netmask", string_value(lookup(interface, ~"ipAdEntNetMask", ~""), ~"")),
+				(~"gnos:mac", string_value(lookup(interface, ~"ifPhysAddress", ~""), ~"")),
+				(~"gnos:mtu", literal_to_object(lookup(interface, ~"ifMtu", ~""), ~"http://www.w3.org/2001/XMLSchema#integer", ~"")),
+				(~"gnos:enabled", bool_value(str::contains(lookup(interface, ~"ifOperStatus", ~""), ~"(1)"))),	// TODO: verify that we want this and not ifAdminStatus
+				(~"gnos:snmp", blank_value(add_snmp(store, label, interface))),
 			];
 			
 			let subject = get_blank_name(store, label);
 			store.add(subject, entries);
-			("gnos:interface", blank_value(subject))
+			(~"gnos:interface", blank_value(subject))
 		}
 		_
 		{
 			#error["Expected dict for %s interfaces but found %?", managed_ip, data];
-			("gnos:missing-interface", string_value("", ""))
+			(~"gnos:missing-interface", string_value(~"", ~""))
 		}
 	}
 }
 
-fn add_interfaces(store: store, managed_ip: str, device: std::map::hashmap<str, std::json::json>) -> [(str, object)]/~
+fn add_interfaces(store: store, managed_ip: ~str, device: std::map::hashmap<~str, std::json::json>) -> ~[(~str, object)]
 {
-	alt device["interfaces"]
+	alt device[~"interfaces"]
 	{
 		std::json::list(interfaces)
 		{
@@ -122,8 +125,8 @@ fn add_interfaces(store: store, managed_ip: str, device: std::map::hashmap<str, 
 		}
 		_
 		{
-			#error["Expected list for %s interfaces but found %?", managed_ip, device.get("interfaces")];
-			[]/~
+			#error["Expected list for %s interfaces but found %?", managed_ip, device.get(~"interfaces")];
+			~[]
 		}
 	}
 }
@@ -144,13 +147,13 @@ fn add_interfaces(store: store, managed_ip: str, device: std::map::hashmap<str, 
 // "sysLocation": "air", 
 // "sysName": "GRS", 
 // "sysUpTime": "5080354"
-fn add_device(store: store, managed_ip: str, device: std::map::hashmap<str, std::json::json>)
+fn add_device(store: store, managed_ip: ~str, device: std::map::hashmap<~str, std::json::json>)
 {
-	let entries = [
-		("gnos:managed_ip", typed_value(managed_ip, "gnos:ip_address")),
-		("gnos:name", string_value(lookup(device, "sysName", "unknown"), "")),	// TODO: admin property, if set, should override this
-		("gnos:description", string_value(lookup(device, "sysDescr", ""), "")),		// TODO: admin property, if set, should override this
-		("gnos:snmp", blank_value(add_snmp(store, managed_ip, device))),
+	let entries = ~[
+		(~"gnos:managed_ip", typed_value(managed_ip, ~"gnos:ip_address")),
+		(~"gnos:name", string_value(lookup(device, ~"sysName", ~"unknown"), ~"")),	// TODO: admin property, if set, should override this
+		(~"gnos:description", string_value(lookup(device, ~"sysDescr", ~""), ~"")),		// TODO: admin property, if set, should override this
+		(~"gnos:snmp", blank_value(add_snmp(store, managed_ip, device))),
 	] + add_interfaces(store, managed_ip, device);
 	
 	let subject = get_blank_name(store, managed_ip);
@@ -174,14 +177,14 @@ fn add_device(store: store, managed_ip: str, device: std::map::hashmap<str, std:
 //    },
 //    ...
 // }
-fn json_to_store(remote_addr: str, store: store, body: str) -> bool
+fn json_to_store(remote_addr: ~str, store: store, body: ~str) -> bool
 {
 	alt std::json::from_str(body)
 	{
 		result::ok(data)
 		{
 			store.clear();
-			store.add_triple([]/~, {subject: "gnos:system", predicate: "gnos:last_update", object: dateTime_value(std::time::now())});
+			store.add_triple(~[], {subject: ~"gnos:system", predicate: ~"gnos:last_update", object: dateTime_value(std::time::now())});
 			
 			alt data
 			{
@@ -229,6 +232,6 @@ fn put_snmp(state_chan: comm::chan<msg>, request: server::request, response: ser
 	// Of course that shouldn't happen...
 	#info["got new modeler data"];
 	let addr = request.remote_addr;
-	comm::send(state_chan, update_msg("model", |s, d| {json_to_store(addr, s, d)}, request.body));
-	{body: "" with response}
+	comm::send(state_chan, update_msg(~"model", |s, d| {json_to_store(addr, s, d)}, request.body));
+	{body: ~"" with response}
 }

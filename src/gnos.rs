@@ -5,19 +5,19 @@ import std::json;
 import std::map::hashmap;
 import core::option::extensions;
 import server = rwebserve;
-import model::*;
+import model;
 import handlers::*;
 
 /// Various options derived from the command line and the network.json file.
 type options = {
 	// these are from the command line
-	root: str,
+	root: ~str,
 	admin: bool,
 	
 	// these are from the network.json file
 	// TODO: probably should also have device names (could then do an alert if no info for a device)
-	client: str,
-	server: str,
+	client: ~str,
+	server: ~str,
 	port: u16,
 	
 	// this is from main
@@ -27,25 +27,25 @@ type options = {
 // str constants aren't supported yet.
 // TODO: get this (somehow) from the link attribute in the rc file (going the other way
 // doesn't work because vers in the link attribute has to be a literal)
-fn get_version() -> str
+fn get_version() -> ~str
 {
-	"0.1"
+	~"0.1"
 }
 
 fn print_usage()
 {
 	io::println(#fmt["gnos %s - a web based network management system", get_version()]);
-	io::println("");
-	io::println("./gnos [options] --root=<dir> network.json");
-	io::println("--admin      allows web clients to shut the server down");
-	io::println("-h, --help   prints this message and exits");
-	io::println("--root=DIR   path to the directory containing html files");
-	io::println("--version    prints the gnos version number and exits");
-	io::println("");
-	io::println("--address may appear multiple times");
+	io::println(~"");
+	io::println(~"./gnos [options] --root=<dir> network.json");
+	io::println(~"--admin      allows web clients to shut the server down");
+	io::println(~"-h, --help   prints this message and exits");
+	io::println(~"--root=DIR   path to the directory containing html files");
+	io::println(~"--version    prints the gnos version number and exits");
+	io::println(~"");
+	io::println(~"--address may appear multiple times");
 }
 
-fn get_network_str(path: str, data: std::map::hashmap<str, json::json>, key: str) -> str
+fn get_network_str(path: ~str, data: std::map::hashmap<~str, json::json>, key: ~str) -> ~str
 {
 	alt data.find(key)
 	{
@@ -66,7 +66,7 @@ fn get_network_str(path: str, data: std::map::hashmap<str, json::json>, key: str
 	}
 }
 
-fn get_network_u16(path: str, data: std::map::hashmap<str, json::json>, key: str) -> u16
+fn get_network_u16(path: ~str, data: std::map::hashmap<~str, json::json>, key: ~str) -> u16
 {
 	alt data.find(key)
 	{
@@ -97,7 +97,7 @@ fn get_network_u16(path: str, data: std::map::hashmap<str, json::json>, key: str
 	}
 }
 
-fn load_network_file(path: str) -> {client: str, server: str, port: u16}
+fn load_network_file(path: ~str) -> {client: ~str, server: ~str, port: u16}
 {
 	alt io::file_reader(path)
 	{
@@ -108,9 +108,9 @@ fn load_network_file(path: str) -> {client: str, server: str, port: u16}
 				result::ok(json::dict(data))
 				{
 					{
-						client: get_network_str(path, data, "client"),
-						server: get_network_str(path, data, "server"),
-						port: get_network_u16(path, data, "port")
+						client: get_network_str(path, data, ~"client"),
+						server: get_network_str(path, data, ~"server"),
+						port: get_network_u16(path, data, ~"port")
 					}
 				}
 				result::ok(x)
@@ -133,28 +133,28 @@ fn load_network_file(path: str) -> {client: str, server: str, port: u16}
 	}
 }
 
-fn parse_command_line(args: [str]) -> options
+fn parse_command_line(args: ~[~str]) -> options
 {
-	let opts = [
-		optflag("admin"),
-		optmulti("address"),
-		reqopt("root"),
-		optflag("h"),
-		optflag("help"),
-		optopt("port"),
-		optflag("version")
+	let opts = ~[
+		optflag(~"admin"),
+		optmulti(~"address"),
+		reqopt(~"root"),
+		optflag(~"h"),
+		optflag(~"help"),
+		optopt(~"port"),
+		optflag(~"version")
 	];
 	let match = alt getopts(vec::tail(args), opts)
 	{
 		result::ok(m) {m}
 		result::err(f) {io::stderr().write_line(fail_str(f)); libc::exit(1_i32)}
 	};
-	if opt_present(match, "h") || opt_present(match, "help")
+	if opt_present(match, ~"h") || opt_present(match, ~"help")
 	{
 		print_usage();
 		libc::exit(0);
 	}
-	else if opt_present(match, "version")
+	else if opt_present(match, ~"version")
 	{
 		io::println(#fmt["gnos %s", get_version()]);
 		libc::exit(0);
@@ -167,8 +167,8 @@ fn parse_command_line(args: [str]) -> options
 	let network = load_network_file(match.free[0]);
 	
 	{
-		root: opt_str(match, "root"),
-		admin: opt_present(match, "admin"),
+		root: opt_str(match, ~"root"),
+		admin: opt_present(match, ~"admin"),
 		
 		client: network.client,
 		server: network.server,
@@ -187,30 +187,30 @@ fn validate_options(options: options)
 	}
 }
 
-fn copy_scripts(root: str, user: str, host: str) -> option::option<str>
+fn copy_scripts(root: ~str, user: ~str, host: ~str) -> option::option<~str>
 {
 	let dir = core::path::dirname(root);						// gnos/html => /gnos
-	let dir = core::path::connect(dir, "scripts");				// /gnos => /gnos/scripts
-	let files = utils::list_dir_path(dir, ~[".json", ".py"]);
+	let dir = core::path::connect(dir, ~"scripts");				// /gnos => /gnos/scripts
+	let files = utils::list_dir_path(dir, ~[~".json", ~".py"]);
 	
 	utils::scp_files(files, user, host)
 }
 
-fn run_snmp(user: str, host: str) -> option::option<str>
+fn run_snmp(user: ~str, host: ~str) -> option::option<~str>
 {
-	utils::run_remote_command(user, host, "python snmp-modeler.py -vv sat.json")
+	utils::run_remote_command(user, host, ~"python snmp-modeler.py -vv sat.json")
 }
 
-fn snmp_exited(err: option::option<str>, state_chan: comm::chan<msg>)
+fn snmp_exited(err: option::option<~str>, state_chan: comm::chan<model::msg>)
 {
-	let mesg = #fmt["snmp-modeler.py exited%s", if err.is_some() {" with error: " + err.get()} else {""}];
+	let mesg = #fmt["snmp-modeler.py exited%s", if err.is_some() {~" with error: " + err.get()} else {~""}];
 	#error["%s", mesg];
 	
-	let alert = {device: "server", id: "snmp-modeler.py exited", level: error_level, mesg: mesg, resolution: "Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
-	comm::send(state_chan, update_msg("alerts", |store, _err| {open_alert(store, alert)}, ""));
+	let alert = {device: ~"server", id: ~"snmp-modeler.py exited", level: model::error_level, mesg: mesg, resolution: ~"Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
+	comm::send(state_chan, model::update_msg(~"alerts", |store, _err| {model::open_alert(store, alert)}, ~""));
 }
 
-fn setup(options: options, state_chan: comm::chan<msg>) 
+fn setup(options: options, state_chan: comm::chan<model::msg>) 
 {
 	let root = options.root;
 	let client = options.client;
@@ -233,13 +233,13 @@ fn get_shutdown(options: options) -> !
 }
 
 // TODO: get rid of this
-fn greeting_view(_settings: hashmap<str, str>, request: server::request, response: server::response) -> server::response
+fn greeting_view(_settings: hashmap<~str, ~str>, request: server::request, response: server::response) -> server::response
 {
-	response.context.insert("user-name", mustache::str(@request.matches.get("name")));
-	{template: "hello.html" with response}
+	response.context.insert(~"user-name", mustache::str(@request.matches.get(~"name")));
+	{template: ~"hello.html" with response}
 }
 
-fn main(args: [str])
+fn main(args: ~[~str])
 {
 	#info["starting up gnos"];
 	if #env["GNOS_USER"].is_empty()
@@ -252,10 +252,10 @@ fn main(args: [str])
 	validate_options(options);
 	
 	let client = options.client;
-	let c1: task_runner::exit_fn = || {utils::run_remote_command(#env["GNOS_USER"], client, "pgrep -f snmp-modeler.py | xargs --no-run-if-empty kill -9");};
+	let c1: task_runner::exit_fn = || {utils::run_remote_command(#env["GNOS_USER"], client, ~"pgrep -f snmp-modeler.py | xargs --no-run-if-empty kill -9");};
 	let options = {cleanup: ~[c1] with options};
 	
-	let state_chan = do task::spawn_listener |port| {manage_state(port)};
+	let state_chan = do task::spawn_listener |port| {model::manage_state(port)};
 	setup(options, state_chan);
 	
 	let options2 = copy options;
@@ -267,37 +267,37 @@ fn main(args: [str])
 	let query_s: server::open_sse = |_settings, request, push| {get_query::get_query(state_chan, request, push)};
 	let bail_v: server::response_handler = |_settings, _request, _response| {get_shutdown(options3)};
 	
-	comm::send(state_chan, update_msg("alerts", |store, _msg| {open_alert(store, {device: "server", id: "tail", level: error_level, mesg: "bite my tail", resolution: "Stop biting!"})}, ""));
-	comm::send(state_chan, update_msg("alerts", |store, _msg| {open_alert(store, {device: "server", id: "hand", level: error_level, mesg: "bite my hand", resolution: "Don't bite!"})}, ""));
-	comm::send(state_chan, update_msg("alerts", |store, _msg| {open_alert(store, {device: "server", id: "head", level: warning_level, mesg: "pet my head", resolution: "Why stop?"})}, ""));
-	comm::send(state_chan, update_msg("alerts", |store, _msg| {open_alert(store, {device: "server", id: "content", level: warning_level, mesg: "unexplored content", resolution: "Visit the subjects page."})}, ""));
+	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"server", id: ~"tail", level: model::error_level, mesg: ~"bite my tail", resolution: ~"Stop biting!"})}, ~""));
+	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"server", id: ~"hand", level: model::error_level, mesg: ~"bite my hand", resolution: ~"Don't bite!"})}, ~""));
+	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"server", id: ~"head", level: model::warning_level, mesg: ~"pet my head", resolution: ~"Why stop?"})}, ~""));
+	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"server", id: ~"content", level: model::warning_level, mesg: ~"unexplored content", resolution: ~"Visit the subjects page."})}, ~""));
 	
-	comm::send(state_chan, update_msg("alerts", |store, _msg| {open_alert(store, {device: "server", id: "content", level: warning_level, mesg: "unexplored content", resolution: "Visit the subjects page."})}, ""));
+	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"server", id: ~"content", level: model::warning_level, mesg: ~"unexplored content", resolution: ~"Visit the subjects page."})}, ~""));
 	
 	let config = {
 		// We need to bind to the server addresses so that we receive modeler PUTs.
 		// We bind to localhost to ensure that we can hit the web server using a local
 		// browser.
-		hosts: if options.admin {~[options.server, "localhost"]} else {~[options.server]},
+		hosts: if options.admin {~[options.server, ~"localhost"]} else {~[options.server]},
 		port: options.port,
-		server_info: "gnos " + get_version(),
+		server_info: ~"gnos " + get_version(),
 		resources_root: options.root,
-		routes: [
-			("GET", "/", "home"),
-			("GET", "/shutdown", "shutdown"),		// TODO: enable this via debug cfg (or maybe via a command line option)
-			("GET", "/hello/{name}", "greeting"),
-			("GET", "/model", "subjects"),
-			("GET", "/subject/{subject}", "subject"),
-			("PUT", "/snmp-modeler", "modeler")],
-		views: [
-			("home",  home_v),
-			("shutdown",  bail_v),
-			("greeting", greeting_view),
-			("subjects",  subjects_v),
-			("subject",  subject_v),
-			("modeler",  modeler_p)],
-		sse: ~[("/query", query_s)],
-		settings: [("debug",  "true")]			// TODO: make this a command-line option
+		routes: ~[
+			(~"GET", ~"/", ~"home"),
+			(~"GET", ~"/shutdown", ~"shutdown"),		// TODO: enable this via debug cfg (or maybe via a command line option)
+			(~"GET", ~"/hello/{name}", ~"greeting"),
+			(~"GET", ~"/model", ~"subjects"),
+			(~"GET", ~"/subject/{subject}", ~"subject"),
+			(~"PUT", ~"/snmp-modeler", ~"modeler")],
+		views: ~[
+			(~"home",  home_v),
+			(~"shutdown",  bail_v),
+			(~"greeting", greeting_view),
+			(~"subjects",  subjects_v),
+			(~"subject",  subject_v),
+			(~"modeler",  modeler_p)],
+		sse: ~[(~"/query", query_s)],
+		settings: ~[(~"debug",  ~"true")]			// TODO: make this a command-line option
 		with server::initialize_config()};
 	server::start(config);
 	

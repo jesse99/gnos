@@ -10,8 +10,8 @@ export failure_policy, ignore_failures, notify_on_failure, notify_on_exit,
 enum failure_policy
 {
 	ignore_failures,
-	notify_on_failure(fn~ (str)),
-	notify_on_exit(fn~ (option::option<str>)),
+	notify_on_failure(fn~ (~str)),
+	notify_on_exit(fn~ (option::option<~str>)),
 	shutdown_on_failure,
 }
 
@@ -21,7 +21,7 @@ type exit_fn = fn~ () -> ();
 /// A pointer to a function to execute within a task.
 ///
 /// Returns a message on errors.
-type job_fn = fn~ () -> option::option<str>;
+type job_fn = fn~ () -> option::option<~str>;
 
 type job = {action: job_fn, policy: failure_policy};
 

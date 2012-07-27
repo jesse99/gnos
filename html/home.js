@@ -55,7 +55,7 @@ window.onload = function()
 	updateAlerts([], "inactive");
 	
 	var oldest = new Date();
-	oldest.setDate(oldest.getDate() - 4);
+	oldest.setDate(oldest.getDate() - 7);	// show alerts for the last week
 	var expr = '													\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
