@@ -58,6 +58,9 @@ javascript model/view: http://documentcloud.github.com/backbone/
 		` otherwise use a disclosure widget
 	- links should be color coded depending on device status
 	- get rid of the greeting code
+* When merging different modeler info:
+	- could use the snmp modeler interval
+	- then add in the other modelers
 * Use valid time? Also look at Owl-Time
 * Eth0 can only be named using a device so it should be a blank node.
 * Should validate the network.json file.

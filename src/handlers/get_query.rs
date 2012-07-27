@@ -1,5 +1,4 @@
 // Uses Server Sent Events to send solutions for a query after the model is updated.
-//import rrdf::*;
 import std::json::to_json;
 import std::json::to_str;
 import model::{msg, deregister_msg, register_msg};
