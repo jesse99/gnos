@@ -60,6 +60,7 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- get rid of the greeting code
 * Should have a --scripts option:
 	- run everything inside there with a standard set of options
+* Probably should have a pref to control canvas size (maybe on the map inspector).
 * When merging different modeler info:
 	- could use the snmp modeler interval
 	- then add in the other modelers

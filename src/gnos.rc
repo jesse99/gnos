@@ -13,6 +13,7 @@ use mustache (name = "mustache", vers = "0.1");
 use rrdf (name = "rrdf", vers = "0.2");
 use rwebserve (name = "rwebserve", vers = "0.1");
 
+mod db;
 mod model;
 mod options;
 mod task_runner;
@@ -21,6 +22,7 @@ mod handlers
 {
 	mod get_home;
 	mod get_query;
+	mod get_map;
 	mod get_subject;
 	mod get_subjects;
 	mod put_snmp;

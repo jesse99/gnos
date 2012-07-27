@@ -52,10 +52,8 @@ gnos:center_y			xsd:float			0.6\
 \f1\fs24 \cf0 \
 \pard\pardeftab480\pardirnatural
 
-\f0\fs28 \cf0 												0:1 cardinality\
-gnos:style				xsd:string			"", "host", "router", etc\
-\
-												0: cardinality\
+\f0\fs28 \cf0 												0: cardinality\
+gnos:style				xsd:string			"", "host", "router", "large", etc\
 gnos:primary_label		xsd:string			"GRS-1"\
 gnos:secondary_label	xsd:string			"10.1.0.1"\
 gnos:tertiary_label		xsd:string			"server room"\
@@ -80,16 +78,13 @@ gnos:text_info
 \fs28 \cf0 _:rel1
 \b0 \
 gnos:peer					xsd:anyURI		_:obj2\
-gnos:name				xsd:string			"ospf route"\
-\
-												0:1 cardinality\
-gnos:style				xsd:string			"", "link", "route", etc\
 \pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
 
 \f1\fs24 \cf0 \
 \pard\pardeftab480\pardirnatural
 
 \f0\fs28 \cf0 												0: cardinality\
+gnos:style				xsd:string			"", "link", "route", "thick", etc\
 gnos:primary_label		xsd:string			"5 cost"\
 gnos:secondary_label	xsd:string			"150Kbps"\
 gnos:tertiary_label		xsd:string			"ospf"\

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+
+<!-- This is the main view. It has a canvas displaying the map and an info view
+with dynamic content set according to the selection and insprector settings. -->
+<html lang="en">
+	<head>
+		<script defer="true" src="/common.js"></script>
+		<script defer="true" src="/map.js"></script>
+		<title>gnos</title>
+		<link rel="stylesheet" type="text/css" href="map.css"/>
+	</head>
+	
+	<body>
+		<canvas id='map' width='800' height='400'>
+			Canvas not supported
+		</canvas>
+		
+		<p id='info'>Info stuff goes here</p>
+		
+		<hr/>
+		
+		{{#admin}}
+		<ul class="url-list">
+		<li><a href="/model">model</a></li>
+		<li><a href="/shutdown">shutdown</a></li>
+		</ul>
+		{{/admin}}
+	</body>
+<html>

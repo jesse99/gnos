@@ -62,21 +62,28 @@ fn main(args: ~[~str])
 		libc::exit(1)
 	}
 	
-	let options = options::parse_command_line(args);
+	let mut options = options::parse_command_line(args);
 	options::validate(options);
 	
-	let client = options.client;
-	let c1: task_runner::exit_fn = || {utils::run_remote_command(#env["GNOS_USER"], client, ~"pgrep -f snmp-modeler.py | xargs --no-run-if-empty kill -9");};
-	let options = {cleanup: ~[c1] with options};
-	
 	let state_chan = do task::spawn_listener |port| {model::manage_state(port)};
-	setup(options, state_chan);
+	if !options.db
+	{
+		let client = options.client;
+		let c1: task_runner::exit_fn = || {utils::run_remote_command(#env["GNOS_USER"], client, ~"pgrep -f snmp-modeler.py | xargs --no-run-if-empty kill -9");};
+		options.cleanup = ~[c1];
+		
+		setup(options, state_chan);
+	}
+	else
+	{
+		db::setup(state_chan);
+	}
 	
 	let options2 = copy options;
 	let options3 = copy options;
 	let subjects_v: server::response_handler = |_settings, _request, response| {get_subjects::get_subjects(response, state_chan)};
 	let subject_v: server::response_handler = |_settings, request, response| {get_subject::get_subject(request, response)};	
-	let home_v: server::response_handler = |settings, request, response| {get_home::get_home(options2, state_chan, settings, request, response)};
+	let map_v: server::response_handler = |_settings, _request, response| {get_map::get_map(options2, response)};
 	let modeler_p: server::response_handler = |_settings, request, response| {put_snmp::put_snmp(state_chan, request, response)};
 	let query_s: server::open_sse = |_settings, request, push| {get_query::get_query(state_chan, request, push)};
 	let bail_v: server::response_handler = |_settings, _request, _response| {get_shutdown(options3)};
@@ -97,19 +104,19 @@ fn main(args: ~[~str])
 		server_info: ~"gnos " + options::get_version(),
 		resources_root: options.root,
 		routes: ~[
-			(~"GET", ~"/", ~"home"),
+			(~"GET", ~"/", ~"map"),
 			(~"GET", ~"/shutdown", ~"shutdown"),		// TODO: enable this via debug cfg (or maybe via a command line option)
 			(~"GET", ~"/model", ~"subjects"),
 			(~"GET", ~"/subject/{subject}", ~"subject"),
 			(~"PUT", ~"/snmp-modeler", ~"modeler")],
 		views: ~[
-			(~"home",  home_v),
+			(~"map",  map_v),
 			(~"shutdown",  bail_v),
 			(~"subjects",  subjects_v),
 			(~"subject",  subject_v),
 			(~"modeler",  modeler_p)],
 		sse: ~[(~"/query", query_s)],
-		settings: ~[(~"debug",  ~"true")]			// TODO: make this a command-line option
+		settings: ~[(~"debug",  ~"true")]		// TODO: make this a command-line option
 		with server::initialize_config()};
 	server::start(config);
 	
