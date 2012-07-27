@@ -29,7 +29,7 @@ import model::msg;
 // need a query like
 //    select name and managed_ip
 //    where subject.starts_with("gnos:device")
-fn get_home(options: options, _state_chan: comm::chan<msg>, _settings: hashmap<~str, ~str>, 
+fn get_home(options: options::options, _state_chan: comm::chan<msg>, _settings: hashmap<~str, ~str>, 
 	_request: server::request, response: server::response) -> server::response
 {
 //	let rows = get_state(state_chan, "

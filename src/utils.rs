@@ -1,3 +1,5 @@
+import std::getopts::*;
+
 export scp_files, run_remote_command, list_dir_path;
 
 /// Returns an error if the files cannot be copied.
