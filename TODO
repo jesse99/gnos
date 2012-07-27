@@ -58,6 +58,8 @@ javascript model/view: http://documentcloud.github.com/backbone/
 		` otherwise use a disclosure widget
 	- links should be color coded depending on device status
 	- get rid of the greeting code
+* Should have a --scripts option:
+	- run everything inside there with a standard set of options
 * When merging different modeler info:
 	- could use the snmp modeler interval
 	- then add in the other modelers

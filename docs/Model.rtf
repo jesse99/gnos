@@ -1,0 +1,138 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1138\cocoasubrtf470
+{\fonttbl\f0\fnil\fcharset0 Verdana;\f1\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;\red255\green0\blue0;}
+\deftab480
+\pard\pardeftab480\pardirnatural
+
+\f0\fs28 \cf0 This is the RDF schema for the information used by the client views. It's populated by\
+modeler scripts and the gnos command line. Clients use SPARQL queries together with server-sent events to automatically update views as the model changes.\
+\
+In order to decouple the views from the model the model is designed to be sufficiently generic that it doesn't even expose networking concepts. This allows the views to operate on high-level semantic concepts instead of network specific data (which, for example, will allow views to work unchanged if custom modelers add new information to the model).\
+\pard\pardeftab480\pardirnatural
+\cf0 \
+The schema is defined with the aid of a couple of different namespace prefixes:\
+\pard\pardeftab480\pardirnatural
+
+\i \cf0 gnos
+\i0  - http://www.gnos.org/2012/schema#\
+
+\i xsd
+\i0  - http://www.w3.org/2001/XMLSchema#\
+\
+\pard\pardeftab480\pardirnatural
+\cf0 There are a few custom literal types:\
+\pard\pardeftab480\pardirnatural
+
+\i \cf0 gnos:color
+\i0  - numeric or named CSS color\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f1\fs24 \cf0 \
+\pard\pardeftab480\pardirnatural
+
+\f0\b\fs44 \cf0 Map\
+\pard\pardeftab480\pardirnatural
+
+\fs28 \cf0 gnos:map
+\b0 \
+gnos:objects			xsd:Seq				[gnos:10.1.0.1, gnos:10.1.0.2]\
+gnos:last_update	xsd:dateTime\
+gnos:poll_interval	xsd:integer			30 (seconds)\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardeftab480\pardirnatural
+
+\f1\fs24 \cf0 \
+\
+\pard\pardeftab480\pardirnatural
+
+\f0\b\fs44 \cf0 Objects\
+\pard\pardeftab480\pardirnatural
+
+\fs28 \cf0 gnos:10.1.0.1
+\b0 \
+gnos:center_x			xsd:float			0.3 (unit coordinates where origin is upper-left)\
+gnos:center_y			xsd:float			0.6\
+gnos:primary_label		xsd:string			"GRS-1" (usually only one of these)\
+gnos:secondary_label	xsd:string			"10.1.0.1" (often more than one of these)\
+gnos:tertiary_label		xsd:string			"server room"\
+gnos:style				xsd:string			"", "host", "router", etc (defaults to "")\
+gnos:undirected
+\f1\fs24 			
+\f0\fs28 blank				_:rel1 (also gnos:bidirectional and gnos:unidirectional)\
+gnos:meter_ind	
+\f1\fs24 		
+\f0\fs28 blank				_:meter1 (also gnos:error_ind and gnos:warning_ind)\
+gnos:text_info	
+\f1\fs24 		
+\f0\fs28 blank				_:text1 (also gnos:table_info and gnos:sample_info)\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f1\fs24 \cf0 \
+\
+\pard\pardeftab480\pardirnatural
+
+\f0\b\fs44 \cf0 Relations\
+\pard\pardeftab480\pardirnatural
+
+\fs28 \cf0 _:rel1
+\b0 \
+gnos:peer					xsd:anyURI		gnos:10.1.0.2\
+gnos:name				xsd:string			"ospf route"\
+gnos:style				xsd:string			"", "link", "route", etc (defaults to "")\
+gnos:primary_label		xsd:string			"5 cost"\
+gnos:secondary_label	xsd:string			"150Kbps"\
+gnos:tertiary_label		xsd:string			"ospf"\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f1\fs24 \cf0 \
+\pard\pardeftab480\pardirnatural
+
+\f0\b\fs44 \cf0 Indicators\
+\pard\pardeftab480\pardirnatural
+
+\fs28 \cf0 _:meter1
+\b0 \
+gnos:name				xsd:string			"FS usage"\
+gnos:primary_label		xsd:string			"5 cost"\
+gnos:secondary_label	xsd:string			"150Kbps"\
+gnos:tertiary_label		xsd:string			"ospf"\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f1\fs24 \cf0 \
+\pard\pardeftab480\pardirnatural
+
+\f0\b\fs28 \cf0 _:error1 or _:warning1
+\b0 \
+gnos:name				xsd:string			"alert"\
+gnos:label				xsd:string			"Error Alerts"\
+\
+\pard\pardeftab480\pardirnatural
+
+\f1\fs24 \cf0 \
+\pard\pardeftab480\pardirnatural
+
+\f0\b\fs44 \cf0 Info\
+\pard\pardeftab480\pardirnatural
+
+\fs28 \cf0 _:text1
+\b0 \
+gnos:text					xsd:string			"Darwin 11.4.0\\n8G of memory\\nblah"\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f1\fs24 \cf0 \
+\pard\pardeftab480\pardirnatural
+
+\f0\b\fs28 \cf0 _:table1
+\b0 \
+\pard\pardeftab480\pardirnatural
+\cf2 probably don't want this\cf0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f1\fs24 \cf0 \
+\pard\pardeftab480\pardirnatural
+
+\f0\b\fs28 \cf0 _:sample1
+\b0 \
+\pard\pardeftab480\pardirnatural
+\cf2 todo\cf0 \
+}
