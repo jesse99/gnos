@@ -2,7 +2,7 @@
 
 function bolder(style)
 {
-	var result = JSON.parse(JSON.stringify(style));		// cheesy way to clone an object
+	var result = clone(style);
 	result.fontWeight += 300;
 	if (result.fontWeight > 900)
 		result.fontWeight = 900;
@@ -11,21 +11,21 @@ function bolder(style)
 
 function xlarger(style)
 {
-	var result = JSON.parse(JSON.stringify(style));		// cheesy way to clone an object
+	var result = clone(style);
 	result.fontSize = Math.round(1.4*result.fontSize);
 	return result;
 }
 
 function larger(style)
 {
-	var result = JSON.parse(JSON.stringify(style));		// cheesy way to clone an object
+	var result = clone(style);
 	result.fontSize = Math.round(1.2*result.fontSize);
 	return result;
 }
 
 function smaller(style)
 {
-	var result = JSON.parse(JSON.stringify(style));		// cheesy way to clone an object
+	var result = clone(style);
 	result.fontSize = Math.round(0.8*result.fontSize);
 	return result;
 }
@@ -36,7 +36,7 @@ var styles =
 	{
 		fontStyle: 'normal',		// or italic, oblique
 		fontWeight: 400,		// 100 to 900 where normal is 400 and 700 is bold
-		fontSize: 24,				// in points
+		fontSize: 12,				// in points
 		fontFamily: 'arial',		// font name (TODO: add web safe fonts) or serif, sans-serif, cursive, monospace
 	},
 	'default_object':   {},

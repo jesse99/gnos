@@ -19,3 +19,8 @@ function escapeHtml(str)
 	return div.innerHTML;
 };
 
+function clone(obj)
+{
+	return JSON.parse(JSON.stringify(obj));	
+}
+
