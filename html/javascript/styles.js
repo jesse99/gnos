@@ -1,35 +1,5 @@
 "use strict";
 
-function bolder(style)
-{
-	var result = clone(style);
-	result.fontWeight += 300;
-	if (result.fontWeight > 900)
-		result.fontWeight = 900;
-	return result;
-}
-
-function xlarger(style)
-{
-	var result = clone(style);
-	result.fontSize = Math.round(1.4*result.fontSize);
-	return result;
-}
-
-function larger(style)
-{
-	var result = clone(style);
-	result.fontSize = Math.round(1.2*result.fontSize);
-	return result;
-}
-
-function smaller(style)
-{
-	var result = clone(style);
-	result.fontSize = Math.round(0.8*result.fontSize);
-	return result;
-}
-
 var styles =
 {
 	'default':
@@ -44,6 +14,19 @@ var styles =
 	'secondary_label': {},
 	'tertiary_label':    {fontSize: smaller},
 };
+
+function apply_styles(context, names)
+{
+	var style = compose_styles(names);
+	
+	var font = '';
+	font += style.fontStyle + " ";
+	font += style.fontWeight + " ";
+	font += style.fontSize + "pt ";
+	font += style.fontFamily + " ";
+	
+	context.font = font;
+}
 
 function compose_styles(names)
 {
@@ -72,16 +55,33 @@ function compose_styles(names)
 	return style;
 }
 
-function apply_styles(context, names)
+function bolder(style)
 {
-	var style = compose_styles(names);
-	
-	var font = '';
-	font += style.fontStyle + " ";
-	font += style.fontWeight + " ";
-	font += style.fontSize + "pt ";
-	font += style.fontFamily + " ";
-	
-	context.font = font;
+	var result = clone(style);
+	result.fontWeight += 300;
+	if (result.fontWeight > 900)
+		result.fontWeight = 900;
+	return result;
+}
+
+function xlarger(style)
+{
+	var result = clone(style);
+	result.fontSize = Math.round(1.4*result.fontSize);
+	return result;
+}
+
+function larger(style)
+{
+	var result = clone(style);
+	result.fontSize = Math.round(1.2*result.fontSize);
+	return result;
+}
+
+function smaller(style)
+{
+	var result = clone(style);
+	result.fontSize = Math.round(0.8*result.fontSize);
+	return result;
 }
 
