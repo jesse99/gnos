@@ -17,6 +17,10 @@ http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=13&ved=0CIYBEBYwAjg
 restful uris: http://redrata.com/restful-uri-design/
 javascript model/view: http://documentcloud.github.com/backbone/
 
+* Need a group relation
+	- group name can stuff "ttnt" or "10.8.0.0/8"
+	- probably need to treat the group as an object
+	- might be a bit more flexible to use standard relations and the synthetic objects
 * Front page needs to use a rather fancy query:
 	- page contains list of <device name> <status> <note>
 	- where status is "UP" or "DOWN"
@@ -152,6 +156,10 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	do functions have preconditions or not?
 * Both go and python have simple http servers.
 * Crates can have dir attributes?
+* Custom modelers will need a way to add custom styles
+	- maybe something crappy like a way to register javascript
+	- GET the javascript
+	- and evail it
 * net-snmp does not enable the host mib by default
 	- need to enable it via configure script
 * Quagga:

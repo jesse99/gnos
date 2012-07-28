@@ -67,17 +67,18 @@ fn add_got(store: store, _data: ~str) -> bool
 		(~"gnos:secondary_label", string_value(~"Capitol of Westoros", ~"")),
 	]);
 	
-	add_relation(store, ~"gnos:undirected", wall, winterfell, ~"thick", ~"road");
-	add_relation(store, ~"gnos:undirected", knights_landing, winterfell, ~"xxthick", ~"king's road");
+	add_relation(store, wall, winterfell, ~"link", ~"road");
+	add_relation(store, knights_landing, winterfell, ~"route", ~"king's road");
 	true
 }
 
-fn add_relation(store: store, predicate: ~str, lhs: ~str, rhs: ~str, style: ~str, label: ~str)
+fn add_relation(store: store, lhs: ~str, rhs: ~str, style: ~str, label: ~str)
 {
 	let lhs_relation = get_blank_name(store, ~"lhs");
-	store.add_triple(~[], {subject: lhs, predicate: predicate, object: blank_value(lhs_relation)});
 	store.add(lhs_relation, ~[
-		(~"gnos:peer",                 blank_value(rhs)),
+		(~"gnos:src",                 	blank_value(lhs)),
+		(~"gnos:dst",                 	blank_value(rhs)),
+		(~"gnos:type",                 string_value(~"unidirectional", ~"")),
 		(~"gnos:style",                 string_value(style, ~"")),
 		(~"gnos:primary_label",    string_value(label, ~"")),
 		(~"gnos:secondary_label", string_value(~"details", ~"")),
@@ -85,9 +86,10 @@ fn add_relation(store: store, predicate: ~str, lhs: ~str, rhs: ~str, style: ~str
 	]);
 	
 	let rhs_relation = get_blank_name(store, ~"rhs");
-	store.add_triple(~[], {subject: rhs, predicate: predicate, object: blank_value(rhs_relation)});
 	store.add(rhs_relation, ~[
-		(~"gnos:peer",                 blank_value(lhs)),
+		(~"gnos:src",                 	blank_value(rhs)),
+		(~"gnos:dst",                 	blank_value(lhs)),
+		(~"gnos:type",                 string_value(~"unidirectional", ~"")),
 		(~"gnos:style",                 string_value(style, ~"")),
 		(~"gnos:primary_label",    string_value(label, ~"")),
 		(~"gnos:secondary_label", string_value(~"details", ~"")),

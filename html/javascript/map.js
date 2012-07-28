@@ -8,13 +8,14 @@ window.onload = function()
 
 function register_query()
 {
-	// TODO: once we fix rrdf we should be able to use a single OPTIONAL block
+	// It's rather awkward to have all these OPTIONAL clauses, but according
+	// to the spec the entire OPTIONAL block much match to affect the solution.
 	var expr = '													\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 															\
 	?center_x ?center_y ?primary_label ?secondary_label	\
-	?tertiary_label ?style										\
+	?tertiary_label ?style ?object								\
 WHERE 															\
 {																	\
 	gnos:map gnos:object ?object .							\
@@ -38,11 +39,46 @@ WHERE 															\
 	}																\
 }';
 
-	var source = new EventSource('/query?name=model&expr='+encodeURIComponent(expr));
+	var expr2 = '													\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
+SELECT 															\
+	?src ?dst ?primary_label ?secondary_label				\
+	?tertiary_label ?type										\
+WHERE 															\
+{																	\
+	?rel gnos:src ?src .											\
+	?rel gnos:dst ?dst .											\
+	?rel gnos:type ?type .										\
+	OPTIONAL													\
+	{																\
+		?rel gnos:style ?style .									\
+	}																\
+	OPTIONAL													\
+	{																\
+		?rel gnos:primary_label ?primary_label .				\
+	}																\
+	OPTIONAL													\
+	{																\
+		?rel gnos:secondary_label ?secondary_label .		\
+	}																\
+	OPTIONAL													\
+	{																\
+		?rel gnos:tertiary_label ?tertiary_label .				\
+	}																\
+}';
+
+	var source = new EventSource('/query?name=model&expr={0}&expr2={1}'.
+		format(encodeURIComponent(expr), encodeURIComponent(expr2)));
 	source.addEventListener('message', function(event)
 	{
+		var map = document.getElementById('map');
+		var context = map.getContext('2d');
+		context.clearRect(0, 0, map.width, map.height);
+		
 		var data = JSON.parse(event.data);
-		draw_map(data);
+		draw_relations(context, data[1]);
+		draw_map(context, data[0]);
 	});
 	
 	source.addEventListener('open', function(event)
@@ -67,15 +103,22 @@ function draw_initial_map()
 	
 	context.fillStyle = 'cornflowerblue';
 	
-	center_text(context, 'default_object', ['Loading...'], ['primary_label'], map.width/2, map.height/2);
+	center_text(context, ['xlarger'], ['Loading...'], ['primary_label'], map.width/2, map.height/2);
 }
 
-function draw_map(data)
+function draw_relations(context, data)
 {
-	var map = document.getElementById('map');
-	var context = map.getContext('2d');
-	
-	context.clearRect(0, 0, map.width, map.height);
+	for (var i=0; i < data.length; ++i)
+	{
+		var row = data[i];
+		console.log('row{0}: {1}'.format(i, JSON.stringify(row)));
+		
+		//draw_object(context, row);
+	}
+}
+
+function draw_map(context, data)
+{
 	for (var i=0; i < data.length; ++i)
 	{
 		var row = data[i];
@@ -86,7 +129,7 @@ function draw_map(data)
 }
 
 // object has
-// required fields: center_x, center_y
+// required fields: object, center_x, center_y
 // optional fields: style, primary_label, secondary_label, tertiary_label
 function draw_object(context, object)
 {

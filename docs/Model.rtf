@@ -8,8 +8,7 @@
 modeler scripts and the gnos command line. Clients use SPARQL queries together with server-sent events to automatically update views as the model changes.\
 \
 In order to decouple the views from the model the model is designed to be sufficiently generic that it doesn't even expose networking concepts. This allows the views to operate on high-level semantic concepts instead of network specific data (which, for example, will allow views to work unchanged if custom modelers add new information to the model).\
-\pard\pardeftab480\pardirnatural
-\cf0 \
+\
 The schema is defined with the aid of a couple of different namespace prefixes:\
 \pard\pardeftab480\pardirnatural
 
@@ -18,7 +17,7 @@ The schema is defined with the aid of a couple of different namespace prefixes:\
 
 \i xsd
 \i0  - http://www.w3.org/2001/XMLSchema#\
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\pard\pardeftab480\pardirnatural
 
 \f1\fs24 \cf0 \
 \pard\pardeftab480\pardirnatural
@@ -33,7 +32,7 @@ gnos:poll_interval	xsd:integer			30 (seconds)\
 \
 												0:1 cardinality\
 gnos:last_update	xsd:dateTime\
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardeftab480\pardirnatural
+\pard\pardeftab480\pardirnatural
 
 \f1\fs24 \cf0 \
 \
@@ -43,30 +42,26 @@ gnos:last_update	xsd:dateTime\
 \pard\pardeftab480\pardirnatural
 
 \fs28 \cf0 _:obj1\
-\pard\pardeftab480\pardirnatural
 
-\b0 \cf0 gnos:center_x			xsd:float			0.3 (unit scale where origin is upper-left)\
+\b0 gnos:center_x			xsd:float			0.3 (unit scale where origin is upper-left)\
 gnos:center_y			xsd:float			0.6\
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\pard\pardeftab480\pardirnatural
 
 \f1\fs24 \cf0 \
 \pard\pardeftab480\pardirnatural
 
-\f0\fs28 \cf0 												0: cardinality\
+\f0\fs28 \cf0 												zero or more\
 gnos:style				xsd:string			"", "host", "router", "large", etc\
 gnos:primary_label		xsd:string			"GRS-1"\
 gnos:secondary_label	xsd:string			"10.1.0.1"\
 gnos:tertiary_label		xsd:string			"server room"\
-gnos:undirected
-\f1\fs24 			
-\f0\fs28 blank				_:rel1 (also gnos:bidirectional and gnos:unidirectional)\
 gnos:meter_ind	
 \f1\fs24 		
 \f0\fs28 blank				_:meter1 (also gnos:error_ind and gnos:warning_ind)\
 gnos:text_info	
 \f1\fs24 		
 \f0\fs28 blank				_:text1 (also gnos:table_info and gnos:sample_info)\
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\pard\pardeftab480\pardirnatural
 
 \f1\fs24 \cf0 \
 \
@@ -77,19 +72,28 @@ gnos:text_info
 
 \fs28 \cf0 _:rel1
 \b0 \
-gnos:peer					xsd:anyURI		_:obj2\
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\pard\pardeftab480\pardirnatural
+\cf0 gnos:src					blank
+\f1\fs24 		
+\f0\fs28 		_:obj1\
+\pard\pardeftab480\pardirnatural
+\cf0 gnos:dst					blank
+\f1\fs24 		
+\f0\fs28 		_:obj2\
+\pard\pardeftab480\pardirnatural
+\cf0 gnos:type					xsd:string			"undirected" or "bidirectional" or "unidirectional"\
+\pard\pardeftab480\pardirnatural
 
 \f1\fs24 \cf0 \
 \pard\pardeftab480\pardirnatural
 
-\f0\fs28 \cf0 												0: cardinality\
-gnos:style				xsd:string			"", "link", "route", "thick", etc\
+\f0\fs28 \cf0 												zero or more\
+gnos:style				xsd:string			"", "link", "route", etc\
 gnos:primary_label		xsd:string			"5 cost"\
 gnos:secondary_label	xsd:string			"150Kbps"\
 gnos:tertiary_label		xsd:string			"ospf"\
 \
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\pard\pardeftab480\pardirnatural
 
 \f1\fs24 \cf0 \
 \pard\pardeftab480\pardirnatural
@@ -100,16 +104,16 @@ gnos:tertiary_label		xsd:string			"ospf"\
 \fs28 \cf0 _:meter1
 \b0 \
 gnos:name				xsd:string			"FS usage"\
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\pard\pardeftab480\pardirnatural
 
 \f1\fs24 \cf0 \
 \pard\pardeftab480\pardirnatural
 
-\f0\fs28 \cf0 												0: cardinality\
+\f0\fs28 \cf0 												zero or more\
 gnos:primary_label		xsd:string			"5 cost"\
 gnos:secondary_label	xsd:string			"150Kbps"\
 gnos:tertiary_label		xsd:string			"ospf"\
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\pard\pardeftab480\pardirnatural
 
 \f1\fs24 \cf0 \
 \pard\pardeftab480\pardirnatural
@@ -132,7 +136,7 @@ gnos:label				xsd:string			"Error Alerts"\
 gnos:text					xsd:string			"Darwin 11.4.0\\n8G of memory\\nblah"\
 \pard\pardeftab480\pardirnatural
 \cf2 probably want to support wiki style markup\cf0 \
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\pard\pardeftab480\pardirnatural
 
 \f1\fs24 \cf0 \
 \pard\pardeftab480\pardirnatural
@@ -141,7 +145,7 @@ gnos:text					xsd:string			"Darwin 11.4.0\\n8G of memory\\nblah"\
 \b0 \
 \pard\pardeftab480\pardirnatural
 \cf2 probably don't want this\cf0 \
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\pard\pardeftab480\pardirnatural
 
 \f1\fs24 \cf0 \
 \pard\pardeftab480\pardirnatural
