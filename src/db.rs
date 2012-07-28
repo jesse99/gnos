@@ -25,6 +25,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	//let cersei = get_blank_name(store, ~"obj");
 	//let jaime = get_blank_name(store, ~"obj");
 	
+	// map
 	store.add(~"gnos:map", ~[
 		(~"gnos:object",          blank_value(wall)),
 		(~"gnos:object",          blank_value(winterfell)),
@@ -41,6 +42,7 @@ fn add_got(store: store, _data: ~str) -> bool
 		(~"gnos:last_update",  dateTime_value(std::time::now())),
 	]);
 	
+	// objects
 	store.add(wall, ~[
 		(~"gnos:center_x",           float_value(0.5f64)),
 		(~"gnos:center_y",           float_value(0.1f64)),
@@ -62,8 +64,7 @@ fn add_got(store: store, _data: ~str) -> bool
 		(~"gnos:center_y",           float_value(0.7f64)),
 		(~"gnos:style",                 string_value(~"xlarge", ~"")),
 		(~"gnos:primary_label",    string_value(~"Knight's Landing", ~"")),
-		(~"gnos:secondary_label", string_value(~"House Stark", ~"")),
-		(~"gnos:tertiary_label",     string_value(~"constructed by Brandon the Builder", ~"")),
+		(~"gnos:secondary_label", string_value(~"Capitol of Westoros", ~"")),
 	]);
 	
 	add_relation(store, ~"gnos:undirected", wall, winterfell, ~"thick", ~"road");

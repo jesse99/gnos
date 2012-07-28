@@ -1,10 +1,95 @@
 "use strict";
 
+function bolder(style)
+{
+	var result = JSON.parse(JSON.stringify(style));		// cheesy way to clone an object
+	result.fontWeight += 300;
+	if (result.fontWeight > 900)
+		result.fontWeight = 900;
+	return result;
+}
+
+function xlarger(style)
+{
+	var result = JSON.parse(JSON.stringify(style));		// cheesy way to clone an object
+	result.fontSize = Math.round(1.4*result.fontSize);
+	return result;
+}
+
+function larger(style)
+{
+	var result = JSON.parse(JSON.stringify(style));		// cheesy way to clone an object
+	result.fontSize = Math.round(1.2*result.fontSize);
+	return result;
+}
+
+function smaller(style)
+{
+	var result = JSON.parse(JSON.stringify(style));		// cheesy way to clone an object
+	result.fontSize = Math.round(0.8*result.fontSize);
+	return result;
+}
+
+var styles =
+{
+	'default':
+	{
+		fontStyle: 'normal',		// or italic, oblique
+		fontWeight: 400,		// 100 to 900 where normal is 400 and 700 is bold
+		fontSize: 12,				// in points
+		fontFamily: 'arial',		// font name (TODO: add web safe fonts) or serif, sans-serif, cursive, monospace
+	},
+	'default_object':   {},
+	'primary_label':    {fontWeight: bolder, fontSize: xlarger},
+	'secondary_label': {},
+	'tertiary_label':    {fontSize: smaller},
+};
+
+function compose_styles(names)
+{
+	var style = styles['default'];
+	
+	for (var i=0; i < names.length; ++i)
+	{
+		var name = names[i];
+		if (name in styles)
+		{
+			var rhs = styles[name];
+			for (var key in rhs)
+			{
+				if (rhs[key] instanceof Function)
+					style = rhs[key](style);
+				else
+					style[key] = rhs[key];
+			}
+		}
+		else
+		{
+			console.log("'{0}' is not a known style".format(name));
+		}
+	}
+	
+	return style;
+}
+
+function apply_styles(context, names)
+{
+	var style = compose_styles(names);
+	
+	var font = '';
+	font += style.fontStyle + " ";
+	font += style.fontWeight + " ";
+	font += style.fontSize + "pt ";
+	font += style.fontFamily + " ";
+	
+	context.font = font;
+}
+
 function compute_line_height(context)
 {
 	var metrics = context.measureText("W");
 	
-	// As of July 2012 Chrome only has width in metrics.
+	// As of July 2012 Chrome only has width inside metrics.
 	if ('fontBoundingBoxAscent' in metrics)
 		var line_height = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
 	else
@@ -13,25 +98,48 @@ function compute_line_height(context)
 	return line_height;
 }
 
-// Draw lines of text centered on (x, y).
-function center_text(context, lines, x, y)
+function compute_line_heights(context, style, styles)
+{
+	var heights = [];
+	context.save();
+	
+	for (var i=0; i < styles.length; ++i)
+	{
+		apply_styles(context, [style, styles[i]]);
+		
+		var line_height = compute_line_height(context);
+		heights.push(line_height);
+	}
+	
+	context.restore();
+	return heights;
+}
+
+// Draw lines of text centered on (x, y). This is a bit complex because
+// each line may be styled differently.
+function center_text(context, style, lines, styles, x, y)
 {
 	if (lines)
 	{
 		context.save();
 		
-		var line_height = compute_line_height(context);
-		
 		context.textAlign = 'center';
 		context.textBaseline = 'top';
 		
-		y -= (line_height * lines.length)/2;
+		var heights = compute_line_heights(context, style, styles);
+		var total_height = heights.reduce(function(previous, current, i, array)
+		{
+			return previous + current;
+		}, 0);
+		y -= total_height/2;
+		
 		for (var i=0; i < lines.length; ++i)
 		{
 			var line = lines[i];
+			apply_styles(context, [style, styles[i]]);
 			
 			context.fillText(line, x, y);
-			y += line_height;
+			y += heights[i];
 		}
 		
 		context.restore();
@@ -44,10 +152,9 @@ function draw_initial_map()
 	var context = map.getContext('2d');
 	context.clearRect(0, 0, map.width, map.height);
 	
-	context.font = '38pt Arial';
 	context.fillStyle = 'cornflowerblue';
 	
-	center_text(context, ['Loading...'], map.width/2, map.height/2);
+	center_text(context, 'default_object', ['Loading...'], ['primary_label'], map.width/2, map.height/2);
 }
 
 // object has
@@ -56,22 +163,33 @@ function draw_initial_map()
 function draw_object(context, object)
 {
 	context.save();
-	context.font = '16pt Arial';	
+	
+	var style_name = 'default_object';	// TODO: use style if set
 	context.fillStyle = 'black';
 	
 	var lines = [];
+	var style_names = [];
 	if ('primary_label' in object)
+	{
 		lines.push(object.primary_label);
+		style_names.push('primary_label');
+	}
 	if ('secondary_label' in object)
+	{
 		lines.push(object.secondary_label);
+		style_names.push('secondary_label');
+	}
 	if ('tertiary_label' in object)
+	{
 		lines.push(object.tertiary_label);
+		style_names.push('tertiary_label');
+	}
 	
 	if (lines)
 	{
 		var x = map.width * object.center_x;
 		var y = map.height * object.center_y;
-		center_text(context, lines, x, y);
+		center_text(context, style_name, lines, style_names, x, y);
 	}
 	context.restore();
 }
