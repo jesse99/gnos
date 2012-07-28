@@ -36,7 +36,7 @@ var styles =
 	{
 		fontStyle: 'normal',		// or italic, oblique
 		fontWeight: 400,		// 100 to 900 where normal is 400 and 700 is bold
-		fontSize: 12,				// in points
+		fontSize: 24,				// in points
 		fontFamily: 'arial',		// font name (TODO: add web safe fonts) or serif, sans-serif, cursive, monospace
 	},
 	'default_object':   {},
