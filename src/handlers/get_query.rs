@@ -8,56 +8,6 @@ import rwebserve::imap::{imap_methods, immutable_map};
 
 export get_query;
 
-// TODO: need to escape as html
-fn object_to_json(obj: object) -> std::json::json
-{
-	alt obj
-	{
-		iri_value(value) | blank_value(value)
-		{
-			value.to_json()
-		}
-		unbound_value(*) | invalid_value(*) | error_value(*)
-		{
-			// TODO: use custom css and render these in red
-			obj.to_str().to_json()
-		}
-		string_value(value, ~"")
-		{
-			value.to_json()
-		}
-		_
-		{
-			obj.to_str().to_json()
-		}
-	}
-}
-
-fn solution_row_to_json(row: solution_row) -> std::json::json
-{
-	std::json::dict(
-		std::map::hash_from_strs(
-			do vec::map(row)
-			|entry|
-			{
-				let (key, value) = entry;
-				(key, object_to_json(value))
-			}
-		)
-	)
-}
-
-fn solution_to_json(solution: solution) -> std::json::json
-{
-	std::json::list(@
-		do vec::map(solution)
-		|row|
-		{
-			solution_row_to_json(row)
-		}
-	)
-}
-
 // server-sent event handler
 fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server::push_chan) -> server::control_chan
 {
@@ -98,6 +48,56 @@ fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server
 					break;
 				}
 			}
+		}
+	}
+}
+
+fn solution_to_json(solution: solution) -> std::json::json
+{
+	std::json::list(@
+		do vec::map(solution)
+		|row|
+		{
+			solution_row_to_json(row)
+		}
+	)
+}
+
+fn solution_row_to_json(row: solution_row) -> std::json::json
+{
+	std::json::dict(
+		std::map::hash_from_strs(
+			do vec::map(row)
+			|entry|
+			{
+				let (key, value) = entry;
+				(key, object_to_json(value))
+			}
+		)
+	)
+}
+
+// TODO: need to escape as html?
+fn object_to_json(obj: object) -> std::json::json
+{
+	alt obj
+	{
+		iri_value(value) | blank_value(value)
+		{
+			value.to_json()
+		}
+		unbound_value(*) | invalid_value(*) | error_value(*)
+		{
+			// TODO: use custom css and render these in red
+			obj.to_str().to_json()
+		}
+		string_value(value, ~"")
+		{
+			value.to_json()
+		}
+		_
+		{
+			obj.to_str().to_json()
 		}
 	}
 }
