@@ -12,7 +12,7 @@ export get_query;
 fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server::push_chan) -> server::control_chan
 {
 	let name = request.params.get(~"name");
-	let query = request.params.get(~"expr");
+	let queries = get_queries(request);
 	
 	do task::spawn_listener
 	|control_port: server::control_port|
@@ -22,24 +22,24 @@ fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server
 		let notify_chan = comm::chan(notify_port);
 		
 		let key = #fmt["query %?", ptr::addr_of(notify_port)];
-		comm::send(state_chan, register_msg(name, key, query, notify_chan));
+		comm::send(state_chan, register_msg(name, key, queries, notify_chan));
 		
-		let mut solution = ~[];
+		let mut solutions = ~[];
 		loop
 		{
 			alt comm::select2(notify_port, control_port)
 			{
-				either::left(new_solution)
+				either::left(new_solutions)
 				{
-					if new_solution != solution
+					if new_solutions != solutions
 					{
-						solution = new_solution;	// TODO: need to escape the json?
-						comm::send(push, #fmt["retry: 5000\ndata: %s\n\n", solution_to_json(solution).to_str()]);
+						solutions = new_solutions;	// TODO: need to escape the json?
+						comm::send(push, #fmt["retry: 5000\ndata: %s\n\n", solutions_to_json(solutions).to_str()]);
 					}
 				}
 				either::right(server::refresh_event)
 				{
-					comm::send(push, #fmt["retry: 5000\ndata: %s\n\n", solution_to_json(solution).to_str()]);
+					comm::send(push, #fmt["retry: 5000\ndata: %s\n\n", solutions_to_json(solutions).to_str()]);
 				}
 				either::right(server::close_event)
 				{
@@ -52,12 +52,55 @@ fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server
 	}
 }
 
+fn get_queries(request: server::request) -> ~[~str]
+{
+	let mut queries = ~[];
+	vec::push(queries, request.params.get(~"expr"));
+	
+	for uint::iterate(2, 10)
+	|i|
+	{
+		alt request.params.find(#fmt["expr%?", i])
+		{
+			option::some(expr)
+			{
+				vec::push(queries, expr);
+			}
+			option::none
+			{
+			}
+		}
+	};
+	
+	ret queries;
+}
+
+fn solutions_to_json(solutions: ~[solution]) -> std::json::json
+{
+	if solutions.len() == 1
+	{
+		solution_to_json(solutions[0])
+	}
+	else
+	{
+		std::json::list(@
+			do vec::map(solutions)
+			|solution|
+			{
+				solution_to_json(solution)
+			}
+		)
+	}
+}
+
 fn solution_to_json(solution: solution) -> std::json::json
 {
+	//#info[" "];
 	std::json::list(@
 		do vec::map(solution)
 		|row|
 		{
+			//#info["row: %?", row];
 			solution_row_to_json(row)
 		}
 	)

@@ -17,15 +17,14 @@ type update_fn = fn~ (store: store, data: ~str) -> bool;
 /// Enum used to communicate with the model task.
 ///
 /// Used to query a model, to update a model, and to (un)register
-/// server-sent events. First argument of all of constructors is the 
-/// name of a store, e.g. "model" or "alerts".
+/// server-sent events. Store should be "model" or "alerts".
 enum msg
 {
-	query_msg(~str, ~str, comm::chan<solution>),			// SPARQL query + channel to send results back along
-	update_msg(~str, update_fn, ~str),							// function to use to update the store + data to use
+	query_msg(~str, ~str, comm::chan<solution>),					// store + SPARQL query + channel to send results back along
+	update_msg(~str, update_fn, ~str),									// store + function to use to update the store + data to use
 	
-	register_msg(~str, ~str, ~str, comm::chan<solution>),	// key + SPARQL query + channel to send results back along
-	deregister_msg(~str, ~str),									// key
+	register_msg(~str, ~str, ~[~str], comm::chan<~[solution]>),	// store + key + SPARQL queries + channel to send results back along
+	deregister_msg(~str, ~str),											// store + key
 }
 
 /// Alerts are conditions that hold for a period of time (e.g. a router off line).
@@ -55,7 +54,6 @@ enum alert_level
 fn manage_state(port: comm::port<msg>)
 {
 	let queries = std::map::str_hash();
-	let mut listeners = std::map::str_hash();
 	let namespaces = ~[
 		{prefix: ~"gnos", path: ~"http://www.gnos.org/2012/schema#"},
 		{prefix: ~"snmp", path: ~"http://www.gnos.org/2012/snmp/"},
@@ -65,6 +63,11 @@ fn manage_state(port: comm::port<msg>)
 	stores.insert(~"model",  create_store(namespaces, @std::map::str_hash()));
 	stores.insert(~"alerts",  create_store(namespaces, @std::map::str_hash()));
 	
+	let mut updaters = std::map::str_hash();
+	updaters.insert(~"model", std::map::str_hash());
+	updaters.insert(~"alerts", std::map::str_hash());
+	
+	let mut listeners = std::map::str_hash();
 	listeners.insert(~"model", std::map::str_hash());
 	listeners.insert(~"alerts", std::map::str_hash());
 	
@@ -72,33 +75,36 @@ fn manage_state(port: comm::port<msg>)
 	{
 		alt comm::recv(port)
 		{
-			query_msg(name, query, channel)
+			query_msg(name, expr, channel)
 			{
-				send_solution(stores.get(name), queries, query, channel);
+				let solutions = eval_queries(stores.get(name), queries, ~[expr]);
+				assert solutions.len() == 1;
+				comm::send(channel, copy solutions[0]);
 			}
 			update_msg(name, f, data)
 			{
 				if f(stores.get(name), data)
 				{
 					#info["Updated %s store", name];
-					let updated = update_listeners(stores.get(name), queries, listeners[name]);
-					listeners.insert(name, updated);
+					let updated = update_updaters(stores.get(name), queries, updaters[name]);
+					updaters.insert(name, updated);
 					if name == ~"alerts"
 					{
 						for iter::eachi(stores.get(name))
 						|i, statement: triple|
 						{
-							#info["%?: %s", i, statement.to_str()];
+							#debug["%?: %s", i, statement.to_str()];
 						}
 					}
 				}
 			}
-			register_msg(name, key, query, channel)
+			register_msg(name, key, exprs, channel)
 			{
-				let added = listeners[name].insert(key, (query, channel));
+				let added = listeners[name].insert(key, (exprs, channel));
 				assert added;
 				
-				send_solution(stores.get(name), queries, query, channel);
+				let solutions = eval_queries(stores.get(name), queries, exprs);
+				comm::send(channel, solutions);
 			}
 			deregister_msg(name, key)
 			{
@@ -247,35 +253,39 @@ fn get_selector(queries: hashmap<~str, selector>, query: ~str) -> option::option
 	}
 }
 
-fn send_solution(store: store, queries: hashmap<~str, selector>, query: ~str, channel: comm::chan<solution>)
+fn eval_queries(store: store, queries: hashmap<~str, selector>, exprs: ~[~str]) -> ~[solution]
 {
-	let selector = get_selector(queries, query);
-	if option::is_some(selector)
+	do exprs.map
+	|expr|
 	{
-		alt option::get(selector)(store)
+		let selector = get_selector(queries, expr);
+		if option::is_some(selector)
 		{
-			result::ok(solution)
+			alt option::get(selector)(store)
 			{
-				comm::send(channel, copy(solution));
-			}
-			result::err(err)
-			{
-				#error["'%s' failed with %s", query, err];
-				comm::send(channel, ~[]);
+				result::ok(solution)
+				{
+					solution
+				}
+				result::err(err)
+				{
+					#error["'%s' failed with %s", expr, err];
+					~[]
+				}
 			}
 		}
-	}
-	else
-	{
-		comm::send(channel, ~[]);
+		else
+		{
+			~[]
+		}
 	}
 }
 
-fn update_listeners(store: store, queries: hashmap<~str, selector>, listeners: hashmap<~str, (~str, comm::chan<solution>)>) -> hashmap<~str, (~str, comm::chan<solution>)>
+fn update_updaters(store: store, queries: hashmap<~str, selector>, updaters: hashmap<~str, (~str, comm::chan<solution>)>) -> hashmap<~str, (~str, comm::chan<solution>)>
 {
-	let new_listeners = std::map::str_hash();
+	let new_updaters = std::map::str_hash();
 	
-	for listeners.each
+	for updaters.each
 	|key, value|
 	{
 		let (query, channel) = value;
@@ -287,22 +297,22 @@ fn update_listeners(store: store, queries: hashmap<~str, selector>, listeners: h
 				result::ok(solution)
 				{
 					comm::send(channel, copy(solution));
-					new_listeners.insert(key, (query, channel));
+					new_updaters.insert(key, (query, channel));
 				}
 				result::err(err)
 				{
 					#error["'%s' failed with %s", query, err];
-					new_listeners.remove(key);
+					new_updaters.remove(key);
 				}
 			}
 		}
 		else
 		{
-			new_listeners.remove(key);
+			new_updaters.remove(key);
 		}
 	};
 	
-	ret new_listeners;
+	ret new_updaters;
 }
 
 fn eval_query(store: store, expr: ~str) -> result::result<solution, ~str>

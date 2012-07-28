@@ -1,4 +1,4 @@
-import model::{msg, deregister_msg, register_msg, close_alert, update_msg};
+import model::{msg, close_alert, update_msg};
 
 // Provides a view onto the back-end model used by gnos. This is not intended
 // to be something used very often: it's just a convenient mechanism by which
