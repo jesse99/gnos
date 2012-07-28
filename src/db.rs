@@ -53,7 +53,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	store.add(winterfell, ~[
 		(~"gnos:center_x",           float_value(0.4f64)),
 		(~"gnos:center_y",           float_value(0.3f64)),
-		(~"gnos:style",                 string_value(~"large", ~"")),
+		(~"gnos:style",                 string_value(~"larger", ~"")),
 		(~"gnos:primary_label",    string_value(~"Winterfell", ~"")),
 		(~"gnos:secondary_label", string_value(~"House Stark", ~"")),
 		(~"gnos:tertiary_label",     string_value(~"constructed by Brandon the Builder", ~"")),
@@ -62,7 +62,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	store.add(knights_landing, ~[
 		(~"gnos:center_x",           float_value(0.6f64)),
 		(~"gnos:center_y",           float_value(0.7f64)),
-		(~"gnos:style",                 string_value(~"xlarge", ~"")),
+		(~"gnos:style",                 string_value(~"xlarger", ~"")),
 		(~"gnos:primary_label",    string_value(~"Knight's Landing", ~"")),
 		(~"gnos:secondary_label", string_value(~"Capitol of Westoros", ~"")),
 	]);

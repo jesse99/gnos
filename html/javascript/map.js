@@ -14,12 +14,16 @@ PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 															\
 	?center_x ?center_y ?primary_label ?secondary_label	\
-	?tertiary_label												\
+	?tertiary_label ?style										\
 WHERE 															\
 {																	\
 	gnos:map gnos:object ?object .							\
 	?object gnos:center_x ?center_x .						\
 	?object gnos:center_y ?center_y .						\
+	OPTIONAL													\
+	{																\
+		?object gnos:style ?style .								\
+	}																\
 	OPTIONAL													\
 	{																\
 		?object gnos:primary_label ?primary_label .		\
@@ -75,7 +79,7 @@ function draw_map(data)
 	for (var i=0; i < data.length; ++i)
 	{
 		var row = data[i];
-		console.log('row{0}: {1}'.format(i, JSON.stringify(row)));
+		//console.log('row{0}: {1}'.format(i, JSON.stringify(row)));
 		
 		draw_object(context, row);
 	}
@@ -83,12 +87,14 @@ function draw_map(data)
 
 // object has
 // required fields: center_x, center_y
-// optional fields: primary_label, secondary_label, tertiary_label
+// optional fields: style, primary_label, secondary_label, tertiary_label
 function draw_object(context, object)
 {
 	context.save();
 	
-	var style_name = 'default_object';	// TODO: use style if set
+	var style_names = ['identity'];
+	if ('style' in object)
+		style_names = compose_styles(object.style.split(' '));
 	context.fillStyle = 'black';
 	
 	var lines = [];
@@ -113,7 +119,7 @@ function draw_object(context, object)
 	{
 		var x = map.width * object.center_x;
 		var y = map.height * object.center_y;
-		center_text(context, style_name, lines, style_names, x, y);
+		center_text(context, style_names, lines, style_names, x, y);
 	}
 	context.restore();
 }

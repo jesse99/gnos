@@ -2,7 +2,7 @@
 
 // Draw lines of text centered on (x, y). This is a bit complex because
 // each line may be styled differently.
-function center_text(context, base_style, lines, styles, x, y)
+function center_text(context, base_styles, lines, styles, x, y)
 {
 	if (lines)
 	{
@@ -11,7 +11,7 @@ function center_text(context, base_style, lines, styles, x, y)
 		context.textAlign = 'center';
 		context.textBaseline = 'top';
 		
-		var heights = compute_line_heights(context, base_style, styles);
+		var heights = compute_line_heights(context, base_styles, styles);
 		var total_height = heights.reduce(function(previous, current, i, array)
 		{
 			return previous + current;
@@ -21,7 +21,7 @@ function center_text(context, base_style, lines, styles, x, y)
 		for (var i=0; i < lines.length; ++i)
 		{
 			var line = lines[i];
-			apply_styles(context, [base_style, styles[i]]);
+			apply_styles(context, base_styles.concat(styles[i]));
 			
 			context.fillText(line, x, y);
 			y += heights[i];
@@ -31,14 +31,14 @@ function center_text(context, base_style, lines, styles, x, y)
 	}
 }
 
-function compute_line_heights(context, base_style, styles)
+function compute_line_heights(context, base_styles, styles)
 {
 	var heights = [];
 	context.save();
 	
 	for (var i=0; i < styles.length; ++i)
 	{
-		apply_styles(context, [base_style, styles[i]]);
+		apply_styles(context, base_styles.concat(styles[i]));
 		
 		var line_height = compute_line_height(context);
 		heights.push(line_height);

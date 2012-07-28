@@ -7,13 +7,19 @@ var styles =
 	{
 		fontStyle: 'normal',		// or italic, oblique
 		fontWeight: 400,		// 100 to 900 where normal is 400 and 700 is bold
-		fontSize: 12,				// in points
+		fontSize: 10,				// in points
 		fontFamily: 'arial',		// font name (TODO: add web safe fonts) or serif, sans-serif, cursive, monospace
 	},
-	'default_object':   {},
-	'primary_label':    {fontWeight: bolder, fontSize: xlarger},
-	'secondary_label': {},
-	'tertiary_label':    {fontSize: smaller},
+	
+	'identity':				{},
+	'xsmaller':			{fontSize: xsmaller},
+	'smaller':				{fontSize: smaller},
+	'larger':				{fontSize: larger},
+	'xlarger':				{fontSize: xlarger},
+	
+	'primary_label':		{fontWeight: bolder, fontSize: xlarger},
+	'secondary_label':	{},
+	'tertiary_label':		{fontSize: smaller},
 };
 
 // Applies cascading styles to the current canvas context.
@@ -84,6 +90,13 @@ function smaller(style)
 {
 	var result = clone(style);
 	result.fontSize = Math.round(0.8*result.fontSize);
+	return result;
+}
+
+function xsmaller(style)
+{
+	var result = clone(style);
+	result.fontSize = Math.round(0.6*result.fontSize);
 	return result;
 }
 
