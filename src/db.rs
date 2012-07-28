@@ -27,17 +27,6 @@ fn add_got(store: store, _data: ~str) -> bool
 	
 	// map
 	store.add(~"gnos:map", ~[
-		(~"gnos:object",          blank_value(wall)),
-		(~"gnos:object",          blank_value(winterfell)),
-		(~"gnos:object",          blank_value(knights_landing)),
-		
-		//(~"gnos:object",          blank_value(bran)),
-		//(~"gnos:object",          blank_value(sansa)),
-		//(~"gnos:object",          blank_value(sandor)),
-		//(~"gnos:object",          blank_value(slayer)),
-		//(~"gnos:object",          blank_value(cersei)),
-		//(~"gnos:object",          blank_value(jaime)),
-		
 		(~"gnos:poll_interval", int_value(10)),
 		(~"gnos:last_update",  dateTime_value(std::time::now())),
 	]);

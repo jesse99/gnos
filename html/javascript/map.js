@@ -18,7 +18,6 @@ SELECT 															\
 	?tertiary_label ?style ?object								\
 WHERE 															\
 {																	\
-	gnos:map gnos:object ?object .							\
 	?object gnos:center_x ?center_x .						\
 	?object gnos:center_y ?center_y .						\
 	OPTIONAL													\
