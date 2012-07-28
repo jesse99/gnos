@@ -1,5 +1,6 @@
 "use strict";
 
+// Table mapping names to styles.
 var styles =
 {
 	'default':
@@ -15,6 +16,7 @@ var styles =
 	'tertiary_label':    {fontSize: smaller},
 };
 
+// Applies cascading styles to the current canvas context.
 function apply_styles(context, names)
 {
 	var style = compose_styles(names);
