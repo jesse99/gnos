@@ -7,7 +7,7 @@ String.prototype.format = function()
 	return this.replace(/{(\d+)}/g,
 		function(match, number)
 		{ 
-			return typeof args[number] != 'undefined' ? args[number] : match;
+			return typeof args[number] != 'undefined' ? args[number] : 'undefined';
 		}
 	);
 };
