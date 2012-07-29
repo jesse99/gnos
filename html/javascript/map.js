@@ -1,5 +1,12 @@
 "use strict";
 
+// Maps object names ("_:obj1") to objects of the form:
+// {
+//    x: 0.3
+//    y: 0.6
+// }
+var objects = {};
+
 window.onload = function()
 {
 	draw_initial_map();
@@ -9,7 +16,8 @@ window.onload = function()
 function register_query()
 {
 	// It's rather awkward to have all these OPTIONAL clauses, but according
-	// to the spec the entire OPTIONAL block much match to affect the solution.
+	// to the spec the entire OPTIONAL block must match in order to affect 
+	// the solution.
 	var expr = '													\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
@@ -76,6 +84,7 @@ WHERE 															\
 		context.clearRect(0, 0, map.width, map.height);
 		
 		var data = JSON.parse(event.data);
+		populate_objects(data[0]);
 		draw_relations(context, data[1]);
 		draw_map(context, data[0]);
 	});
@@ -94,6 +103,22 @@ WHERE 															\
 	});
 }
 
+function populate_objects(data)
+{
+	objects = {};
+	
+	for (var i=0; i < data.length; ++i)
+	{
+		var row = data[i];
+		
+		objects[row.object] = 
+		{
+			x: row.center_x,
+			y: row.center_y
+		};
+	}
+}
+
 function draw_initial_map()
 {
 	var map = document.getElementById('map');
@@ -110,10 +135,22 @@ function draw_relations(context, data)
 	for (var i=0; i < data.length; ++i)
 	{
 		var row = data[i];
-		console.log('row{0}: {1}'.format(i, JSON.stringify(row)));
+		//console.log('row{0}: {1:j}'.format(i, row));
 		
-		//draw_object(context, row);
+		draw_relation(context, row);
 	}
+}
+
+// object has
+// required fields: src, dst, type
+// optional fields: primary_label, secondary_label, tertiary_label
+function draw_relation(context, object)
+{
+	context.save();
+	console.log("relation from {0:j} to {1:j}".format(objects[object.src], objects[object.dst]));
+	draw_line(context, objects[object.src], objects[object.dst]);
+	
+	context.restore();
 }
 
 function draw_map(context, data)

@@ -1,5 +1,24 @@
 "use strict";
 
+// from and to should have unit scaled x and y properties.
+function draw_line(context, from, to)
+{
+	context.strokeStyle = 'black';
+	context.lineWidth = 2;
+	
+	context.beginPath();
+	
+	var x = from.x * context.canvas.width;
+	var y = from.y * context.canvas.height;
+	context.moveTo(x, y);
+	
+	x = to.x * context.canvas.width;
+	y = to.y * context.canvas.height;
+	context.lineTo(x, y);
+	
+	context.stroke();
+}
+
 // Draw lines of text centered on (x, y). This is a bit complex because
 // each line may be styled differently.
 function center_text(context, base_styles, lines, styles, x, y)
