@@ -16,7 +16,7 @@ var styles_table =
 	},
 	
 	'host':					{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lightblue', fontSize: smaller},
-	'router':				{lineWidth: 2, strokeStyle: 'black', fillStyle: 'mistyrose'},
+	'router':				{lineWidth: 8, strokeStyle: 'black', fillStyle: 'mistyrose'},
 	'switch':				{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lavender'},
 	
 	'identity':				{},
@@ -44,6 +44,8 @@ function apply_styles(context, names)
 	context.lineWidth = style.lineWidth;
 	context.strokeStyle = style.strokeStyle;
 	context.fillStyle = style.fillStyle;
+	
+	return style;
 }
 
 function compose_styles(names)

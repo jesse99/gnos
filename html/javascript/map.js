@@ -3,6 +3,7 @@
 // Maps object names ("_:obj1") to objects of the form:
 // {
 //    center: Point
+//    radius: Number
 // }
 var object_info = {};
 
@@ -84,8 +85,8 @@ WHERE 															\
 		
 		var data = JSON.parse(event.data);
 		populate_objects(context, data[0]);
-		draw_relations(context, data[1]);
 		draw_map(context, data[0]);
+		draw_relations(context, data[1]);
 	});
 	
 	source.addEventListener('open', function(event)
@@ -109,7 +110,7 @@ function populate_objects(context, objects)
 	for (var i=0; i < objects.length; ++i)
 	{
 		var object = objects[i];
-		object_info[object.object] = new Point(object.center_x * context.canvas.width, object.center_y * context.canvas.height);
+		object_info[object.object] = {center: new Point(object.center_x * context.canvas.width, object.center_y * context.canvas.height)};
 	}
 }
 
@@ -118,8 +119,6 @@ function draw_initial_map()
 	var map = document.getElementById('map');
 	var context = map.getContext('2d');
 	context.clearRect(0, 0, map.width, map.height);
-	
-	context.fillStyle = 'cornflowerblue';
 	
 	var base_styles = ['primary_label'];
 	var lines = ['Loading...'];
@@ -144,14 +143,19 @@ function draw_relations(context, relations)
 // optional fields: style, primary_label, secondary_label, tertiary_label
 function draw_relation(context, relation)
 {
-	console.log("relation from {0:j} to {1:j}".format(object_info[relation.src], object_info[relation.dst]));
+	console.log("relation from {0} to {1}".format(object_info[relation.src].center, object_info[relation.dst].center));
 	
 	if ('style' in relation)
 		var style = relation.style;
 	else
 		var style = 'identity';
-		
-	draw_line(context, [style], object_info[relation.src], object_info[relation.dst]);
+	
+	var src = object_info[relation.src];
+	var dst = object_info[relation.dst];
+	
+	var line = discs_to_line(new Disc(src.center, src.radius), new Disc(dst.center, dst.radius));
+	line = line.shrink(src.stroke_width/2, dst.stroke_width/2);	// path strokes are centered on the path
+	draw_line(context, [style], line.from, line.to);
 }
 
 function draw_map(context, objects)
@@ -201,7 +205,10 @@ function draw_object(context, object)
 	// Draw a disc behind the text.
 	var center = new Point(map.width * object.center_x, map.height * object.center_y);
 	var radius = 1.1 * Math.max(stats.total_height, stats.max_width)/2;
-	draw_disc(context, base_styles, center, radius);
+	var style = draw_disc(context, base_styles, new Disc(center, radius));
+	
+	object_info[object.object].radius = radius;
+	object_info[object.object].stroke_width = style.lineWidth;
 	
 	// Draw the text.
 	base_styles.push('label');

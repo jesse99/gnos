@@ -28,3 +28,20 @@ function clone(obj)
 	return JSON.parse(JSON.stringify(obj));	
 }
 
+// Make the all (or the explicitly named) properties of object nonwritable and nonconfigurable. 
+// Based on a similar function from JavaScript: The Definitive Guide.
+function freezeProps(object /*, names*/)
+{
+	var props = arguments.length == 1
+		? Object.getOwnPropertyNames(object) : Array.prototype.splice.call(arguments, 1);
+		
+	// Make each configurable property read-only and permanent.
+	props.forEach(function (name)
+	{
+		if (Object.getOwnPropertyDescriptor(object, name).configurable)
+			Object.defineProperty(object, name, {writable: false, configurable: false});
+	});
+	
+	return object;
+}
+
