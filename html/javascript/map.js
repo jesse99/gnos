@@ -5,7 +5,7 @@
 //    x: 0.3
 //    y: 0.6
 // }
-var objects = {};
+var object_info = {};
 
 window.onload = function()
 {
@@ -103,18 +103,18 @@ WHERE 															\
 	});
 }
 
-function populate_objects(data)
+function populate_objects(objects)
 {
-	objects = {};
+	object_info = {};
 	
-	for (var i=0; i < data.length; ++i)
+	for (var i=0; i < objects.length; ++i)
 	{
-		var row = data[i];
+		var object = objects[i];
 		
-		objects[row.object] = 
+		object_info[object.object] = 
 		{
-			x: row.center_x,
-			y: row.center_y
+			x: object.center_x,
+			y: object.center_y
 		};
 	}
 }
@@ -130,37 +130,37 @@ function draw_initial_map()
 	center_text(context, ['xlarger'], ['Loading...'], ['primary_label'], map.width/2, map.height/2);
 }
 
-function draw_relations(context, data)
+function draw_relations(context, relations)
 {
-	for (var i=0; i < data.length; ++i)
+	for (var i=0; i < relations.length; ++i)
 	{
-		var row = data[i];
-		//console.log('row{0}: {1:j}'.format(i, row));
+		var relation = relations[i];
+		//console.log('relation{0}: {1:j}'.format(i, relation));
 		
-		draw_relation(context, row);
+		draw_relation(context, relation);
 	}
 }
 
-// object has
+// relation has
 // required fields: src, dst, type
 // optional fields: primary_label, secondary_label, tertiary_label
-function draw_relation(context, object)
+function draw_relation(context, relation)
 {
 	context.save();
-	console.log("relation from {0:j} to {1:j}".format(objects[object.src], objects[object.dst]));
-	draw_line(context, objects[object.src], objects[object.dst]);
+	console.log("relation from {0:j} to {1:j}".format(object_info[relation.src], object_info[relation.dst]));
+	draw_line(context, object_info[relation.src], object_info[relation.dst]);
 	
 	context.restore();
 }
 
-function draw_map(context, data)
+function draw_map(context, objects)
 {
-	for (var i=0; i < data.length; ++i)
+	for (var i=0; i < objects.length; ++i)
 	{
-		var row = data[i];
-		//console.log('row{0}: {1}'.format(i, JSON.stringify(row)));
+		var object = objects[i];
+		//console.log('object{0}: {1:j}'.format(i, object));
 		
-		draw_object(context, row);
+		draw_object(context, object);
 	}
 }
 
