@@ -19,9 +19,66 @@ function draw_line(context, styles, from, to)
 	context.restore();
 }
 
+// Draws a filled disc. If lineWidth is non-zero a border is also added.
+// at should have x and y properties
+// Units are pixels.
+function draw_disc(context, styles, at, radius)
+{
+	context.save();
+	apply_styles(context, styles);
+	//console.log("drawing disc with {0:j} and {1:j}".format(styles, compose_styles(styles)));
+	
+	context.beginPath();
+	context.arc(at.x, at.y, radius, 0, 2*Math.PI);
+	context.closePath();
+	
+	context.fill();
+	if (context.lineWidth != 0)
+		context.stroke();
+	context.restore();
+}
+
+// Returns an object with:
+//    total_height: of all the lines
+//    max_width: width of the widest line
+// and misc fields for internal use.
+function prep_center_text(context, base_styles, lines, styles)
+{
+	var total_height = 0.0;
+	var max_width = 0.0;
+	var heights = [];
+	
+	if (lines)
+	{
+		context.save();
+		
+		context.textAlign = 'center';
+		context.textBaseline = 'top';
+		
+		heights = compute_line_heights(context, base_styles, styles);
+		total_height = heights.reduce(function(previous, current, i, array)
+		{
+			return previous + current;
+		}, 0);
+		
+		for (var i=0; i < lines.length; ++i)
+		{
+			var line = lines[i];
+			apply_styles(context, base_styles.concat(styles[i]));
+			
+			var metrics = context.measureText(line);
+			max_width = Math.max(metrics.width, max_width);
+		}
+		
+		context.restore();
+	}
+	
+	return {total_height: total_height, max_width: max_width, heights: heights};
+}
+
 // Draw lines of text centered on (x, y). This is a bit complex because
 // each line may be styled differently.
-function center_text(context, base_styles, lines, styles, x, y)
+function center_text(context, base_styles, lines, styles, x, y, stats)
 {
 	if (lines)
 	{
@@ -31,12 +88,7 @@ function center_text(context, base_styles, lines, styles, x, y)
 		context.textBaseline = 'top';
 		context.fillStyle = 'black';
 		
-		var heights = compute_line_heights(context, base_styles, styles);
-		var total_height = heights.reduce(function(previous, current, i, array)
-		{
-			return previous + current;
-		}, 0);
-		y -= total_height/2;
+		y -= stats.total_height/2;
 		
 		for (var i=0; i < lines.length; ++i)
 		{
@@ -44,7 +96,7 @@ function center_text(context, base_styles, lines, styles, x, y)
 			apply_styles(context, base_styles.concat(styles[i]));
 			
 			context.fillText(line, x, y);
-			y += heights[i];
+			y += stats.heights[i];
 		}
 		
 		context.restore();

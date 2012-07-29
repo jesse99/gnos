@@ -127,7 +127,11 @@ function draw_initial_map()
 	
 	context.fillStyle = 'cornflowerblue';
 	
-	center_text(context, ['xlarger'], ['Loading...'], ['primary_label'], map.width/2, map.height/2);
+	var base_styles = ['primary_label'];
+	var lines = ['Loading...'];
+	var style_names = ['primary_label'];
+	var stats = prep_center_text(context, base_styles, lines, style_names);
+	center_text(context, base_styles, lines, style_names, map.width/2, map.height/2, stats);
 }
 
 function draw_relations(context, relations)
@@ -172,10 +176,12 @@ function draw_map(context, objects)
 // optional fields: style, primary_label, secondary_label, tertiary_label
 function draw_object(context, object)
 {
-	var style_names = ['identity'];
+	// Figure out which styles apply to the object as a whole.
+	var base_styles = ['identity'];
 	if ('style' in object)
-		style_names = compose_styles(object.style.split(' '));
+		base_styles = object.style.split(' ');
 	
+	// Get each line of text to render and the style for that line.
 	var lines = [];
 	var style_names = [];
 	if ('primary_label' in object)
@@ -194,11 +200,18 @@ function draw_object(context, object)
 		style_names.push('tertiary_label');
 	}
 	
-	if (lines)
-	{
-		var x = map.width * object.center_x;
-		var y = map.height * object.center_y;
-		center_text(context, style_names, lines, style_names, x, y);
-	}
+	// Get the dimensions of the text.
+	var stats = prep_center_text(context, base_styles, lines, style_names);
+	console.log("stats: {0:j}".format(stats));
+	
+	// Draw a disc behind the text.
+	var x = map.width * object.center_x;
+	var y = map.height * object.center_y;
+	var radius = 1.1 * Math.max(stats.total_height, stats.max_width)/2;
+	draw_disc(context, base_styles, {x: x, y: y}, radius);
+	
+	// Draw the text.
+	base_styles.push('label');
+	center_text(context, base_styles, lines, style_names, x, y, stats);
 }
 

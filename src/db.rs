@@ -14,17 +14,6 @@ fn setup(state_chan: comm::chan<model::msg>)
 
 fn add_got(store: store, _data: ~str) -> bool
 {
-	let wall = get_blank_name(store, ~"obj");
-	let winterfell = get_blank_name(store, ~"obj");
-	let knights_landing = get_blank_name(store, ~"obj");
-	
-	//let bran = get_blank_name(store, ~"obj");
-	//let sansa = get_blank_name(store, ~"obj");
-	//let sandor = get_blank_name(store, ~"obj");
-	//let slayer = get_blank_name(store, ~"obj");
-	//let cersei = get_blank_name(store, ~"obj");
-	//let jaime = get_blank_name(store, ~"obj");
-	
 	// map
 	store.add(~"gnos:map", ~[
 		(~"gnos:poll_interval", int_value(10)),
@@ -32,26 +21,30 @@ fn add_got(store: store, _data: ~str) -> bool
 	]);
 	
 	// objects
+	let wall = get_blank_name(store, ~"obj");
 	store.add(wall, ~[
 		(~"gnos:center_x",           float_value(0.5f64)),
-		(~"gnos:center_y",           float_value(0.1f64)),
+		(~"gnos:center_y",           float_value(0.12f64)),
+		(~"gnos:style",                 string_value(~"host", ~"")),
 		(~"gnos:primary_label",    string_value(~"The Wall", ~"")),
 		(~"gnos:tertiary_label",     string_value(~"guards the realms of men", ~"")),
 	]);
 	
+	let winterfell = get_blank_name(store, ~"obj");
 	store.add(winterfell, ~[
-		(~"gnos:center_x",           float_value(0.4f64)),
+		(~"gnos:center_x",           float_value(0.2f64)),
 		(~"gnos:center_y",           float_value(0.3f64)),
-		(~"gnos:style",                 string_value(~"larger", ~"")),
+		(~"gnos:style",                 string_value(~"router", ~"")),
 		(~"gnos:primary_label",    string_value(~"Winterfell", ~"")),
 		(~"gnos:secondary_label", string_value(~"House Stark", ~"")),
 		(~"gnos:tertiary_label",     string_value(~"constructed by Brandon the Builder", ~"")),
 	]);
 	
+	let knights_landing = get_blank_name(store, ~"obj");
 	store.add(knights_landing, ~[
 		(~"gnos:center_x",           float_value(0.6f64)),
-		(~"gnos:center_y",           float_value(0.7f64)),
-		(~"gnos:style",                 string_value(~"xlarger", ~"")),
+		(~"gnos:center_y",           float_value(0.77f64)),
+		(~"gnos:style",                 string_value(~"switch", ~"")),
 		(~"gnos:primary_label",    string_value(~"Knight's Landing", ~"")),
 		(~"gnos:secondary_label", string_value(~"Capitol of Westoros", ~"")),
 	]);

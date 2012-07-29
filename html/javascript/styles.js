@@ -12,17 +12,18 @@ var styles_table =
 		
 		lineWidth: 1,
 		strokeStyle: "black",	
+		fillStyle: "black",	
 	},
+	
+	'host':					{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lightblue', fontSize: smaller},
+	'router':				{lineWidth: 2, strokeStyle: 'black', fillStyle: 'mistyrose'},
+	'switch':				{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lavender'},
 	
 	'identity':				{},
 	'link':					{},
 	'route':				{lineWidth: 4, strokeStyle: 'royalblue'},
 	
-	'xsmaller':			{fontSize: xsmaller},
-	'smaller':				{fontSize: smaller},
-	'larger':				{fontSize: larger},
-	'xlarger':				{fontSize: xlarger},
-	
+	'label':					{strokeStyle: 'black', fillStyle: 'black'},
 	'primary_label':		{fontWeight: bolder, fontSize: xlarger},
 	'secondary_label':	{},
 	'tertiary_label':		{fontSize: smaller},
@@ -42,6 +43,7 @@ function apply_styles(context, names)
 	
 	context.lineWidth = style.lineWidth;
 	context.strokeStyle = style.strokeStyle;
+	context.fillStyle = style.fillStyle;
 }
 
 function compose_styles(names)
