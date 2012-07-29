@@ -1,7 +1,7 @@
 "use strict";
 
 // Table mapping names to styles.
-var styles =
+var styles_table =
 {
 	'default':
 	{
@@ -9,9 +9,15 @@ var styles =
 		fontWeight: 400,		// 100 to 900 where normal is 400 and 700 is bold
 		fontSize: 10,				// in points
 		fontFamily: 'arial',		// font name (TODO: add web safe fonts) or serif, sans-serif, cursive, monospace
+		
+		lineWidth: 1,
+		strokeStyle: "black",	
 	},
 	
 	'identity':				{},
+	'link':					{},
+	'route':				{lineWidth: 4, strokeStyle: 'royalblue'},
+	
 	'xsmaller':			{fontSize: xsmaller},
 	'smaller':				{fontSize: smaller},
 	'larger':				{fontSize: larger},
@@ -32,20 +38,22 @@ function apply_styles(context, names)
 	font += style.fontWeight + " ";
 	font += style.fontSize + "pt ";
 	font += style.fontFamily + " ";
-	
 	context.font = font;
+	
+	context.lineWidth = style.lineWidth;
+	context.strokeStyle = style.strokeStyle;
 }
 
 function compose_styles(names)
 {
-	var style = styles['default'];
+	var style = clone(styles_table['default']);
 	
 	for (var i=0; i < names.length; ++i)
 	{
 		var name = names[i];
-		if (name in styles)
+		if (name in styles_table)
 		{
-			var rhs = styles[name];
+			var rhs = styles_table[name];
 			for (var key in rhs)
 			{
 				if (rhs[key] instanceof Function)

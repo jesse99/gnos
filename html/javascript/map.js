@@ -51,7 +51,7 @@ PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 															\
 	?src ?dst ?primary_label ?secondary_label				\
-	?tertiary_label ?type										\
+	?tertiary_label ?type ?style								\
 WHERE 															\
 {																	\
 	?rel gnos:src ?src .											\
@@ -143,14 +143,17 @@ function draw_relations(context, relations)
 
 // relation has
 // required fields: src, dst, type
-// optional fields: primary_label, secondary_label, tertiary_label
+// optional fields: style, primary_label, secondary_label, tertiary_label
 function draw_relation(context, relation)
 {
-	context.save();
 	console.log("relation from {0:j} to {1:j}".format(object_info[relation.src], object_info[relation.dst]));
-	draw_line(context, object_info[relation.src], object_info[relation.dst]);
 	
-	context.restore();
+	if ('style' in relation)
+		var style = relation.style;
+	else
+		var style = 'identity';
+		
+	draw_line(context, [style], object_info[relation.src], object_info[relation.dst]);
 }
 
 function draw_map(context, objects)
@@ -169,12 +172,9 @@ function draw_map(context, objects)
 // optional fields: style, primary_label, secondary_label, tertiary_label
 function draw_object(context, object)
 {
-	context.save();
-	
 	var style_names = ['identity'];
 	if ('style' in object)
 		style_names = compose_styles(object.style.split(' '));
-	context.fillStyle = 'black';
 	
 	var lines = [];
 	var style_names = [];
@@ -200,6 +200,5 @@ function draw_object(context, object)
 		var y = map.height * object.center_y;
 		center_text(context, style_names, lines, style_names, x, y);
 	}
-	context.restore();
 }
 
