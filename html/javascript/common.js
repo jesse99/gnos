@@ -1,13 +1,17 @@
 "use strict";
 
 // Replaces {0} with argument 0, {1} with argument 1, etc.
+// Argument index can be appended with ":j" to print the argument as json.
 String.prototype.format = function()
 {
 	var args = arguments;
-	return this.replace(/{(\d+)}/g,
-		function(match, number)
-		{ 
-			return typeof args[number] != 'undefined' ? args[number] : 'undefined';
+	return this.replace(/{(\d+)(:j)?}/g,
+		function(match, number, json)
+		{
+			if (json)
+				return typeof args[number] != 'undefined' ? JSON.stringify(args[number]) : 'undefined';
+			else
+				return typeof args[number] != 'undefined' ? args[number] : 'undefined';
 		}
 	);
 };
