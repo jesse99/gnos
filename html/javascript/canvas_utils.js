@@ -1,27 +1,28 @@
 "use strict";
 
-// from and to should have unit scaled x and y properties.
+// All coordinates are screen coordinates.
+function Point(x, y)
+{
+	this.x = x;
+	this.y = y;
+}
+
+// from and to are Points.
 function draw_line(context, styles, from, to)
 {
 	context.save();
 	apply_styles(context, styles);
 	context.beginPath();
 	
-	var x = from.x * context.canvas.width;
-	var y = from.y * context.canvas.height;
-	context.moveTo(x, y);
-	
-	x = to.x * context.canvas.width;
-	y = to.y * context.canvas.height;
-	context.lineTo(x, y);
+	context.moveTo(from.x, from.y);
+	context.lineTo(to.x, to.y);
 	
 	context.stroke();
 	context.restore();
 }
 
 // Draws a filled disc. If lineWidth is non-zero a border is also added.
-// at should have x and y properties
-// Units are pixels.
+// at is a Point.
 function draw_disc(context, styles, at, radius)
 {
 	context.save();
@@ -76,9 +77,9 @@ function prep_center_text(context, base_styles, lines, styles)
 	return {total_height: total_height, max_width: max_width, heights: heights};
 }
 
-// Draw lines of text centered on (x, y). This is a bit complex because
+// Draw lines of text centered on a Point. This is a bit complex because
 // each line may be styled differently.
-function center_text(context, base_styles, lines, styles, x, y, stats)
+function center_text(context, base_styles, lines, styles, center, stats)
 {
 	if (lines)
 	{
@@ -88,14 +89,14 @@ function center_text(context, base_styles, lines, styles, x, y, stats)
 		context.textBaseline = 'top';
 		context.fillStyle = 'black';
 		
-		y -= stats.total_height/2;
+		var y = center.y - stats.total_height/2;
 		
 		for (var i=0; i < lines.length; ++i)
 		{
 			var line = lines[i];
 			apply_styles(context, base_styles.concat(styles[i]));
 			
-			context.fillText(line, x, y);
+			context.fillText(line, center.x, y);
 			y += stats.heights[i];
 		}
 		

@@ -2,8 +2,7 @@
 
 // Maps object names ("_:obj1") to objects of the form:
 // {
-//    x: 0.3
-//    y: 0.6
+//    center: Point
 // }
 var object_info = {};
 
@@ -84,7 +83,7 @@ WHERE 															\
 		context.clearRect(0, 0, map.width, map.height);
 		
 		var data = JSON.parse(event.data);
-		populate_objects(data[0]);
+		populate_objects(context, data[0]);
 		draw_relations(context, data[1]);
 		draw_map(context, data[0]);
 	});
@@ -103,19 +102,14 @@ WHERE 															\
 	});
 }
 
-function populate_objects(objects)
+function populate_objects(context, objects)
 {
 	object_info = {};
 	
 	for (var i=0; i < objects.length; ++i)
 	{
 		var object = objects[i];
-		
-		object_info[object.object] = 
-		{
-			x: object.center_x,
-			y: object.center_y
-		};
+		object_info[object.object] = new Point(object.center_x * context.canvas.width, object.center_y * context.canvas.height);
 	}
 }
 
@@ -131,7 +125,7 @@ function draw_initial_map()
 	var lines = ['Loading...'];
 	var style_names = ['primary_label'];
 	var stats = prep_center_text(context, base_styles, lines, style_names);
-	center_text(context, base_styles, lines, style_names, map.width/2, map.height/2, stats);
+	center_text(context, base_styles, lines, style_names, new Point(map.width/2, map.height/2), stats);
 }
 
 function draw_relations(context, relations)
@@ -205,13 +199,12 @@ function draw_object(context, object)
 	console.log("stats: {0:j}".format(stats));
 	
 	// Draw a disc behind the text.
-	var x = map.width * object.center_x;
-	var y = map.height * object.center_y;
+	var center = new Point(map.width * object.center_x, map.height * object.center_y);
 	var radius = 1.1 * Math.max(stats.total_height, stats.max_width)/2;
-	draw_disc(context, base_styles, {x: x, y: y}, radius);
+	draw_disc(context, base_styles, center, radius);
 	
 	// Draw the text.
 	base_styles.push('label');
-	center_text(context, base_styles, lines, style_names, x, y, stats);
+	center_text(context, base_styles, lines, style_names, center, stats);
 }
 
