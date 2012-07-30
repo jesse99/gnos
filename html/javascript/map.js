@@ -5,8 +5,15 @@
 //    center: Point
 //    radius: Number
 //    stroke_width: Number
+//    meters: [{label: String, level: Number, description: String}]
 // }
 var DEVICES = {};
+
+// Thresholds for different meter levels.
+var GOOD_LEVEL		= 0.0;
+var OK_LEVEL			= 0.5;
+var WARN_LEVEL		= 0.7;
+var DANGER_LEVEL	= 0.8;
 
 window.onload = function()
 {
@@ -92,8 +99,8 @@ WHERE 															\
 	}																\
 }';
 
-	var source = new EventSource('/query?name=model&expr={0}&expr2={1}'.
-		format(encodeURIComponent(expr), encodeURIComponent(expr2)));
+	var source = new EventSource('/query?name=model&expr={0}&expr2={1}&expr3={2}'.
+		format(encodeURIComponent(expr), encodeURIComponent(expr2), encodeURIComponent(expr3)));
 	source.addEventListener('message', function(event)
 	{
 		var map = document.getElementById('map');
@@ -101,7 +108,7 @@ WHERE 															\
 		context.clearRect(0, 0, map.width, map.height);
 		
 		var data = JSON.parse(event.data);
-		populate_devices(context, data[0]);
+		populate_devices(context, data[0], data[2]);
 		draw_map(context, data[0]);
 		draw_relations(context, data[1]);
 	});
@@ -120,14 +127,29 @@ WHERE 															\
 	});
 }
 
-function populate_devices(context, devices)
+function populate_devices(context, devices, meters)
 {
 	DEVICES = {};
 	
 	for (var i=0; i < devices.length; ++i)
 	{
 		var device = devices[i];
-		DEVICES[device.name] = {center: new Point(device.center_x * context.canvas.width, device.center_y * context.canvas.height)};
+		DEVICES[device.name] = 
+			{
+				center: new Point(device.center_x * context.canvas.width, device.center_y * context.canvas.height),
+				radius: 0.0,				// set by draw_device
+				stroke_width: 0.0,		// set by draw_device
+				meters: []
+			};
+	}
+	
+	for (var i=0; i < meters.length; ++i)
+	{
+		var meter = meters[i];
+		if (meter.device in DEVICES)
+			DEVICES[meter.device].meters.push({label: meter.label, level: meter.level, description: meter.description});
+		else
+			console.log("meter {0} exists on {1} but that device doesn't exist".format(meter.label, meter.device));
 	}
 }
 
@@ -312,6 +334,17 @@ function draw_device(context, device)
 		style_names.push('tertiary_label');
 	}
 	
+	var next_meter = lines.length;
+	for (var i=0; i < DEVICES[device.name].meters.length; ++i)
+	{
+		var meter = DEVICES[device.name].meters[i];
+		if (meter.level >= OK_LEVEL)				// TODO: may want an inspector option to show all meters
+		{
+			lines.push("{0}% {1}".format(Math.round(100*meter.level), meter.label));	// TODO: option to show description?
+			style_names.push('secondary_label');
+		}
+	}
+	
 	// Get the dimensions of the text.
 	var stats = prep_center_text(context, base_styles, lines, style_names);
 	console.log("stats: {0:j}".format(stats));
@@ -324,8 +357,49 @@ function draw_device(context, device)
 	DEVICES[device.name].radius = radius;
 	DEVICES[device.name].stroke_width = style.lineWidth;
 	
+	// Draw a progress bar sort of thing for each meter.
+	for (var i=0; i < DEVICES[device.name].meters.length; ++i)
+	{
+		var meter = DEVICES[device.name].meters[i];
+		if (meter.level >= OK_LEVEL)				// TODO: may want an inspector option to show all meters
+		{
+			draw_meter(context, base_styles, meter, stats, center, radius, next_meter);
+			next_meter += 1;
+		}
+	}
+	
 	// Draw the text.
 	base_styles.push('label');
 	center_text(context, base_styles, lines, style_names, center, stats);
 }
 
+function draw_meter(context, styles, meter, stats, center, radius, next_meter)
+{
+	context.save();
+	
+	if (meter.level < OK_LEVEL)
+		styles = styles.concat('good_level');
+	else if (meter.level < WARN_LEVEL)
+		styles = styles.concat('ok_level');
+	else if (meter.level < DANGER_LEVEL)
+		styles = styles.concat('warn_level');
+	else 
+		styles = styles.concat('danger_level');
+	apply_styles(context, styles);
+	
+	var top = center.y - stats.total_height/2;
+	for (var i = 0; i < next_meter; ++i)
+	{
+		top += stats.heights[i];
+	}
+	var left = center.x - stats.widths[next_meter]/2;
+	
+	var height = stats.heights[next_meter];
+	var width = stats.widths[next_meter];
+	context.clearRect(left, top, width, height);
+	
+	width = meter.level * stats.widths[next_meter];
+	context.fillRect(left, top, width, height);
+	
+	context.restore();
+}

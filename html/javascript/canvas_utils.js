@@ -170,12 +170,14 @@ function draw_disc(context, styles, disc)
 // Returns an object with:
 //    total_height: of all the lines
 //    max_width: width of the widest line
-// and misc fields for internal use.
+//    heights: height of each line in lines
+//    widths: width of each line in lines
 function prep_center_text(context, base_styles, lines, styles)
 {
 	var total_height = 0.0;
 	var max_width = 0.0;
 	var heights = [];
+	var widths = [];
 	
 	if (lines)
 	{
@@ -184,7 +186,9 @@ function prep_center_text(context, base_styles, lines, styles)
 		context.textAlign = 'center';
 		context.textBaseline = 'top';
 		
-		heights = do_compute_line_heights(context, base_styles, styles);
+		var metrics = do_compute_text_metrics(context, lines, base_styles, styles);
+		heights = metrics.heights;
+		widths = metrics.widths;
 		total_height = heights.reduce(function(previous, current, i, array)
 		{
 			return previous + current;
@@ -202,7 +206,7 @@ function prep_center_text(context, base_styles, lines, styles)
 		context.restore();
 	}
 	
-	return {total_height: total_height, max_width: max_width, heights: heights};
+	return {total_height: total_height, max_width: max_width, heights: heights, widths: widths};
 }
 
 // Draw lines of text centered on a Point. This is a bit complex because
@@ -259,33 +263,37 @@ function do_draw_arrow(context, line, unit, tip, x, y, arrow)
 	context.fill();
 }
 
-function do_compute_line_heights(context, base_styles, styles)
+function do_compute_text_metrics(context, lines, base_styles, styles)
 {
+	assert(lines.length == styles.length, "lines and styles need to match");
+	
 	var heights = [];
+	var widths = [];
 	context.save();
 	
 	for (var i=0; i < styles.length; ++i)
 	{
 		apply_styles(context, base_styles.concat(styles[i]));
 		
-		var line_height = do_compute_line_height(context);
-		heights.push(line_height);
+		var metrics = do_compute_line_metrics(context, lines[i]);
+		heights.push(metrics.line_height);
+		widths.push(metrics.width);
 	}
 	
 	context.restore();
-	return heights;
+	return {heights: heights, widths: widths};
 }
 
-function do_compute_line_height(context)
+function do_compute_line_metrics(context, line)
 {
 	var metrics = context.measureText("W");
 	
-	// As of July 2012 Chrome only has width inside metrics.
-	if ('fontBoundingBoxAscent' in metrics)
-		var line_height = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
-	else
+	// As of July 2012 Chrome only has width inside metrics. TODO
+	//if ('fontBoundingBoxAscent' in metrics)
+	//	var line_height = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
+	//else
 		var line_height = metrics.width + metrics.width/6;	// this is what Core HTML5 Canvas recommends
 		
-	return line_height;
+	return {line_height: line_height, width: metrics.width * line.length};
 }
 

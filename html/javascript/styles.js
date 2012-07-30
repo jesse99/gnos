@@ -33,6 +33,11 @@ var styles_table =
 	'primary_label':			{fontWeight: bolder, fontSize: xlarger},
 	'secondary_label':		{},
 	'tertiary_label':			{fontSize: smaller},
+	
+	'good_level':				{strokeStyle: 'black', fillStyle: 'green'},
+	'ok_level':					{strokeStyle: 'black', fillStyle: 'deepskyblue'},
+	'warn_level':				{strokeStyle: 'black', fillStyle: 'lightsalmon'},
+	'danger_level':			{strokeStyle: 'black', fillStyle: 'red'},
 };
 
 // Applies cascading styles to the current canvas context.
