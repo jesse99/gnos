@@ -1,12 +1,12 @@
 "use strict";
 
-// Maps object names ("_:obj1") to objects of the form:
+// Maps device names ("_:device1") to objects of the form:
 // {
 //    center: Point
 //    radius: Number
 //    stroke_width: Number
 // }
-var object_info = {};
+var DEVICES = {};
 
 window.onload = function()
 {
@@ -24,26 +24,26 @@ PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 															\
 	?center_x ?center_y ?primary_label ?secondary_label	\
-	?tertiary_label ?style ?object								\
+	?tertiary_label ?style ?name								\
 WHERE 															\
 {																	\
-	?object gnos:center_x ?center_x .						\
-	?object gnos:center_y ?center_y .						\
+	?name gnos:center_x ?center_x .							\
+	?name gnos:center_y ?center_y .							\
 	OPTIONAL													\
 	{																\
-		?object gnos:style ?style .								\
+		?name gnos:style ?style .								\
 	}																\
 	OPTIONAL													\
 	{																\
-		?object gnos:primary_label ?primary_label .		\
+		?name gnos:primary_label ?primary_label .			\
 	}																\
 	OPTIONAL													\
 	{																\
-		?object gnos:secondary_label ?secondary_label .	\
+		?name gnos:secondary_label ?secondary_label .	\
 	}																\
 	OPTIONAL													\
 	{																\
-		?object gnos:tertiary_label ?tertiary_label .			\
+		?name gnos:tertiary_label ?tertiary_label .			\
 	}																\
 }';
 
@@ -80,11 +80,11 @@ WHERE 															\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 															\
-	?label ?object ?level ?description							\
+	?label ?device ?level ?description							\
 WHERE 															\
 {																	\
 	?indicator gnos:meter ?label .								\
-	?indicator gnos:target ?object .							\
+	?indicator gnos:target ?device .							\
 	?indicator gnos:level ?level .								\
 	OPTIONAL													\
 	{																\
@@ -101,7 +101,7 @@ WHERE 															\
 		context.clearRect(0, 0, map.width, map.height);
 		
 		var data = JSON.parse(event.data);
-		populate_objects(context, data[0]);
+		populate_devices(context, data[0]);
 		draw_map(context, data[0]);
 		draw_relations(context, data[1]);
 	});
@@ -120,14 +120,14 @@ WHERE 															\
 	});
 }
 
-function populate_objects(context, objects)
+function populate_devices(context, devices)
 {
-	object_info = {};
+	DEVICES = {};
 	
-	for (var i=0; i < objects.length; ++i)
+	for (var i=0; i < devices.length; ++i)
 	{
-		var object = objects[i];
-		object_info[object.object] = {center: new Point(object.center_x * context.canvas.width, object.center_y * context.canvas.height)};
+		var device = devices[i];
+		DEVICES[device.name] = {center: new Point(device.center_x * context.canvas.width, device.center_y * context.canvas.height)};
 	}
 }
 
@@ -164,7 +164,7 @@ function draw_relations(context, relations)
 	}
 }
 
-// Returns object mapping src/dst object subjects to objects of the form:
+// Returns object mapping src/dst device subjects to objects of the form:
 //     {r: relation, broken: bool, from_arrow: arrow, to_arrow}
 function find_line_infos(relations)
 {
@@ -217,7 +217,7 @@ function find_line_infos(relations)
 //     optional fields: style, primary_label, secondary_label, tertiary_label
 function draw_relation(context, info)
 {
-	//console.log("relation from {0} to {1}".format(object_info[info.r.src].center, object_info[info.r.dst].center));
+	//console.log("relation from {0} to {1}".format(DEVICES[info.r.src].center, DEVICES[info.r.dst].center));
 	
 	if ('style' in info.r)
 		var style = info.r.style;
@@ -229,8 +229,8 @@ function draw_relation(context, info)
 	else
 		var styles = [style];
 	
-	var src = object_info[info.r.src];
-	var dst = object_info[info.r.dst];
+	var src = DEVICES[info.r.src];
+	var dst = DEVICES[info.r.dst];
 	
 	var line = discs_to_line(new Disc(src.center, src.radius), new Disc(dst.center, dst.radius));
 	line = line.shrink(src.stroke_width/2, dst.stroke_width/2);	// path strokes are centered on the path
@@ -272,43 +272,43 @@ function label_relation(context, relation, line, p)
 	center_text(context, base_styles, text, style_names, center, stats);
 }
 
-function draw_map(context, objects)
+function draw_map(context, devices)
 {
-	for (var i=0; i < objects.length; ++i)
+	for (var i=0; i < devices.length; ++i)
 	{
-		var object = objects[i];
-		//console.log('object{0}: {1:j}'.format(i, object));
+		var device = devices[i];
+		//console.log('device{0}: {1:j}'.format(i, device));
 		
-		draw_object(context, object);
+		draw_device(context, device);
 	}
 }
 
-// object has
-// required fields: object, center_x, center_y
+// device has
+// required fields: name, center_x, center_y
 // optional fields: style, primary_label, secondary_label, tertiary_label
-function draw_object(context, object)
+function draw_device(context, device)
 {
-	// Figure out which styles apply to the object as a whole.
+	// Figure out which styles apply to the device as a whole.
 	var base_styles = ['identity'];
-	if ('style' in object)
-		base_styles = object.style.split(' ');
+	if ('style' in device)
+		base_styles = device.style.split(' ');
 	
 	// Get each line of text to render and the style for that line.
 	var lines = [];
 	var style_names = [];
-	if ('primary_label' in object)
+	if ('primary_label' in device)
 	{
-		lines.push(object.primary_label);
+		lines.push(device.primary_label);
 		style_names.push('primary_label');
 	}
-	if ('secondary_label' in object)
+	if ('secondary_label' in device)
 	{
-		lines.push(object.secondary_label);
+		lines.push(device.secondary_label);
 		style_names.push('secondary_label');
 	}
-	if ('tertiary_label' in object)
+	if ('tertiary_label' in device)
 	{
-		lines.push(object.tertiary_label);
+		lines.push(device.tertiary_label);
 		style_names.push('tertiary_label');
 	}
 	
@@ -317,12 +317,12 @@ function draw_object(context, object)
 	console.log("stats: {0:j}".format(stats));
 	
 	// Draw a disc behind the text.
-	var center = new Point(map.width * object.center_x, map.height * object.center_y);
+	var center = new Point(map.width * device.center_x, map.height * device.center_y);
 	var radius = 1.1 * Math.max(stats.total_height, stats.max_width)/2;
 	var style = draw_disc(context, base_styles, new Disc(center, radius));
 	
-	object_info[object.object].radius = radius;
-	object_info[object.object].stroke_width = style.lineWidth;
+	DEVICES[device.name].radius = radius;
+	DEVICES[device.name].stroke_width = style.lineWidth;
 	
 	// Draw the text.
 	base_styles.push('label');

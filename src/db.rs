@@ -20,8 +20,8 @@ fn add_got(store: store, _data: ~str) -> bool
 		(~"gnos:last_update",  dateTime_value(std::time::now())),
 	]);
 	
-	// objects
-	let wall = get_blank_name(store, ~"obj");
+	// devices
+	let wall = get_blank_name(store, ~"device");
 	store.add(wall, ~[
 		(~"gnos:center_x",           float_value(0.5f64)),
 		(~"gnos:center_y",           float_value(0.12f64)),
@@ -30,7 +30,7 @@ fn add_got(store: store, _data: ~str) -> bool
 		(~"gnos:tertiary_label",     string_value(~"guards the realms of men", ~"")),
 	]);
 	
-	let winterfell = get_blank_name(store, ~"obj");
+	let winterfell = get_blank_name(store, ~"device");
 	store.add(winterfell, ~[
 		(~"gnos:center_x",           float_value(0.2f64)),
 		(~"gnos:center_y",           float_value(0.3f64)),
@@ -40,7 +40,7 @@ fn add_got(store: store, _data: ~str) -> bool
 		(~"gnos:tertiary_label",     string_value(~"constructed by Brandon the Builder", ~"")),
 	]);
 	
-	let knights_landing = get_blank_name(store, ~"obj");
+	let knights_landing = get_blank_name(store, ~"device");
 	store.add(knights_landing, ~[
 		(~"gnos:center_x",           float_value(0.6f64)),
 		(~"gnos:center_y",           float_value(0.77f64)),
@@ -58,7 +58,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	store.add(wall_mf, ~[
 		(~"gnos:meter",        string_value(~"MF", ~"")),
 		(~"gnos:target",        blank_value(wall)),
-		(~"gnos:level",          float_value(1.0)),
+		(~"gnos:level",          float_value(1.0f64)),
 		(~"gnos:description", string_value(~"male/female ratio", ~"")),
 	]);
 	
@@ -66,7 +66,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	store.add(wall_loyalty, ~[
 		(~"gnos:meter",        string_value(~"loyalty", ~"")),
 		(~"gnos:target",        blank_value(wall)),
-		(~"gnos:level",          float_value(0.0)),
+		(~"gnos:level",          float_value(0.0f64)),
 		(~"gnos:description", string_value(~"loyalty to the crown", ~"")),
 	]);
 	
@@ -74,7 +74,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	store.add(winterfell_mf, ~[
 		(~"gnos:meter",        string_value(~"MF", ~"")),
 		(~"gnos:target",        blank_value(winterfell)),
-		(~"gnos:level",          float_value(0.7)),
+		(~"gnos:level",          float_value(0.7f64)),
 		(~"gnos:description", string_value(~"male/female ratio", ~"")),
 	]);
 	
@@ -82,7 +82,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	store.add(winterfell_loyalty, ~[
 		(~"gnos:meter",        string_value(~"loyalty", ~"")),
 		(~"gnos:target",        blank_value(winterfell)),
-		(~"gnos:level",          float_value(0.6)),
+		(~"gnos:level",          float_value(0.6f64)),
 		(~"gnos:description", string_value(~"loyalty to the crown", ~"")),
 	]);
 	
@@ -90,7 +90,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	store.add(knights_landing_mf, ~[
 		(~"gnos:meter",        string_value(~"MF", ~"")),
 		(~"gnos:target",        blank_value(knights_landing)),
-		(~"gnos:level",          float_value(0.5)),
+		(~"gnos:level",          float_value(0.5f64)),
 		(~"gnos:description", string_value(~"male/female ratio", ~"")),
 	]);
 	
@@ -98,7 +98,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	store.add(knights_landing_loyalty, ~[
 		(~"gnos:meter",        string_value(~"loyalty", ~"")),
 		(~"gnos:target",        blank_value(knights_landing)),
-		(~"gnos:level",          float_value(0.9)),
+		(~"gnos:level",          float_value(0.9f64)),
 		(~"gnos:description", string_value(~"loyalty to the crown", ~"")),
 	]);
 	
