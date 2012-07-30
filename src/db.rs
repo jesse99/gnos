@@ -49,8 +49,59 @@ fn add_got(store: store, _data: ~str) -> bool
 		(~"gnos:secondary_label", string_value(~"Capitol of Westoros", ~"")),
 	]);
 	
+	// relations
 	add_relation(store, wall, winterfell, ~"link", ~"road");
 	add_relation(store, knights_landing, winterfell, ~"route", ~"king's road");
+	
+	// indicators
+	let wall_mf = get_blank_name(store, ~"meter");
+	store.add(wall_mf, ~[
+		(~"gnos:meter",        string_value(~"MF", ~"")),
+		(~"gnos:target",        blank_value(wall)),
+		(~"gnos:level",          float_value(1.0)),
+		(~"gnos:description", string_value(~"male/female ratio", ~"")),
+	]);
+	
+	let wall_loyalty = get_blank_name(store, ~"meter");
+	store.add(wall_loyalty, ~[
+		(~"gnos:meter",        string_value(~"loyalty", ~"")),
+		(~"gnos:target",        blank_value(wall)),
+		(~"gnos:level",          float_value(0.0)),
+		(~"gnos:description", string_value(~"loyalty to the crown", ~"")),
+	]);
+	
+	let winterfell_mf = get_blank_name(store, ~"meter");
+	store.add(winterfell_mf, ~[
+		(~"gnos:meter",        string_value(~"MF", ~"")),
+		(~"gnos:target",        blank_value(winterfell)),
+		(~"gnos:level",          float_value(0.7)),
+		(~"gnos:description", string_value(~"male/female ratio", ~"")),
+	]);
+	
+	let winterfell_loyalty = get_blank_name(store, ~"meter");
+	store.add(winterfell_loyalty, ~[
+		(~"gnos:meter",        string_value(~"loyalty", ~"")),
+		(~"gnos:target",        blank_value(winterfell)),
+		(~"gnos:level",          float_value(0.6)),
+		(~"gnos:description", string_value(~"loyalty to the crown", ~"")),
+	]);
+	
+	let knights_landing_mf = get_blank_name(store, ~"meter");
+	store.add(knights_landing_mf, ~[
+		(~"gnos:meter",        string_value(~"MF", ~"")),
+		(~"gnos:target",        blank_value(knights_landing)),
+		(~"gnos:level",          float_value(0.5)),
+		(~"gnos:description", string_value(~"male/female ratio", ~"")),
+	]);
+	
+	let knights_landing_loyalty = get_blank_name(store, ~"meter");
+	store.add(knights_landing_loyalty, ~[
+		(~"gnos:meter",        string_value(~"loyalty", ~"")),
+		(~"gnos:target",        blank_value(knights_landing)),
+		(~"gnos:level",          float_value(0.9)),
+		(~"gnos:description", string_value(~"loyalty to the crown", ~"")),
+	]);
+	
 	true
 }
 

@@ -4,6 +4,7 @@
 // {
 //    center: Point
 //    radius: Number
+//    stroke_width: Number
 // }
 var object_info = {};
 
@@ -72,6 +73,22 @@ WHERE 															\
 	OPTIONAL													\
 	{																\
 		?rel gnos:tertiary_label ?tertiary_label .				\
+	}																\
+}';
+
+	var expr3 = '													\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
+SELECT 															\
+	?label ?object ?level ?description							\
+WHERE 															\
+{																	\
+	?indicator gnos:meter ?label .								\
+	?indicator gnos:target ?object .							\
+	?indicator gnos:level ?level .								\
+	OPTIONAL													\
+	{																\
+		?indicator gnos:description ?description .			\
 	}																\
 }';
 

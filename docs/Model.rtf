@@ -44,8 +44,7 @@ gnos:last_update	xsd:dateTime\
 
 \b0 gnos:center_x			xsd:float			0.3 (unit scale where origin is upper-left)\
 gnos:center_y			xsd:float			0.6\
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:style				xsd:string			"", "host", "router", "large", etc\
+gnos:style				xsd:string			"", "host", "router", "large", etc\
 \pard\pardeftab480\pardirnatural
 
 \f1\fs24 \cf0 \
@@ -69,16 +68,13 @@ gnos:text_info
 
 \fs28 \cf0 _:rel1
 \b0 \
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:src					blank
+gnos:src					blank
 \f1\fs24 		
 \f0\fs28 		_:obj1\
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:dst					blank
+gnos:dst					blank
 \f1\fs24 		
 \f0\fs28 		_:obj2\
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:type					xsd:string			"undirected" or "bidirectional" or "unidirectional"\
+gnos:type					xsd:string			"undirected" or "bidirectional" or "unidirectional"\
 gnos:style				xsd:string			"", "link", "route", etc\
 \pard\pardeftab480\pardirnatural
 
@@ -100,21 +96,17 @@ gnos:tertiary_label		xsd:string			"ospf"\
 
 \fs28 \cf0 _:meter1
 \b0 \
-gnos:indicator			xsd:string			"FS usage"\
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:target				blank
+gnos:meter				xsd:string			"CPU"\
+gnos:target				blank
 \f1\fs24 		
 \f0\fs28 		_:obj1\
-gnos:type					xsd:string			"meter" or "error" or "warning"\
 \pard\pardeftab480\pardirnatural
-
-\f1\fs24 \cf0 \
-\pard\pardeftab480\pardirnatural
-
-\f0\fs28 \cf0 												zero or more\
-gnos:primary_label		xsd:string			"5 cost"\
-gnos:secondary_label	xsd:string			"150Kbps"\
-gnos:tertiary_label		xsd:string			"ospf"\
+\cf0 gnos:level					xsd:float
+\f1\fs24 		
+\f0\fs28 	0.2 (range is 0.0 to 1.0)\
+\
+												zero or one\
+gnos:description			xsd:string			"snapshot of CPU usage"\
 \pard\pardeftab480\pardirnatural
 
 \f1\fs24 \cf0 \
@@ -135,14 +127,12 @@ gnos:label				xsd:string			"Error Alerts"\
 
 \fs28 \cf0 _:text1
 \b0 \
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:info					xsd:string			"10.1.0.1 uname"\
+gnos:info					xsd:string			"10.1.0.1 uname"\
 gnos:type					xsd:string			"?"\
 gnos:target				blank
 \f1\fs24 		
 \f0\fs28 		_:obj1\
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:text					xsd:string			"Darwin 11.4.0\\n8G of memory\\nblah"\
+gnos:text					xsd:string			"Darwin 11.4.0\\n8G of memory\\nblah"\
 \pard\pardeftab480\pardirnatural
 \cf2 probably want to support wiki style markup\cf0 \
 \pard\pardeftab480\pardirnatural
