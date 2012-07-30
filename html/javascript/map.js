@@ -129,33 +129,80 @@ function draw_initial_map()
 
 function draw_relations(context, relations)
 {
-	for (var i=0; i < relations.length; ++i)
+	var lines = find_lines(relations);
+	for (var key in lines)
 	{
-		var relation = relations[i];
-		//console.log('relation{0}: {1:j}'.format(i, relation));
-		
-		draw_relation(context, relation);
+		draw_relation(context, lines[key]);
 	}
 }
 
-// relation has
-// required fields: src, dst, type
-// optional fields: style, primary_label, secondary_label, tertiary_label
-function draw_relation(context, relation)
+// Returns object mapping src/dst object subjects to objects of the form:
+//     {r: relation, broken: bool, from_arrow: arrow, to_arrow}
+function find_lines(relations)
 {
-	console.log("relation from {0} to {1}".format(object_info[relation.src].center, object_info[relation.dst].center));
+	var lines = {};
 	
-	if ('style' in relation)
-		var style = relation.style;
+	var has_arrow = {stem_height: 16, base_width: 12};
+	var no_arrow = {stem_height: 0, base_width: 0};
+	
+	for (var i=0; i < relations.length; ++i)
+	{
+		var relation = relations[i];
+		
+		var key = relation.src < relation.dst ? relation.src + "/" + relation.dst : relation.dst + "/" + relation.src;
+		if (relation.type == "undirected")
+		{
+			// no arrows
+			lines[key] = {r: relation, broken: false, from_arrow: no_arrow, to_arrow: no_arrow};
+		}
+		else if (relation.type == "unidirectional")
+		{
+			// arrow for each relation
+			if (key in lines)
+				lines[key] = {r: relation, broken: false, from_arrow: has_arrow, to_arrow: has_arrow};
+			else
+				lines[key] = {r: relation, broken: false, from_arrow: no_arrow, to_arrow: has_arrow};
+		}
+		else if (relation.type == "bidirectional")
+		{
+			// no arrows unless the relation is one way
+			if (key in lines)
+				lines[key] = {r: relation, broken: false, from_arrow: no_arrow, to_arrow: no_arrow};
+			else
+				lines[key] = {r: relation, broken: true, from_arrow: no_arrow, to_arrow: has_arrow};
+		}
+		else
+		{
+			console.log("Bad relation type: " + relation.type);
+		}
+	}
+	
+	return lines;
+}
+
+// relation has
+//     required fields: src, dst, type
+//     optional fields: style, primary_label, secondary_label, tertiary_label
+function draw_relation(context, info)
+{
+	console.log("relation from {0} to {1}".format(object_info[info.r.src].center, object_info[info.r.dst].center));
+	
+	if ('style' in info.r)
+		var style = info.r.style;
 	else
 		var style = 'identity';
+		
+	if (info.broken)
+		var styles = [style, 'broken_relation'];
+	else
+		var styles = [style];
 	
-	var src = object_info[relation.src];
-	var dst = object_info[relation.dst];
+	var src = object_info[info.r.src];
+	var dst = object_info[info.r.dst];
 	
 	var line = discs_to_line(new Disc(src.center, src.radius), new Disc(dst.center, dst.radius));
 	line = line.shrink(src.stroke_width/2, dst.stroke_width/2);	// path strokes are centered on the path
-	draw_line(context, [style], line.from, line.to);
+	draw_line(context, styles, line, info.from_arrow, info.to_arrow);
 }
 
 function draw_map(context, objects)

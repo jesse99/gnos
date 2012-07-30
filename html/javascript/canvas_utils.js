@@ -30,6 +30,21 @@ function Line(from, to)
 	freezeProps(this);
 }
 
+Line.prototype.normals = function ()
+{
+	var unit = this.normalize();
+	return [new Point(-unit.y, unit.x), new Point(unit.y, -unit.x)];
+}
+
+// Returns the line as a unit vector.
+Line.prototype.normalize = function ()
+{
+	var x = this.to.x - this.from.x;
+	var y = this.to.y - this.from.y;
+	var d = this.to.distance(this.from);
+	return new Point(x/d, y/d);
+}
+
 // Shrinks the line by from_delta pixels on the from side and to_delta pixels on the to side.
 Line.prototype.shrink = function (from_delta, to_delta)
 {
@@ -91,17 +106,41 @@ Disc.prototype.toString = function ()
 }
 
 // from and to are Points.
-function draw_line(context, styles, from, to)
+// to_arrow is an object with stem_height and base_width properties
+function draw_line(context, styles, line, from_arrow, to_arrow)
 {
 	context.save();
 	apply_styles(context, styles);
+	
+	var unit = line.normalize();
+	var from_x = line.from.x + from_arrow.stem_height * unit.x;
+	var from_y = line.from.y + from_arrow.stem_height * unit.y;
+	var to_x = line.to.x - to_arrow.stem_height * unit.x;
+	var to_y = line.to.y - to_arrow.stem_height * unit.y;
+	
 	context.beginPath();
-	
-	context.moveTo(from.x, from.y);
-	context.lineTo(to.x, to.y);
-	
+	context.moveTo(from_x, from_y);
+	context.lineTo(to_x, to_y);
 	context.stroke();
+	
+	if (from_arrow.stem_height > 0)
+		do_draw_arrow(context, line, unit, line.from, from_x, from_y, from_arrow);
+	if (to_arrow.stem_height > 0)
+		do_draw_arrow(context, line, unit, line.to, to_x, to_y, to_arrow);
+		
 	context.restore();
+}
+
+function do_draw_arrow(context, line, unit, tip, x, y, arrow)
+{
+	context.fillStyle = context.strokeStyle;
+	var normals = line.normals();
+	
+	context.beginPath();
+	context.moveTo(tip.x, tip.y);
+	context.lineTo(x + (arrow.base_width/2) * normals[0].x, y + (arrow.base_width/2) * normals[0].y);
+	context.lineTo(x + (arrow.base_width/2) * normals[1].x, y + (arrow.base_width/2) * normals[1].y);
+	context.fill();
 }
 
 // Draws a filled disc. If lineWidth is non-zero a border is also added.
@@ -141,7 +180,7 @@ function prep_center_text(context, base_styles, lines, styles)
 		context.textAlign = 'center';
 		context.textBaseline = 'top';
 		
-		heights = compute_line_heights(context, base_styles, styles);
+		heights = do_compute_line_heights(context, base_styles, styles);
 		total_height = heights.reduce(function(previous, current, i, array)
 		{
 			return previous + current;
@@ -202,7 +241,7 @@ function discs_to_line(disc1, disc2)
 	}
 }
 
-function compute_line_heights(context, base_styles, styles)
+function do_compute_line_heights(context, base_styles, styles)
 {
 	var heights = [];
 	context.save();
@@ -211,7 +250,7 @@ function compute_line_heights(context, base_styles, styles)
 	{
 		apply_styles(context, base_styles.concat(styles[i]));
 		
-		var line_height = compute_line_height(context);
+		var line_height = do_compute_line_height(context);
 		heights.push(line_height);
 	}
 	
@@ -219,7 +258,7 @@ function compute_line_heights(context, base_styles, styles)
 	return heights;
 }
 
-function compute_line_height(context)
+function do_compute_line_height(context)
 {
 	var metrics = context.measureText("W");
 	

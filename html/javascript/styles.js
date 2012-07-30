@@ -22,6 +22,7 @@ var styles_table =
 	'identity':				{},
 	'link':					{},
 	'route':				{lineWidth: 4, strokeStyle: 'royalblue'},
+	'broken_relation':	{strokeStyle: 'red'},
 	
 	'label':					{strokeStyle: 'black', fillStyle: 'black'},
 	'primary_label':		{fontWeight: bolder, fontSize: xlarger},
