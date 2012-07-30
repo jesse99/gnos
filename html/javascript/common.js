@@ -16,12 +16,21 @@ String.prototype.format = function()
 	);
 };
 
-function escapeHtml(str)
+function AssertException(message)
 {
-	var div = document.createElement('div');
-	div.appendChild(document.createTextNode(str));
-	return div.innerHTML;
-};
+	this.message = message;
+}
+
+AssertException.prototype.toString = function ()
+{
+	return 'assert: ' + this.message;
+}
+
+function assert(predicate, message)
+{
+	if (!predicate)
+		throw new AssertException(message);
+}
 
 function clone(obj)
 {
@@ -44,4 +53,11 @@ function freezeProps(object /*, names*/)
 	
 	return object;
 }
+
+function escapeHtml(str)
+{
+	var div = document.createElement('div');
+	div.appendChild(document.createTextNode(str));
+	return div.innerHTML;
+};
 

@@ -1,5 +1,6 @@
 "use strict";
 
+// ---- Point class -----------------------------------------------------------
 // All coordinates are screen coordinates.
 function Point(x, y)
 {
@@ -23,6 +24,7 @@ Point.prototype.toString = function ()
 	return "{x: " + this.x + ", y: " + this.y + "}";
 }
 
+// ---- Line class ------------------------------------------------------------
 function Line(from, to)
 {
 	this.from = from;
@@ -43,6 +45,18 @@ Line.prototype.normalize = function ()
 	var y = this.to.y - this.from.y;
 	var d = this.to.distance(this.from);
 	return new Point(x/d, y/d);
+}
+
+// Returns a point on the line from this.from (0.0) to this.to (1.0).
+Line.prototype.interpolate = function (p)
+{
+	assert(p >= 0.0, "position is negative");
+	assert(p <= 1.0, "position is larger than 1.0");
+	
+	var dx = this.to.x - this.from.x;
+	var dy = this.to.y - this.from.y;
+	
+	return new Point(this.from.x + p*dx, this.from.y + p*dy);
 }
 
 // Shrinks the line by from_delta pixels on the from side and to_delta pixels on the to side.
@@ -66,6 +80,7 @@ Line.prototype.toString = function ()
 	return "{from: " + this.from + ", to: " + this.to + "}";
 }
 
+// ---- Disc class ------------------------------------------------------------
 function Disc(center, radius)
 {
 	this.center = center;
@@ -105,6 +120,7 @@ Disc.prototype.toString = function ()
 	return "{center: " + this.center + ", radius: " + this.radius + "}";
 }
 
+// ---- Drawing Functions -----------------------------------------------------
 // from and to are Points.
 // to_arrow is an object with stem_height and base_width properties
 function draw_line(context, styles, line, from_arrow, to_arrow)
@@ -129,18 +145,6 @@ function draw_line(context, styles, line, from_arrow, to_arrow)
 		do_draw_arrow(context, line, unit, line.to, to_x, to_y, to_arrow);
 		
 	context.restore();
-}
-
-function do_draw_arrow(context, line, unit, tip, x, y, arrow)
-{
-	context.fillStyle = context.strokeStyle;
-	var normals = line.normals();
-	
-	context.beginPath();
-	context.moveTo(tip.x, tip.y);
-	context.lineTo(x + (arrow.base_width/2) * normals[0].x, y + (arrow.base_width/2) * normals[0].y);
-	context.lineTo(x + (arrow.base_width/2) * normals[1].x, y + (arrow.base_width/2) * normals[1].y);
-	context.fill();
 }
 
 // Draws a filled disc. If lineWidth is non-zero a border is also added.
@@ -218,7 +222,8 @@ function center_text(context, base_styles, lines, styles, center, stats)
 		for (var i=0; i < lines.length; ++i)
 		{
 			var line = lines[i];
-			apply_styles(context, base_styles.concat(styles[i]));
+			var style = apply_styles(context, base_styles.concat(styles[i]));
+			//console.log("drawing '{0} at {1}pt".format(line, style.fontSize));
 			
 			context.fillText(line, center.x, y);
 			y += stats.heights[i];
@@ -239,6 +244,19 @@ function discs_to_line(disc1, disc2)
 	{
 		return new Line(Point.zero, Point.zero);
 	}
+}
+
+// ---- Internal Functions ----------------------------------------------------
+function do_draw_arrow(context, line, unit, tip, x, y, arrow)
+{
+	context.fillStyle = context.strokeStyle;
+	var normals = line.normals();
+	
+	context.beginPath();
+	context.moveTo(tip.x, tip.y);
+	context.lineTo(x + (arrow.base_width/2) * normals[0].x, y + (arrow.base_width/2) * normals[0].y);
+	context.lineTo(x + (arrow.base_width/2) * normals[1].x, y + (arrow.base_width/2) * normals[1].y);
+	context.fill();
 }
 
 function do_compute_line_heights(context, base_styles, styles)

@@ -129,16 +129,27 @@ function draw_initial_map()
 
 function draw_relations(context, relations)
 {
-	var lines = find_lines(relations);
-	for (var key in lines)
+	var infos = find_line_infos(relations);
+	var lines = [];
+	for (var key in infos)
 	{
-		draw_relation(context, lines[key]);
+		var line = draw_relation(context, infos[key]);
+		lines.push(line);
+	}
+	
+	var i = 0;
+	for (var key in infos)		// do this after drawing lines so that the labels appear on top
+	{
+		label_relation(context, infos[key].r, lines[i], 0.3);
+		if (infos[key].s)
+			label_relation(context, infos[key].s, lines[i], 0.7);
+		i += 1;
 	}
 }
 
 // Returns object mapping src/dst object subjects to objects of the form:
 //     {r: relation, broken: bool, from_arrow: arrow, to_arrow}
-function find_lines(relations)
+function find_line_infos(relations)
 {
 	var lines = {};
 	
@@ -152,24 +163,28 @@ function find_lines(relations)
 		var key = relation.src < relation.dst ? relation.src + "/" + relation.dst : relation.dst + "/" + relation.src;
 		if (relation.type == "undirected")
 		{
-			// no arrows
-			lines[key] = {r: relation, broken: false, from_arrow: no_arrow, to_arrow: no_arrow};
+			// undirected: no arrows
+			if (key in lines)
+				lines[key] = {r: lines[key].r, s: relation, broken: false, from_arrow: no_arrow, to_arrow: no_arrow};
+			else
+				lines[key] = {r: relation, s: null, broken: false, from_arrow: no_arrow, to_arrow: no_arrow};
 		}
 		else if (relation.type == "unidirectional")
 		{
-			// arrow for each relation
+			// unidirectional: arrow for each relation
 			if (key in lines)
-				lines[key] = {r: relation, broken: false, from_arrow: has_arrow, to_arrow: has_arrow};
+				lines[key] = {r: lines[key].r, s: relation, broken: false, from_arrow: has_arrow, to_arrow: has_arrow};
 			else
-				lines[key] = {r: relation, broken: false, from_arrow: no_arrow, to_arrow: has_arrow};
+				lines[key] = {r: relation, s: null, broken: false, from_arrow: no_arrow, to_arrow: has_arrow};
 		}
 		else if (relation.type == "bidirectional")
 		{
-			// no arrows unless the relation is one way
+			// two-way bidirectional: no arrows
+			// one-way bidirectional: broken (red) arrow
 			if (key in lines)
-				lines[key] = {r: relation, broken: false, from_arrow: no_arrow, to_arrow: no_arrow};
+				lines[key] = {r: lines[key].r, s: relation, broken: false, from_arrow: no_arrow, to_arrow: no_arrow};
 			else
-				lines[key] = {r: relation, broken: true, from_arrow: no_arrow, to_arrow: has_arrow};
+				lines[key] = {r: relation, s: null, broken: true, from_arrow: no_arrow, to_arrow: has_arrow};
 		}
 		else
 		{
@@ -185,7 +200,7 @@ function find_lines(relations)
 //     optional fields: style, primary_label, secondary_label, tertiary_label
 function draw_relation(context, info)
 {
-	console.log("relation from {0} to {1}".format(object_info[info.r.src].center, object_info[info.r.dst].center));
+	//console.log("relation from {0} to {1}".format(object_info[info.r.src].center, object_info[info.r.dst].center));
 	
 	if ('style' in info.r)
 		var style = info.r.style;
@@ -203,6 +218,41 @@ function draw_relation(context, info)
 	var line = discs_to_line(new Disc(src.center, src.radius), new Disc(dst.center, dst.radius));
 	line = line.shrink(src.stroke_width/2, dst.stroke_width/2);	// path strokes are centered on the path
 	draw_line(context, styles, line, info.from_arrow, info.to_arrow);
+	
+	return line;
+}
+
+function label_relation(context, relation, line, p)
+{
+	if ('style' in relation)
+		var style = relation.style;
+	else
+		var style = 'identity';
+		
+	var text = [];
+	var style_names = [];
+	if ('primary_label' in relation)
+	{
+		text.push(relation.primary_label);
+		style_names.push('primary_relation');
+	}
+	if ('secondary_label' in relation)
+	{
+		text.push(relation.secondary_label);
+		style_names.push('secondary_relation');
+	}
+	if ('tertiary_label' in relation)
+	{
+		text.push(relation.tertiary_label);
+		style_names.push('tertiary_relation');
+	}
+	
+	var center = line.interpolate(p);
+	var base_styles = [style, 'label', 'relation_label'];
+	
+	var stats = prep_center_text(context, base_styles, text, style_names);
+	context.clearRect(center.x - stats.max_width/2, center.y - stats.total_height/2, stats.max_width, stats.total_height);
+	center_text(context, base_styles, text, style_names, center, stats);
 }
 
 function draw_map(context, objects)

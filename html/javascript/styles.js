@@ -15,19 +15,24 @@ var styles_table =
 		fillStyle: "black",	
 	},
 	
-	'host':					{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lightblue', fontSize: smaller},
-	'router':				{lineWidth: 8, strokeStyle: 'black', fillStyle: 'mistyrose'},
-	'switch':				{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lavender'},
+	'host':						{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lightblue', fontSize: smaller},
+	'router':					{lineWidth: 8, strokeStyle: 'black', fillStyle: 'mistyrose'},
+	'switch':					{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lavender'},
 	
-	'identity':				{},
-	'link':					{},
-	'route':				{lineWidth: 4, strokeStyle: 'royalblue'},
-	'broken_relation':	{strokeStyle: 'red'},
+	'identity':					{},
+	'link':						{},
+	'route':					{lineWidth: 4, strokeStyle: 'royalblue'},
+	'broken_relation':		{strokeStyle: 'red'},
 	
-	'label':					{strokeStyle: 'black', fillStyle: 'black'},
-	'primary_label':		{fontWeight: bolder, fontSize: xlarger},
-	'secondary_label':	{},
-	'tertiary_label':		{fontSize: smaller},
+	'relation_label':			{},
+	'primary_relation':		{},
+	'secondary_relation':	{fontSize: smaller},
+	'tertiary_relation':		{fontSize: smaller},
+	
+	'label':						{strokeStyle: 'black', fillStyle: 'black'},
+	'primary_label':			{fontWeight: bolder, fontSize: xlarger},
+	'secondary_label':		{},
+	'tertiary_label':			{fontSize: smaller},
 };
 
 // Applies cascading styles to the current canvas context.
@@ -102,14 +107,14 @@ function larger(style)
 function smaller(style)
 {
 	var result = clone(style);
-	result.fontSize = Math.round(0.8*result.fontSize);
+	result.fontSize = Math.max(Math.round(0.8*result.fontSize), 8);
 	return result;
 }
 
 function xsmaller(style)
 {
 	var result = clone(style);
-	result.fontSize = Math.round(0.6*result.fontSize);
+	result.fontSize = Math.max(Math.round(0.6*result.fontSize), 8);
 	return result;
 }
 
