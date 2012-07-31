@@ -21,6 +21,21 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- group name can stuff "ttnt" or "10.8.0.0/8"
 	- probably need to treat the group as an object
 	- might be a bit more flexible to use standard relations and the synthetic objects
+* Details views:
+	active alerts
+	inactive alerts
+	summary
+		ip stats
+		forwarding flag
+		up time
+	interfaces
+		status
+		name
+		stats
+		mtu
+		speed
+		ip
+		mac
 * Front page needs to use a rather fancy query:
 	- page contains list of <device name> <status> <note>
 	- where status is "UP" or "DOWN"
@@ -50,6 +65,7 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- also can use swoogle to search for ontologies
 * Make gnos a sparql endpoint?
 	- note that there is a protocol for this
+* Make sure subject view puts an upper bound on displayed object length.
 * May want to use deps directory
 	- update-libraries eithe git clones/pulls or uses subtrees
 	- check-all runs all unit tests

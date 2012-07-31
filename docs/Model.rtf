@@ -40,7 +40,7 @@ gnos:last_update	xsd:dateTime\
 \f0\b\fs44 \cf0 Devices\
 \pard\pardeftab480\pardirnatural
 
-\fs28 \cf0 _:obj1\
+\fs28 \cf0 _:device1\
 
 \b0 gnos:center_x			xsd:float			0.3 (unit scale where origin is upper-left)\
 gnos:center_y			xsd:float			0.6\
@@ -54,9 +54,6 @@ gnos:style				xsd:string			"", "host", "router", "large", etc\
 gnos:primary_label		xsd:string			"GRS-1"\
 gnos:secondary_label	xsd:string			"10.1.0.1"\
 gnos:tertiary_label		xsd:string			"server room"\
-gnos:text_info	
-\f1\fs24 		
-\f0\fs28 blank				_:text1 (also gnos:table_info and gnos:sample_info)\
 \pard\pardeftab480\pardirnatural
 
 \f1\fs24 \cf0 \
@@ -70,10 +67,10 @@ gnos:text_info
 \b0 \
 gnos:src					blank
 \f1\fs24 		
-\f0\fs28 		_:obj1\
+\f0\fs28 		_:device1\
 gnos:dst					blank
 \f1\fs24 		
-\f0\fs28 		_:obj2\
+\f0\fs28 		_:device2\
 gnos:type					xsd:string			"undirected" or "bidirectional" or "unidirectional"\
 gnos:style				xsd:string			"", "link", "route", etc\
 \pard\pardeftab480\pardirnatural
@@ -99,7 +96,7 @@ gnos:tertiary_label		xsd:string			"ospf"\
 gnos:meter				xsd:string			"CPU"\
 gnos:target				blank
 \f1\fs24 		
-\f0\fs28 		_:obj1\
+\f0\fs28 		_:device1\
 \pard\pardeftab480\pardirnatural
 \cf0 gnos:level					xsd:float
 \f1\fs24 		
@@ -122,28 +119,19 @@ gnos:label				xsd:string			"Error Alerts"\
 \f1\fs24 \cf0 \
 \pard\pardeftab480\pardirnatural
 
-\f0\b\fs44 \cf0 Info\
+\f0\b\fs44 \cf0 Details\
 \pard\pardeftab480\pardirnatural
 
-\fs28 \cf0 _:text1
+\fs28 \cf0 _:info1
 \b0 \
-gnos:info					xsd:string			"10.1.0.1 uname"\
-gnos:type					xsd:string			"?"\
-gnos:target				blank
+\pard\pardeftab480\pardirnatural
+\cf0 gnos:info				xsd:string			"active alerts"\
+gnos:target			blank
 \f1\fs24 		
-\f0\fs28 		_:obj1\
-gnos:text					xsd:string			"Darwin 11.4.0\\n8G of memory\\nblah"\
-\pard\pardeftab480\pardirnatural
-\cf2 probably want to support wiki style markup\cf0 \
-\pard\pardeftab480\pardirnatural
-
-\f1\fs24 \cf0 \
-\pard\pardeftab480\pardirnatural
-
-\f0\b\fs28 \cf0 _:table1
-\b0 \
-\pard\pardeftab480\pardirnatural
-\cf2 probably don't want this\cf0 \
+\f0\fs28 		_:device1\
+gnos:content			xsd:string			"<li class='active-alerts'>...</li>"\
+gnos:weight			xsd:float			0.9 (larger values are displayed first)\
+gnos:open			xsd:string			"always", "yes", or "no" (uses details if not "always")\
 \pard\pardeftab480\pardirnatural
 
 \f1\fs24 \cf0 \
