@@ -99,7 +99,7 @@ WHERE 															\
 	}																\
 }';
 
-	var source = new EventSource('/query?name=model&expr={0}&expr2={1}&expr3={2}'.
+	var source = new EventSource('/query?name=primary&expr={0}&expr2={1}&expr3={2}'.
 		format(encodeURIComponent(expr), encodeURIComponent(expr2), encodeURIComponent(expr3)));
 	source.addEventListener('message', function(event)
 	{

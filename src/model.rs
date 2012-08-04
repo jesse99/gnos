@@ -61,15 +61,15 @@ fn manage_state(port: comm::port<msg>)
 	];
 	
 	let stores = std::map::str_hash();
-	stores.insert(~"model",  create_store(namespaces, @std::map::str_hash()));
+	stores.insert(~"primary",  create_store(namespaces, @std::map::str_hash()));
 	stores.insert(~"alerts",  create_store(namespaces, @std::map::str_hash()));
 	
 	let mut updaters = std::map::str_hash();
-	updaters.insert(~"model", std::map::str_hash());
+	updaters.insert(~"primary", std::map::str_hash());
 	updaters.insert(~"alerts", std::map::str_hash());
 	
 	let mut listeners = std::map::str_hash();
-	listeners.insert(~"model", std::map::str_hash());
+	listeners.insert(~"primary", std::map::str_hash());
 	listeners.insert(~"alerts", std::map::str_hash());
 	
 	loop

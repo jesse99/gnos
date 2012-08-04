@@ -9,7 +9,7 @@ export setup;
 
 fn setup(state_chan: comm::chan<model::msg>) 
 {
-	comm::send(state_chan, model::update_msg(~"model", add_got, ~""));
+	comm::send(state_chan, model::update_msg(~"primary", add_got, ~""));
 }
 
 fn add_got(store: store, _data: ~str) -> bool

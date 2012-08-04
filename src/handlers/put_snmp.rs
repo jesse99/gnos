@@ -232,6 +232,6 @@ fn put_snmp(state_chan: comm::chan<msg>, request: server::request, response: ser
 	// Of course that shouldn't happen...
 	#info["got new modeler data"];
 	let addr = request.remote_addr;
-	comm::send(state_chan, update_msg(~"model", |s, d| {json_to_store(addr, s, d)}, request.body));
+	comm::send(state_chan, update_msg(~"primary", |s, d| {json_to_store(addr, s, d)}, request.body));
 	{body: ~"" with response}
 }
