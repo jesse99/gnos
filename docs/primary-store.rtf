@@ -4,10 +4,15 @@
 \deftab480
 \pard\pardeftab480\pardirnatural
 
-\f0\fs28 \cf0 This is the RDF schema for the information used by the client views. It's populated by\
-modeler scripts and the gnos command line. Clients use SPARQL queries together with server-sent events to automatically update views as the model changes.\
+\f0\fs28 \cf0 This is the store that stores the bulk of the information which is rendered by the gnos\
+home page (the network map view). It's populated by the snmp-modeler.py script\
+and the gnos command line. The map view uses SPARQL queries together with \
+server-sent events to automatically update the view as the model changes.\
 \
-In order to decouple the views from the model the model is designed to be sufficiently generic that it doesn't even expose networking concepts. This allows the views to operate on high-level semantic concepts instead of network specific data (which, for example, will allow views to work unchanged if custom modelers add new information to the model).\
+In order to decouple the views from the model the model is designed to be sufficiently \
+generic that it doesn't even expose networking concepts. This allows the views to operate \
+on high-level semantic concepts instead of network specific data (which, for example, will \
+allow views to work unchanged if custom modelers add new information to the model).\
 \
 The schema is defined with the aid of a couple of different namespace prefixes:\
 \pard\pardeftab480\pardirnatural
@@ -97,8 +102,7 @@ gnos:meter				xsd:string			"CPU"\
 gnos:target				blank
 \f1\fs24 		
 \f0\fs28 		http://10.1.0.1\
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:level					xsd:float
+gnos:level					xsd:float
 \f1\fs24 		
 \f0\fs28 	0.2 (range is 0.0 to 1.0)\
 \
@@ -124,8 +128,7 @@ gnos:label				xsd:string			"Error Alerts"\
 
 \fs28 \cf0 _:info1
 \b0 \
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:info				xsd:string			"active alerts"\
+gnos:info				xsd:string			"active alerts"\
 gnos:target			blank
 \f1\fs24 		
 \f0\fs28 		http://10.1.0.1\
