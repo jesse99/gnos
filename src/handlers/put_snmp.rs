@@ -60,7 +60,7 @@ fn add_snmp(store: store, label: ~str, object: std::map::hashmap<~str, std::json
 		}
 	};
 	
-	let subject = get_blank_name(store, #fmt["%s-snmp", label]);
+	let subject = #fmt["%s-snmp", label];
 	store.add(subject, entries);
 	ret subject;
 }
@@ -156,7 +156,7 @@ fn add_device(store: store, managed_ip: ~str, device: std::map::hashmap<~str, st
 		(~"gnos:snmp", blank_value(add_snmp(store, managed_ip, device))),
 	] + add_interfaces(store, managed_ip, device);
 	
-	let subject = get_blank_name(store, managed_ip);
+	let subject = #fmt["devices:%s", managed_ip];
 	store.add(subject, entries);
 }
 

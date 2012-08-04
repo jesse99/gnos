@@ -22,7 +22,7 @@ td.property
 	font-weight: bold;
 }
 
-tr.odd
+tr.even
 {
 	background-color: azure;
 }

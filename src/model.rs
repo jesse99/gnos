@@ -55,6 +55,7 @@ fn manage_state(port: comm::port<msg>)
 {
 	let queries = std::map::str_hash();
 	let namespaces = ~[
+		{prefix: ~"devices", path: ~"http://network/"},
 		{prefix: ~"gnos", path: ~"http://www.gnos.org/2012/schema#"},
 		{prefix: ~"snmp", path: ~"http://www.gnos.org/2012/snmp/"},
 	];

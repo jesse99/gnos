@@ -34,8 +34,8 @@ window.onload = function()
 {
 	var table = document.getElementById('subject');
 	var expr = '																\
-PREFIX 																		\
-	gnos: <http://www.gnos.org/2012/schema#>						\
+PREFIX devices: <http://network/>										\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>					\
 SELECT 																		\
 	?predicate_url ?predicate_label ?value_url ?value_label			\
 WHERE 																		\

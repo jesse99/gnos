@@ -21,7 +21,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	]);
 	
 	// devices
-	let wall = get_blank_name(store, ~"device");
+	let wall = ~"devices:wall";
 	store.add(wall, ~[
 		(~"gnos:center_x",           float_value(0.5f64)),
 		(~"gnos:center_y",           float_value(0.12f64)),
@@ -30,7 +30,7 @@ fn add_got(store: store, _data: ~str) -> bool
 		(~"gnos:tertiary_label",     string_value(~"guards the realms of men", ~"")),
 	]);
 	
-	let winterfell = get_blank_name(store, ~"device");
+	let winterfell = ~"devices:winterfell";
 	store.add(winterfell, ~[
 		(~"gnos:center_x",           float_value(0.2f64)),
 		(~"gnos:center_y",           float_value(0.3f64)),
@@ -40,7 +40,7 @@ fn add_got(store: store, _data: ~str) -> bool
 		(~"gnos:tertiary_label",     string_value(~"constructed by Brandon the Builder", ~"")),
 	]);
 	
-	let knights_landing = get_blank_name(store, ~"device");
+	let knights_landing = ~"devices:knights_landing";
 	store.add(knights_landing, ~[
 		(~"gnos:center_x",           float_value(0.6f64)),
 		(~"gnos:center_y",           float_value(0.77f64)),
@@ -57,7 +57,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	let wall_mf = get_blank_name(store, ~"meter");
 	store.add(wall_mf, ~[
 		(~"gnos:meter",        string_value(~"MF", ~"")),
-		(~"gnos:target",        blank_value(wall)),
+		(~"gnos:target",        iri_value(wall)),
 		(~"gnos:level",          float_value(1.0f64)),
 		(~"gnos:description", string_value(~"male/female ratio", ~"")),
 	]);
@@ -65,7 +65,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	let wall_loyalty = get_blank_name(store, ~"meter");
 	store.add(wall_loyalty, ~[
 		(~"gnos:meter",        string_value(~"loyalty", ~"")),
-		(~"gnos:target",        blank_value(wall)),
+		(~"gnos:target",        iri_value(wall)),
 		(~"gnos:level",          float_value(0.0f64)),
 		(~"gnos:description", string_value(~"loyalty to the crown", ~"")),
 	]);
@@ -73,7 +73,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	let winterfell_mf = get_blank_name(store, ~"meter");
 	store.add(winterfell_mf, ~[
 		(~"gnos:meter",        string_value(~"MF", ~"")),
-		(~"gnos:target",        blank_value(winterfell)),
+		(~"gnos:target",        iri_value(winterfell)),
 		(~"gnos:level",          float_value(0.7f64)),
 		(~"gnos:description", string_value(~"male/female ratio", ~"")),
 	]);
@@ -81,7 +81,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	let winterfell_loyalty = get_blank_name(store, ~"meter");
 	store.add(winterfell_loyalty, ~[
 		(~"gnos:meter",        string_value(~"loyalty", ~"")),
-		(~"gnos:target",        blank_value(winterfell)),
+		(~"gnos:target",        iri_value(winterfell)),
 		(~"gnos:level",          float_value(0.6f64)),
 		(~"gnos:description", string_value(~"loyalty to the crown", ~"")),
 	]);
@@ -89,7 +89,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	let knights_landing_mf = get_blank_name(store, ~"meter");
 	store.add(knights_landing_mf, ~[
 		(~"gnos:meter",        string_value(~"MF", ~"")),
-		(~"gnos:target",        blank_value(knights_landing)),
+		(~"gnos:target",        iri_value(knights_landing)),
 		(~"gnos:level",          float_value(0.5f64)),
 		(~"gnos:description", string_value(~"male/female ratio", ~"")),
 	]);
@@ -97,7 +97,7 @@ fn add_got(store: store, _data: ~str) -> bool
 	let knights_landing_loyalty = get_blank_name(store, ~"meter");
 	store.add(knights_landing_loyalty, ~[
 		(~"gnos:meter",        string_value(~"loyalty", ~"")),
-		(~"gnos:target",        blank_value(knights_landing)),
+		(~"gnos:target",        iri_value(knights_landing)),
 		(~"gnos:level",          float_value(0.9f64)),
 		(~"gnos:description", string_value(~"loyalty to the crown", ~"")),
 	]);
@@ -109,8 +109,8 @@ fn add_relation(store: store, lhs: ~str, rhs: ~str, style: ~str, label: ~str)
 {
 	let lhs_relation = get_blank_name(store, ~"lhs");
 	store.add(lhs_relation, ~[
-		(~"gnos:src",                 	blank_value(lhs)),
-		(~"gnos:dst",                 	blank_value(rhs)),
+		(~"gnos:src",                 	iri_value(lhs)),
+		(~"gnos:dst",                 	iri_value(rhs)),
 		(~"gnos:type",                 string_value(~"unidirectional", ~"")),
 		(~"gnos:style",                 string_value(style, ~"")),
 		(~"gnos:primary_label",    string_value(label, ~"")),
@@ -120,8 +120,8 @@ fn add_relation(store: store, lhs: ~str, rhs: ~str, style: ~str, label: ~str)
 	
 	let rhs_relation = get_blank_name(store, ~"rhs");
 	store.add(rhs_relation, ~[
-		(~"gnos:src",                 	blank_value(rhs)),
-		(~"gnos:dst",                 	blank_value(lhs)),
+		(~"gnos:src",                 	iri_value(rhs)),
+		(~"gnos:dst",                 	iri_value(lhs)),
 		(~"gnos:type",                 string_value(~"unidirectional", ~"")),
 		(~"gnos:style",                 string_value(style, ~"")),
 		(~"gnos:primary_label",    string_value(label, ~"")),

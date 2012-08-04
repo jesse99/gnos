@@ -27,7 +27,7 @@ fn snmp_exited(err: option::option<~str>, state_chan: comm::chan<model::msg>)
 	let mesg = #fmt["snmp-modeler.py exited%s", if err.is_some() {~" with error: " + err.get()} else {~""}];
 	#error["%s", mesg];
 	
-	let alert = {device: ~"server", id: ~"snmp-modeler.py exited", level: model::error_level, mesg: mesg, resolution: ~"Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
+	let alert = {device: ~"gnos:map", id: ~"snmp-modeler.py exited", level: model::error_level, mesg: mesg, resolution: ~"Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
 	comm::send(state_chan, model::update_msg(~"alerts", |store, _err| {model::open_alert(store, alert)}, ~""));
 }
 
@@ -88,12 +88,12 @@ fn main(args: ~[~str])
 	let query_s: server::open_sse = |_settings, request, push| {get_query::get_query(state_chan, request, push)};
 	let bail_v: server::response_handler = |_settings, _request, _response| {get_shutdown(options3)};
 	
-	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"server", id: ~"tail", level: model::error_level, mesg: ~"bite my tail", resolution: ~"Stop biting!"})}, ~""));
-	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"server", id: ~"hand", level: model::error_level, mesg: ~"bite my hand", resolution: ~"Don't bite!"})}, ~""));
-	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"server", id: ~"head", level: model::warning_level, mesg: ~"pet my head", resolution: ~"Why stop?"})}, ~""));
-	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"server", id: ~"content", level: model::warning_level, mesg: ~"unexplored content", resolution: ~"Visit the subjects page."})}, ~""));
+	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"gnos:map", id: ~"tail", level: model::error_level, mesg: ~"bite my tail", resolution: ~"Stop biting!"})}, ~""));
+	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"gnos:map", id: ~"hand", level: model::error_level, mesg: ~"bite my hand", resolution: ~"Don't bite!"})}, ~""));
+	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"gnos:map", id: ~"head", level: model::warning_level, mesg: ~"pet my head", resolution: ~"Why stop?"})}, ~""));
+	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"gnos:map", id: ~"content", level: model::warning_level, mesg: ~"unexplored content", resolution: ~"Visit the subjects page."})}, ~""));
 	
-	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"server", id: ~"content", level: model::warning_level, mesg: ~"unexplored content", resolution: ~"Visit the subjects page."})}, ~""));
+	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"gnos:map", id: ~"content", level: model::warning_level, mesg: ~"unexplored content", resolution: ~"Visit the subjects page."})}, ~""));
 	
 	let config = {
 		// We need to bind to the server addresses so that we receive modeler PUTs.
