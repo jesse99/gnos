@@ -9,6 +9,9 @@
 // }
 var DEVICES = {};
 
+var PRIMARY_DATA = null;
+var ALERTS_DATA = null;
+
 // Thresholds for different meter levels.
 var GOOD_LEVEL		= 0.0;
 var OK_LEVEL			= 0.5;
@@ -17,11 +20,31 @@ var DANGER_LEVEL	= 0.8;
 
 window.onload = function()
 {
+	resize_canvas();
+	window.onresize = resize_canvas;
+	
 	draw_initial_map();
-	register_query();
+	register_primary_query();
+	register_alerts_query();
 }
 
-function register_query()
+function resize_canvas()
+{
+	var map = document.getElementById('map');
+	var context = map.getContext('2d');
+	
+	size_to_window(context);
+	if (PRIMARY_DATA)
+	{
+		redraw();
+	}
+	else
+	{
+		draw_initial_map();
+	}
+}
+
+function register_primary_query()
 {
 	// It's rather awkward to have all these OPTIONAL clauses, but according
 	// to the spec the entire OPTIONAL block must match in order to affect 
@@ -103,28 +126,77 @@ WHERE 															\
 		format(encodeURIComponent(expr), encodeURIComponent(expr2), encodeURIComponent(expr3)));
 	source.addEventListener('message', function(event)
 	{
-		var map = document.getElementById('map');
-		var context = map.getContext('2d');
-		context.clearRect(0, 0, map.width, map.height);
-		
-		var data = JSON.parse(event.data);
-		populate_devices(context, data[0], data[2]);
-		draw_map(context, data[0]);
-		draw_relations(context, data[1]);
+		PRIMARY_DATA = event.data;
+		redraw();
 	});
 	
 	source.addEventListener('open', function(event)
 	{
-		console.log('map stream opened');
+		console.log('primary stream opened');
 	});
 	
 	source.addEventListener('error', function(event)
 	{
 		if (event.eventPhase == 2)
 		{
-			console.log('map stream closed');
+			console.log('primary stream closed');
 		}
 	});
+}
+
+function register_alerts_query()
+{
+	var expr = '													\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
+SELECT 															\
+	?device ?count												\
+WHERE 															\
+{																	\
+	?device gnos:num_errors ?count							\
+}';
+
+	var source = new EventSource('/query?name=alerts&expr={0}'.
+		format(encodeURIComponent(expr)));
+	source.addEventListener('message', function(event)
+	{
+		ALERTS_DATA = {};
+		var data = JSON.parse(event.data);
+		for (var i=0; i < data.length; ++i)
+		{
+			var row = data[i];
+			ALERTS_DATA[row.device] = row.count;
+			console.log("row{0}: {1:j}".format(i, row));
+		}
+		
+		if (PRIMARY_DATA)
+			redraw();
+	});
+	
+	source.addEventListener('open', function(event)
+	{
+		console.log('alerts stream opened');
+	});
+	
+	source.addEventListener('error', function(event)
+	{
+		if (event.eventPhase == 2)
+		{
+			console.log('alerts stream closed');
+		}
+	});
+}
+
+function redraw()
+{
+	var map = document.getElementById('map');
+	var context = map.getContext('2d');
+	context.clearRect(0, 0, map.width, map.height);
+	
+	var data = JSON.parse(PRIMARY_DATA);
+	populate_devices(context, data[0], data[2]);
+	draw_map(context, data[0]);
+	draw_relations(context, data[1]);
 }
 
 function populate_devices(context, devices, meters)
@@ -134,7 +206,7 @@ function populate_devices(context, devices, meters)
 	for (var i=0; i < devices.length; ++i)
 	{
 		var device = devices[i];
-		DEVICES[device.name] = 
+		DEVICES[device.name] =
 			{
 				center: new Point(device.center_x * context.canvas.width, device.center_y * context.canvas.height),
 				radius: 0.0,				// set by draw_device
@@ -303,6 +375,31 @@ function draw_map(context, devices)
 		
 		draw_device(context, device);
 	}
+	
+	if (ALERTS_DATA)
+		draw_map_labels(context);
+}
+
+function draw_map_labels(context)
+{
+	if ('http://www.gnos.org/2012/schema#map' in ALERTS_DATA)
+	{
+		var count = ALERTS_DATA['http://www.gnos.org/2012/schema#map'];
+		
+		var lines = [];
+		var style_names = [];
+		if (count)
+			lines.push("1 error alert");
+		else
+			lines.push("{0} error alerts".format(count));
+		style_names.push('error_label');
+		
+		var base_styles = ['map'];
+		var stats = prep_center_text(context, base_styles, lines, style_names);
+		
+		var center = new Point(context.canvas.width/2, context.canvas.height - stats.total_height);
+		center_text(context, base_styles, lines, style_names, center, stats);
+	}
 }
 
 // device has
@@ -345,9 +442,18 @@ function draw_device(context, device)
 		}
 	}
 	
+	if (ALERTS_DATA && device.name in ALERTS_DATA)
+	{
+		if (ALERTS_DATA[device.name] == 1)
+			lines.push("1 error alert");
+		else
+			lines.push("{0} error alerts".format(ALERTS_DATA[device.name]));
+		style_names.push('error_label');
+	}
+	
 	// Get the dimensions of the text.
 	var stats = prep_center_text(context, base_styles, lines, style_names);
-	console.log("stats: {0:j}".format(stats));
+	//console.log("stats: {0:j}".format(stats));
 	
 	// Draw a disc behind the text.
 	var center = new Point(map.width * device.center_x, map.height * device.center_y);

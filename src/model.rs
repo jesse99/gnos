@@ -1,6 +1,6 @@
 import to_str::to_str;
 import rrdf::{create_store, get_blank_name, store, solution, solution_row_methods,
-	triple, string_value, dateTime_value, selector, compile, solution_row_methods, solution_methods,
+	triple, string_value, int_value, dateTime_value, selector, compile, solution_row_methods, solution_methods,
 	store_methods};
 import rrdf::solution::solution_row_trait;
 import rrdf::store::{base_iter, store_trait};
@@ -167,6 +167,11 @@ fn open_alert(store: store, alert: alert) -> bool
 					(~"gnos:resolution", string_value(alert.resolution, ~"")),
 					(~"gnos:level", string_value(level, ~"")),
 				]);
+				
+				if alert.level == error_level
+				{
+					update_err_count(store, alert.device, 1);
+				}
 				true
 			}
 			else
@@ -188,11 +193,12 @@ fn close_alert(store: store, device: ~str, id: ~str) -> bool
 	let expr = #fmt["
 	PREFIX gnos: <http://www.gnos.org/2012/schema#>
 	SELECT
-		?subject ?end
+		?subject ?level ?end
 	WHERE
 	{
 		?subject gnos:device \"%s\" .
 		?subject gnos:id \"%s\" .
+		?subject gnos:level ?level .
 		OPTIONAL
 		{
 			?subject gnos:end ?end
@@ -204,14 +210,20 @@ fn close_alert(store: store, device: ~str, id: ~str) -> bool
 		result::ok(solution)
 		{
 			let mut added = false;
+			let mut level = ~"";
 			for solution.each
 			|row|
 			{
 				if row.search(~"end").is_none()
 				{
-					store.add_triple(~[], {subject: row.get(~"subject").to_str(), predicate: ~"gnos:end", object: dateTime_value(std::time::now())});
 					added = true;
+					level = row.get(~"level").as_str();
+					store.add_triple(~[], {subject: row.get(~"subject").to_str(), predicate: ~"gnos:end", object: dateTime_value(std::time::now())});
 				}
+			}
+			if added && level == ~"error"
+			{
+				update_err_count(store, device, -1);
 			}
 			added
 		}
@@ -224,6 +236,28 @@ fn close_alert(store: store, device: ~str, id: ~str) -> bool
 }
 
 // ---- Internal functions ----------------------------------------------------
+fn update_err_count(store: store, device: ~str, delta: i64)
+{
+	alt store.find_object(device, ~"gnos:num_errors")
+	{
+		option::some(int_value(value))
+		{
+			// TODO: This is a rather inefficient pattern (though it doesn't matter here because
+			// subject has only one predicate). But maybe replace_triple should have a variant 
+			// or something that passes the original value to a closure.
+			store.replace_triple(~[], {subject: device, predicate: ~"gnos:num_errors", object: int_value(value + delta)});
+		}
+		option::some(x)
+		{
+			fail #fmt["Expected an int value for gnos:num_errors in the alerts store, but found %?", x];
+		}
+		option::none
+		{
+			assert delta == 1;		// if we're closing an alert we should have found the err_count for the open alert
+			store.add_triple(~[], {subject: device, predicate: ~"gnos:num_errors", object: int_value(1)});
+		}
+	}
+}
 
 // In general the same queries will be used over and over again so it will be
 // much more efficient to cache the selectors.

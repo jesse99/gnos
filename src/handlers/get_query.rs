@@ -8,7 +8,17 @@ import rwebserve::imap::{imap_methods, immutable_map};
 
 export get_query;
 
-// server-sent event handler
+/// Used by client code to register server-sent events for SPARQL queries.
+///
+/// The client EventSource is called when the sse is first registered and
+/// again when the solution(s) returned by the query change. The query
+/// string should be of the form: "name=foo&expr=blah&expr1=blah", 
+/// where foo is the name of a store and expr[N] are SPARQL queries.
+///
+/// When one query expression is used the result will be an rrdf solution
+/// encoded in JSON: the solution is represented by a list and solution_rows
+/// by dictionaries, e.g. [{"name": "bob", "age": 10"}, ...]. When multiple
+/// query expression are used the result is a list of solutions.
 fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server::push_chan) -> server::control_chan
 {
 	let name = request.params.get(~"name");

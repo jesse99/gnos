@@ -36,6 +36,10 @@ javascript model/view: http://documentcloud.github.com/backbone/
 		speed
 		ip
 		mac
+* Would be great to have a vlan map:
+	- on a cisco can use show mac-address-table to find mac addresses on a port
+	- also snmp: http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&ved=0CFUQFjAA&url=http%3A%2F%2Fwww.cisco.com%2Fen%2FUS%2Ftech%2Ftk648%2Ftk362%2Ftechnologies_tech_note09186a00801c9199.shtml&ei=KDAdUMWsBYOGyQHmpIDQDw&usg=AFQjCNG7O3ox230HFyYMKT6966T399Z8wg&sig2=F3LAXDBFGp4L1ZdXMfWsyQ
+	- maybe show this if the user double clicks on a switch
 * Check out jslint.
 * Front page needs to use a rather fancy query:
 	- page contains list of <device name> <status> <note>
@@ -66,6 +70,25 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- also can use swoogle to search for ontologies
 * Make gnos a sparql endpoint?
 	- note that there is a protocol for this
+* Netflow:
+	Netflow Overview:
+	http://www.cisco.com/en/US/prod/collateral/iosswrel/ps6537/ps6555/ps6601/prod_white_paper0900aecd80406232.html
+	
+	NetFlow Collectors:
+	http://www.cisco.com/en/US/prod/iosswrel/ps6537/ps6555/ps6601/networking_solutions_products_genericcontent0900aecd805ff728.html
+	http://www.plixer.com/Scrutinizer-Netflow-Sflow/scrutinizer-flow-analyzer.html
+	http://www.paessler.com/prtg
+	
+	Router Howto:
+	http://www.plixer.com/blog/netflow/cisco-netflow-sampling-configuration/
+	
+	Good Find:
+	http://inetcon.org/study/CCIE_RS_Quick_Review_Kit_ver2_vol1.pdf
+	
+	Some Detection White Papers using NetFlow:
+	http://www.caligare.com/articles/worms.php
+	http://www.first.org/global/practices/Netflow.pdf
+	http://www.cert.org/flocon/2011/presentations/Krmicek_Detecting.pdf
 * Make sure subject view puts an upper bound on displayed object length.
 * May want to use deps directory
 	- update-libraries eithe git clones/pulls or uses subtrees

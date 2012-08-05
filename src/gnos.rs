@@ -88,13 +88,6 @@ fn main(args: ~[~str])
 	let query_s: server::open_sse = |_settings, request, push| {get_query::get_query(state_chan, request, push)};
 	let bail_v: server::response_handler = |_settings, _request, _response| {get_shutdown(options3)};
 	
-	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"gnos:map", id: ~"tail", level: model::error_level, mesg: ~"bite my tail", resolution: ~"Stop biting!"})}, ~""));
-	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"gnos:map", id: ~"hand", level: model::error_level, mesg: ~"bite my hand", resolution: ~"Don't bite!"})}, ~""));
-	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"gnos:map", id: ~"head", level: model::warning_level, mesg: ~"pet my head", resolution: ~"Why stop?"})}, ~""));
-	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"gnos:map", id: ~"content", level: model::warning_level, mesg: ~"unexplored content", resolution: ~"Visit the subjects page."})}, ~""));
-	
-	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg| {model::open_alert(store, {device: ~"gnos:map", id: ~"content", level: model::warning_level, mesg: ~"unexplored content", resolution: ~"Visit the subjects page."})}, ~""));
-	
 	let config = {
 		// We need to bind to the server addresses so that we receive modeler PUTs.
 		// We bind to localhost to ensure that we can hit the web server using a local

@@ -15,6 +15,7 @@ var styles_table =
 		fillStyle: "black",	
 	},
 	
+	'map':						{fontSize: xlarger},
 	'host':						{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lightblue', fontSize: smaller},
 	'router':					{lineWidth: 8, strokeStyle: 'black', fillStyle: 'mistyrose'},
 	'switch':					{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lavender'},
@@ -33,6 +34,7 @@ var styles_table =
 	'primary_label':			{fontWeight: bolder, fontSize: xlarger},
 	'secondary_label':		{},
 	'tertiary_label':			{fontSize: smaller},
+	'error_label':				{strokeStyle: 'red', fillStyle: 'red', fontWeight: bolder, fontSize: larger},
 	
 	'good_level':				{strokeStyle: 'black', fillStyle: 'green'},
 	'ok_level':					{strokeStyle: 'black', fillStyle: 'deepskyblue'},

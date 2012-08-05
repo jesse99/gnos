@@ -250,6 +250,27 @@ function discs_to_line(disc1, disc2)
 	}
 }
 
+// ---- Misc Functions --------------------------------------------------------
+
+// It's a bit tricky to resize the canvas to fill the window but still leave
+// room for other html elements. So what we'll do instead is grow the
+// canvas as much as we can while retaining the aspect ratio.
+function size_to_window(context)
+{
+	var canvas = context.canvas;
+	
+	// Set the dimensions of the canvas bitmap. (This corresponds to
+	// the html width and height attributes in the html).
+	var ratio = canvas.width/canvas.height;
+	canvas.width = canvas.parentNode.clientWidth;
+	canvas.height = canvas.width/ratio;
+	
+	// Set the size of the canvas html element. (We need to explicitly 
+	// set this to allow other elements on the page to flow correctly).
+	canvas.style.width = canvas.width + "px";
+	canvas.style.height = canvas.height + "px";
+}
+
 // ---- Internal Functions ----------------------------------------------------
 function do_draw_arrow(context, line, unit, tip, x, y, arrow)
 {
