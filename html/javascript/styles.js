@@ -1,7 +1,7 @@
 "use strict";
 
 // Table mapping names to styles.
-var styles_table =
+GNOS.styles =
 {
 	'default':
 	{
@@ -63,14 +63,14 @@ function apply_styles(context, names)
 
 function compose_styles(names)
 {
-	var style = clone(styles_table['default']);
+	var style = clone(GNOS.styles['default']);
 	
 	for (var i=0; i < names.length; ++i)
 	{
 		var name = names[i];
-		if (name in styles_table)
+		if (name in GNOS.styles)
 		{
-			var rhs = styles_table[name];
+			var rhs = GNOS.styles[name];
 			for (var key in rhs)
 			{
 				if (rhs[key] instanceof Function)

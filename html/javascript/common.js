@@ -1,5 +1,9 @@
 "use strict";
 
+// We tuck away all of our global variables into this object to minimize the
+// risk of name clashes with other libraries or new versions of javascript.
+var GNOS = {}
+
 // Replaces {0} with argument 0, {1} with argument 1, etc.
 // Argument index can be appended with ":j" to print the argument as json.
 String.prototype.format = function()

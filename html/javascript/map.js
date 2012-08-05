@@ -7,16 +7,16 @@
 //    stroke_width: Number
 //    meters: [{label: String, level: Number, description: String}]
 // }
-var DEVICES = {};
+GNOS.devices = {};
 
-var PRIMARY_DATA = null;
-var ALERTS_DATA = null;
+GNOS.primary_data = null;
+GNOS.alert_data = null;
 
 // Thresholds for different meter levels.
-var GOOD_LEVEL		= 0.0;
-var OK_LEVEL			= 0.5;
-var WARN_LEVEL		= 0.7;
-var DANGER_LEVEL	= 0.8;
+GNOS.good_level		= 0.0;
+GNOS.ok_level			= 0.5;
+GNOS.warn_level		= 0.7;
+GNOS.danger_level		= 0.8;
 
 window.onload = function()
 {
@@ -34,7 +34,7 @@ function resize_canvas()
 	var context = map.getContext('2d');
 	
 	size_to_window(context);
-	if (PRIMARY_DATA)
+	if (GNOS.primary_data)
 	{
 		redraw();
 	}
@@ -126,7 +126,7 @@ WHERE 															\
 		format(encodeURIComponent(expr), encodeURIComponent(expr2), encodeURIComponent(expr3)));
 	source.addEventListener('message', function(event)
 	{
-		PRIMARY_DATA = event.data;
+		GNOS.primary_data = event.data;
 		redraw();
 	});
 	
@@ -160,16 +160,16 @@ WHERE 															\
 		format(encodeURIComponent(expr)));
 	source.addEventListener('message', function(event)
 	{
-		ALERTS_DATA = {};
+		GNOS.alert_data = {};
 		var data = JSON.parse(event.data);
 		for (var i=0; i < data.length; ++i)
 		{
 			var row = data[i];
-			ALERTS_DATA[row.device] = row.count;
+			GNOS.alert_data[row.device] = row.count;
 			console.log("row{0}: {1:j}".format(i, row));
 		}
 		
-		if (PRIMARY_DATA)
+		if (GNOS.primary_data)
 			redraw();
 	});
 	
@@ -193,7 +193,7 @@ function redraw()
 	var context = map.getContext('2d');
 	context.clearRect(0, 0, map.width, map.height);
 	
-	var data = JSON.parse(PRIMARY_DATA);
+	var data = JSON.parse(GNOS.primary_data);
 	populate_devices(context, data[0], data[2]);
 	draw_map(context, data[0]);
 	draw_relations(context, data[1]);
@@ -201,12 +201,12 @@ function redraw()
 
 function populate_devices(context, devices, meters)
 {
-	DEVICES = {};
+	GNOS.devices = {};
 	
 	for (var i=0; i < devices.length; ++i)
 	{
 		var device = devices[i];
-		DEVICES[device.name] =
+		GNOS.devices[device.name] =
 			{
 				center: new Point(device.center_x * context.canvas.width, device.center_y * context.canvas.height),
 				radius: 0.0,				// set by draw_device
@@ -218,8 +218,8 @@ function populate_devices(context, devices, meters)
 	for (var i=0; i < meters.length; ++i)
 	{
 		var meter = meters[i];
-		if (meter.device in DEVICES)
-			DEVICES[meter.device].meters.push({label: meter.label, level: meter.level, description: meter.description});
+		if (meter.device in GNOS.devices)
+			GNOS.devices[meter.device].meters.push({label: meter.label, level: meter.level, description: meter.description});
 		else
 			console.log("meter {0} exists on {1} but that device doesn't exist".format(meter.label, meter.device));
 	}
@@ -311,7 +311,7 @@ function find_line_infos(relations)
 //     optional fields: style, primary_label, secondary_label, tertiary_label
 function draw_relation(context, info)
 {
-	//console.log("relation from {0} to {1}".format(DEVICES[info.r.src].center, DEVICES[info.r.dst].center));
+	//console.log("relation from {0} to {1}".format(GNOS.devices[info.r.src].center, GNOS.devices[info.r.dst].center));
 	
 	if ('style' in info.r)
 		var style = info.r.style;
@@ -323,8 +323,8 @@ function draw_relation(context, info)
 	else
 		var styles = [style];
 	
-	var src = DEVICES[info.r.src];
-	var dst = DEVICES[info.r.dst];
+	var src = GNOS.devices[info.r.src];
+	var dst = GNOS.devices[info.r.dst];
 	
 	var line = discs_to_line(new Disc(src.center, src.radius), new Disc(dst.center, dst.radius));
 	line = line.shrink(src.stroke_width/2, dst.stroke_width/2);	// path strokes are centered on the path
@@ -376,15 +376,15 @@ function draw_map(context, devices)
 		draw_device(context, device);
 	}
 	
-	if (ALERTS_DATA)
+	if (GNOS.alert_data)
 		draw_map_labels(context);
 }
 
 function draw_map_labels(context)
 {
-	if ('http://www.gnos.org/2012/schema#map' in ALERTS_DATA)
+	if ('http://www.gnos.org/2012/schema#map' in GNOS.alert_data)
 	{
-		var count = ALERTS_DATA['http://www.gnos.org/2012/schema#map'];
+		var count = GNOS.alert_data['http://www.gnos.org/2012/schema#map'];
 		
 		var lines = [];
 		var style_names = [];
@@ -432,22 +432,22 @@ function draw_device(context, device)
 	}
 	
 	var next_meter = lines.length;
-	for (var i=0; i < DEVICES[device.name].meters.length; ++i)
+	for (var i=0; i < GNOS.devices[device.name].meters.length; ++i)
 	{
-		var meter = DEVICES[device.name].meters[i];
-		if (meter.level >= OK_LEVEL)				// TODO: may want an inspector option to show all meters
+		var meter = GNOS.devices[device.name].meters[i];
+		if (meter.level >= GNOS.ok_level)				// TODO: may want an inspector option to show all meters
 		{
 			lines.push("{0}% {1}".format(Math.round(100*meter.level), meter.label));	// TODO: option to show description?
 			style_names.push('secondary_label');
 		}
 	}
 	
-	if (ALERTS_DATA && device.name in ALERTS_DATA)
+	if (GNOS.alert_data && device.name in GNOS.alert_data)
 	{
-		if (ALERTS_DATA[device.name] == 1)
+		if (GNOS.alert_data[device.name] == 1)
 			lines.push("1 error alert");
 		else
-			lines.push("{0} error alerts".format(ALERTS_DATA[device.name]));
+			lines.push("{0} error alerts".format(GNOS.alert_data[device.name]));
 		style_names.push('error_label');
 	}
 	
@@ -460,14 +460,14 @@ function draw_device(context, device)
 	var radius = 1.1 * Math.max(stats.total_height, stats.max_width)/2;
 	var style = draw_disc(context, base_styles, new Disc(center, radius));
 	
-	DEVICES[device.name].radius = radius;
-	DEVICES[device.name].stroke_width = style.lineWidth;
+	GNOS.devices[device.name].radius = radius;
+	GNOS.devices[device.name].stroke_width = style.lineWidth;
 	
 	// Draw a progress bar sort of thing for each meter.
-	for (var i=0; i < DEVICES[device.name].meters.length; ++i)
+	for (var i=0; i < GNOS.devices[device.name].meters.length; ++i)
 	{
-		var meter = DEVICES[device.name].meters[i];
-		if (meter.level >= OK_LEVEL)				// TODO: may want an inspector option to show all meters
+		var meter = GNOS.devices[device.name].meters[i];
+		if (meter.level >= GNOS.ok_level)				// TODO: may want an inspector option to show all meters
 		{
 			draw_meter(context, base_styles, meter, stats, center, radius, next_meter);
 			next_meter += 1;
@@ -483,11 +483,11 @@ function draw_meter(context, styles, meter, stats, center, radius, next_meter)
 {
 	context.save();
 	
-	if (meter.level < OK_LEVEL)
+	if (meter.level < GNOS.ok_level)
 		styles = styles.concat('good_level');
-	else if (meter.level < WARN_LEVEL)
+	else if (meter.level < GNOS.warn_level)
 		styles = styles.concat('ok_level');
-	else if (meter.level < DANGER_LEVEL)
+	else if (meter.level < GNOS.danger_level)
 		styles = styles.concat('warn_level');
 	else 
 		styles = styles.concat('danger_level');
