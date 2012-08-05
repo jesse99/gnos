@@ -101,6 +101,8 @@ fn manage_state(port: comm::port<msg>)
 			}
 			register_msg(name, key, exprs, channel)
 			{
+				// TODO: May want to add a way to query "all" stores and maybe "not $store".
+				// Would be handy when doing things like assembling details about a device.
 				let added = listeners[name].insert(key, (exprs, channel));
 				assert added;
 				

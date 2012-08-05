@@ -340,6 +340,8 @@ function label_relation(context, relation, line, p)
 	else
 		var style = 'identity';
 		
+	// TODO: Should allow labels to have new lines. (We don't want to allow multiple
+	// labels in the store because the joins get all whacko).
 	var text = [];
 	var style_names = [];
 	if ('primary_label' in relation)
