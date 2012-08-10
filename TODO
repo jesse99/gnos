@@ -104,6 +104,7 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- get rid of the greeting code
 * Should have a --scripts option:
 	- run everything inside there with a standard set of options
+* Modeler poll rate should default to something large and reduce when a client is up.
 * Probably should have a pref to control canvas size (maybe on the map inspector).
 * When merging different modeler info:
 	- could use the snmp modeler interval
@@ -281,6 +282,7 @@ would be great to have a pim view
 live monitor maps vtysh pim goo to rdf
 simple reuseable goo to map rdf to tables and whatnot
 
+/Users/jessejones/Documents/javascript.rtf
 /Users/jessejones/Documents/Developer/rust.rtf
 
 

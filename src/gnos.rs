@@ -7,6 +7,7 @@ import server = rwebserve;
 import model;
 import options;
 import handlers::*;
+import rrdf::store::{store_methods, store_trait};
 
 fn copy_scripts(root: ~str, user: ~str, host: ~str) -> option::option<~str>
 {
@@ -53,6 +54,24 @@ fn get_shutdown(options: options::options) -> !
 	libc::exit(0)
 }
 
+fn update_globals(store: rrdf::store, options: options::options) -> bool
+{
+	store.add(~"gnos:globals", ~[
+		(~"gnos:admin", rrdf::bool_value(true)),		// TODO: get this from a setting
+		(~"gnos:debug", rrdf::bool_value(true)),		// TODO: get this from command line
+		(~"gnos:poll_rate", rrdf::int_value(options.poll_rate as i64)),
+	]);
+	
+	let devices = vec::zip(vec::from_elem(options.devices.len(), ~"gnos:device"), do options.devices.map |n| {rrdf::iri_value(n)});
+	store.add(~"gnos:globals", devices);
+	
+	let names = model::get_standard_store_names();
+	let stores = vec::zip(vec::from_elem(names.len(), ~"gnos:store"), do names.map |n| {rrdf::string_value(n, ~"")});
+	store.add(~"gnos:globals", stores);
+	
+	true
+}
+
 fn main(args: ~[~str])
 {
 	#info["starting up gnos"];
@@ -79,9 +98,12 @@ fn main(args: ~[~str])
 		db::setup(state_chan);
 	}
 	
+	let options1 = copy options;
+	comm::send(state_chan, model::update_msg(~"globals", |store, _err| {update_globals(store, options1)}, ~""));
+	
 	let options2 = copy options;
 	let options3 = copy options;
-	let subjects_v: server::response_handler = |_settings, _request, response| {get_subjects::get_subjects(response, state_chan)};
+	let models_v: server::response_handler = |_settings, _request, response| {get_models::get_models(response, state_chan)};
 	let subject_v: server::response_handler = |_settings, request, response| {get_subject::get_subject(request, response)};	
 	let map_v: server::response_handler = |_settings, _request, response| {get_map::get_map(options2, response)};
 	let modeler_p: server::response_handler = |_settings, request, response| {put_snmp::put_snmp(state_chan, request, response)};
@@ -92,20 +114,20 @@ fn main(args: ~[~str])
 		// We need to bind to the server addresses so that we receive modeler PUTs.
 		// We bind to localhost to ensure that we can hit the web server using a local
 		// browser.
-		hosts: if options.admin {~[options.server, ~"localhost"]} else {~[options.server]},
+		hosts: if options.db {~[~"localhost"]} else if options.admin {~[options.server, ~"localhost"]} else {~[options.server]},
 		port: options.port,
 		server_info: ~"gnos " + options::get_version(),
 		resources_root: options.root,
 		routes: ~[
 			(~"GET", ~"/", ~"map"),
 			(~"GET", ~"/shutdown", ~"shutdown"),		// TODO: enable this via debug cfg (or maybe via a command line option)
-			(~"GET", ~"/model", ~"subjects"),
-			(~"GET", ~"/subject/{subject}", ~"subject"),
+			(~"GET", ~"/models", ~"models"),
+			(~"GET", ~"/subject/{name}/{subject}", ~"subject"),
 			(~"PUT", ~"/snmp-modeler", ~"modeler")],
 		views: ~[
 			(~"map",  map_v),
 			(~"shutdown",  bail_v),
-			(~"subjects",  subjects_v),
+			(~"models",  models_v),
 			(~"subject",  subject_v),
 			(~"modeler",  modeler_p)],
 		sse: ~[(~"/query", query_s)],

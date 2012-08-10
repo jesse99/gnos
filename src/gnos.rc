@@ -23,7 +23,7 @@ mod handlers
 	mod get_home;
 	mod get_query;
 	mod get_map;
+	mod get_models;
 	mod get_subject;
-	mod get_subjects;
 	mod put_snmp;
 }

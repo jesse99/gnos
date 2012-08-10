@@ -7,7 +7,7 @@ import rrdf::store::{base_iter, store_trait};
 import rrdf::store::to_str; 
 
 export update_fn, msg, query_msg, update_msg, register_msg, deregister_msg, manage_state, get_state,
-	alert, alert_level, error_level, warning_level, info_level, debug_level, open_alert, close_alert;
+	alert, alert_level, error_level, warning_level, info_level, debug_level, open_alert, close_alert, get_standard_store_names;
 
 /// Function used to update a store within the model task.
 ///
@@ -29,7 +29,7 @@ enum msg
 
 /// Alerts are conditions that hold for a period of time (e.g. a router off line).
 ///
-/// * device - is either an ip address or "server".
+/// * device - is either an ip address or "gnos:map".
 /// * id - is used along with device to identify alerts.
 /// * level - is the severity of the alert.
 /// * mesg - text that describes the alert (e.g. "offline").
@@ -48,12 +48,16 @@ enum alert_level
 	debug_level,
 }
 
+fn get_standard_store_names() -> ~[~str]
+{
+	ret ~[~"globals", ~"primary", ~"alerts"];
+}
+
 /// Runs within a task and manages triple stores holding gnos state.
 ///
 /// Other tasks (e.g. views) can query or update the state this function manages.
 fn manage_state(port: comm::port<msg>)
 {
-	let queries = std::map::str_hash();
 	let namespaces = ~[
 		{prefix: ~"devices", path: ~"http://network/"},
 		{prefix: ~"gnos", path: ~"http://www.gnos.org/2012/schema#"},
@@ -61,16 +65,19 @@ fn manage_state(port: comm::port<msg>)
 	];
 	
 	let stores = std::map::str_hash();
-	stores.insert(~"primary",  create_store(namespaces, @std::map::str_hash()));
-	stores.insert(~"alerts",  create_store(namespaces, @std::map::str_hash()));
-	
-	let mut updaters = std::map::str_hash();
-	updaters.insert(~"primary", std::map::str_hash());
-	updaters.insert(~"alerts", std::map::str_hash());
-	
+	let queries = std::map::str_hash();			// query string => compiled query (cache)
+	let mut updaters = std::map::str_hash();	// store name => {query key => (query string, channel<solution>)}
 	let mut listeners = std::map::str_hash();
-	listeners.insert(~"primary", std::map::str_hash());
-	listeners.insert(~"alerts", std::map::str_hash());
+	
+	for get_standard_store_names().each
+	|name|
+	{
+		stores.insert(name,  create_store(namespaces, @std::map::str_hash()));
+		updaters.insert(name, std::map::str_hash());
+		listeners.insert(name, std::map::str_hash());
+		
+		stores[~"globals"].add_triple(~[], {subject: ~"gnos:globals", predicate: ~"gnos:device", object: string_value(name, ~"")});
+	}
 	
 	loop
 	{
@@ -101,8 +108,6 @@ fn manage_state(port: comm::port<msg>)
 			}
 			register_msg(name, key, exprs, channel)
 			{
-				// TODO: May want to add a way to query "all" stores and maybe "not $store".
-				// Would be handy when doing things like assembling details about a device.
 				let added = listeners[name].insert(key, (exprs, channel));
 				assert added;
 				

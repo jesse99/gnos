@@ -11,14 +11,17 @@ export get_query;
 /// Used by client code to register server-sent events for SPARQL queries.
 ///
 /// The client EventSource is called when the sse is first registered and
-/// again when the solution(s) returned by the query change. The query
-/// string should be of the form: "name=foo&expr=blah&expr1=blah", 
-/// where foo is the name of a store and expr[N] are SPARQL queries.
+/// again when the solution(s) returned by the query change. Two
+/// different forms of the query string are supported:
 ///
-/// When one query expression is used the result will be an rrdf solution
-/// encoded in JSON: the solution is represented by a list and solution_rows
-/// by dictionaries, e.g. [{"name": "bob", "age": 10"}, ...]. When multiple
-/// query expression are used the result is a list of solutions.
+/// * **name=foo&expr=blah** Name should be the name of a store.
+/// Expr should be a SPARQL query. Result will be a solution encoded
+/// as JSON: the solution is represented by a list and solution_rows
+/// by dictionaries, e.g. [{"name": "bob", "age": 10"}, ...]. 
+///
+/// * **name=foo&expr=blah&expr2=blah&...** Like the above except
+/// multiple queries can be run against the store. Result will be a list
+/// of JSON encoded solutions.
 fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server::push_chan) -> server::control_chan
 {
 	let name = request.params.get(~"name");
@@ -27,7 +30,7 @@ fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server
 	do task::spawn_listener
 	|control_port: server::control_port|
 	{
-		#info["starting query stream"];
+		#info["starting %s query stream", name];
 		let notify_port = comm::port();
 		let notify_chan = comm::chan(notify_port);
 		
@@ -45,6 +48,9 @@ fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server
 					{
 						solutions = new_solutions;	// TODO: need to escape the json?
 						comm::send(push, #fmt["retry: 5000\ndata: %s\n\n", solutions_to_json(solutions).to_str()]);
+					}
+					else
+					{
 					}
 				}
 				either::right(server::refresh_event)

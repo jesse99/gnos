@@ -12,10 +12,11 @@ type options =
 	db: bool,
 	
 	// these are from the network.json file
-	// TODO: probably should also have device names (could then do an alert if no info for a device)
 	client: ~str,
 	server: ~str,
 	port: u16,
+	poll_rate: u16,
+	devices: ~[~str],
 	
 	// this is from main
 	cleanup: ~[task_runner::exit_fn],
@@ -70,6 +71,8 @@ fn parse_command_line(args: ~[~str]) -> options
 		client: network.client,
 		server: network.server,
 		port: network.port,
+		poll_rate: network.poll_rate,
+		devices: network.devices,
 		
 		cleanup: ~[],		// set in main
 	}
@@ -149,7 +152,34 @@ fn get_network_u16(path: ~str, data: std::map::hashmap<~str, json::json>, key: ~
 	}
 }
 
-fn load_network_file(path: ~str) -> {client: ~str, server: ~str, port: u16}
+fn get_network_key_names(path: ~str, data: std::map::hashmap<~str, json::json>, key: ~str) -> ~[~str]
+{
+	alt data.find(key)
+	{
+		option::some(json::dict(value))
+		{
+			let mut names = ~[];
+			for value.each_key
+			|key|
+			{
+				vec::push(names, key);
+			}
+			names
+		}
+		option::some(x)
+		{
+			io::stderr().write_line(#fmt["In '%s' %s was expected to be a json::dict but was %?.", path, key, x]);
+			libc::exit(1)
+		}
+		option::none
+		{
+			io::stderr().write_line(#fmt["Expected to find %s in '%s'.", key, path]);
+			libc::exit(1)
+		}
+	}
+}
+
+fn load_network_file(path: ~str) -> {client: ~str, server: ~str, port: u16, poll_rate: u16, devices: ~[~str]}
 {
 	alt io::file_reader(path)
 	{
@@ -162,7 +192,9 @@ fn load_network_file(path: ~str) -> {client: ~str, server: ~str, port: u16}
 					{
 						client: get_network_str(path, data, ~"client"),
 						server: get_network_str(path, data, ~"server"),
-						port: get_network_u16(path, data, ~"port")
+						port: get_network_u16(path, data, ~"port"),
+						poll_rate: get_network_u16(path, data, ~"poll-rate"),
+						devices: get_network_key_names(path, data, ~"devices"),
 					}
 				}
 				result::ok(x)
