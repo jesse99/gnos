@@ -14,9 +14,9 @@ GNOS.alert_data = null;
 
 // Thresholds for different meter levels.
 GNOS.good_level		= 0.0;
-GNOS.ok_level			= 0.5;
+GNOS.ok_level		= 0.5;
 GNOS.warn_level		= 0.7;
-GNOS.danger_level		= 0.8;
+GNOS.danger_level	= 0.8;
 
 window.onload = function()
 {
@@ -49,81 +49,95 @@ function register_primary_query()
 	// It's rather awkward to have all these OPTIONAL clauses, but according
 	// to the spec the entire OPTIONAL block must match in order to affect 
 	// the solution.
-	var expr = '													\
+	var expr = '												\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
-SELECT 															\
+SELECT 														\
 	?center_x ?center_y ?primary_label ?secondary_label	\
 	?tertiary_label ?style ?name								\
-WHERE 															\
-{																	\
+WHERE 														\
+{																\
 	?name gnos:center_x ?center_x .							\
 	?name gnos:center_y ?center_y .							\
-	OPTIONAL													\
-	{																\
+	OPTIONAL												\
+	{															\
 		?name gnos:style ?style .								\
-	}																\
-	OPTIONAL													\
-	{																\
+	}															\
+	OPTIONAL												\
+	{															\
 		?name gnos:primary_label ?primary_label .			\
-	}																\
-	OPTIONAL													\
-	{																\
-		?name gnos:secondary_label ?secondary_label .	\
-	}																\
-	OPTIONAL													\
-	{																\
-		?name gnos:tertiary_label ?tertiary_label .			\
-	}																\
+	}															\
+	OPTIONAL												\
+	{															\
+		?name gnos:secondary_label ?secondary_label .		\
+	}															\
+	OPTIONAL												\
+	{															\
+		?name gnos:tertiary_label ?tertiary_label .				\
+	}															\
 }';
 
-	var expr2 = '													\
+	var expr2 = '												\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
-SELECT 															\
+SELECT 														\
 	?src ?dst ?primary_label ?secondary_label				\
-	?tertiary_label ?type ?style								\
-WHERE 															\
-{																	\
+	?tertiary_label ?type ?style									\
+WHERE 														\
+{																\
 	?rel gnos:src ?src .											\
 	?rel gnos:dst ?dst .											\
 	?rel gnos:type ?type .										\
-	OPTIONAL													\
-	{																\
+	OPTIONAL												\
+	{															\
 		?rel gnos:style ?style .									\
-	}																\
-	OPTIONAL													\
-	{																\
+	}															\
+	OPTIONAL												\
+	{															\
 		?rel gnos:primary_label ?primary_label .				\
-	}																\
-	OPTIONAL													\
-	{																\
-		?rel gnos:secondary_label ?secondary_label .		\
-	}																\
-	OPTIONAL													\
-	{																\
+	}															\
+	OPTIONAL												\
+	{															\
+		?rel gnos:secondary_label ?secondary_label .			\
+	}															\
+	OPTIONAL												\
+	{															\
 		?rel gnos:tertiary_label ?tertiary_label .				\
-	}																\
+	}															\
 }';
 
-	var expr3 = '													\
+	var expr3 = '												\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
-SELECT 															\
+SELECT 														\
 	?label ?device ?level ?description							\
-WHERE 															\
-{																	\
+WHERE 														\
+{																\
 	?indicator gnos:meter ?label .								\
 	?indicator gnos:target ?device .							\
 	?indicator gnos:level ?level .								\
-	OPTIONAL													\
-	{																\
-		?indicator gnos:description ?description .			\
-	}																\
+	OPTIONAL												\
+	{															\
+		?indicator gnos:description ?description .				\
+	}															\
 }';
 
-	var source = new EventSource('/query?name=primary&expr={0}&expr2={1}&expr3={2}'.
-		format(encodeURIComponent(expr), encodeURIComponent(expr2), encodeURIComponent(expr3)));
+	var expr4 = '												\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
+SELECT 														\
+	?poll_interval ?last_update								\
+WHERE 														\
+{																\
+	gnos:map gnos:poll_interval ?poll_interval .				\
+	OPTIONAL												\
+	{															\
+		gnos:map gnos:last_update ?last_update .				\
+	}															\
+}';
+
+	var source = new EventSource('/query?name=primary&expr={0}&expr2={1}&expr3={2}&expr4={3}'.
+		format(encodeURIComponent(expr), encodeURIComponent(expr2), encodeURIComponent(expr3), encodeURIComponent(expr4)));
 	source.addEventListener('message', function(event)
 	{
 		GNOS.primary_data = event.data;
@@ -146,13 +160,13 @@ WHERE 															\
 
 function register_alerts_query()
 {
-	var expr = '													\
+	var expr = '												\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
-SELECT 															\
+SELECT 														\
 	?device ?count												\
-WHERE 															\
-{																	\
+WHERE 														\
+{																\
 	?device gnos:num_errors ?count							\
 }';
 
@@ -195,7 +209,7 @@ function redraw()
 	
 	var data = JSON.parse(GNOS.primary_data);
 	populate_devices(context, data[0], data[2]);
-	draw_map(context, data[0]);
+	draw_map(context, data[0], data[3]);
 	draw_relations(context, data[1]);
 }
 
@@ -368,7 +382,7 @@ function label_relation(context, relation, line, p)
 	center_text(context, base_styles, text, style_names, center, stats);
 }
 
-function draw_map(context, devices)
+function draw_map(context, devices, times)
 {
 	for (var i=0; i < devices.length; ++i)
 	{
@@ -378,11 +392,70 @@ function draw_map(context, devices)
 		draw_device(context, device);
 	}
 	
-	if (GNOS.alert_data)
-		draw_map_labels(context);
+	draw_map_labels(context, times);
 }
 
-function draw_map_labels(context)
+function get_updated_label(last_update, poll_interval)
+{
+	if (!last_update)
+	{
+		// missing current (will happen if the modeler machine is slow or fails to respond)
+		var label = "store has not been updated";
+		var style_name = "error_label";
+	}
+	else
+	{
+		var last = new Date(last_update).getTime();
+		var current = new Date().getTime();
+		var next = last + 1000*poll_interval;
+		
+		var last_delta = interval_to_time(current - last);
+		if (current < next)
+		{
+			var next_delta = interval_to_time(next - current);	
+			var label = "updated {0} ago (next due in {1})".format(last_delta, next_delta);
+			var style_name = "label";
+		}
+		else if (current < next + 60*1000)		// next will be when modeler starts grabbing new data so there will be a bit of a delay before it makes it all the way to the client
+		{
+			var label = "updated {0} ago (next is due)".format(last_delta);
+			var style_name = "label";
+		}
+		else
+		{
+			var next_delta = interval_to_time(current - next);	
+			var label = "updated {0} ago (next was due {1} ago)".format(last_delta, next_delta);
+			var style_name = "error_label";
+		}
+	}
+	
+	return [label, style_name];
+}
+
+function draw_map_labels(context, times)
+{
+	var row = times[0];
+	var labels = get_updated_label(row.last_update, row.poll_interval);
+	draw_updated_label(context, labels[0], labels[1]);
+
+	if (GNOS.alert_data)
+		draw_alert_labels(context);
+}
+
+function draw_updated_label(context, label, style_name)
+{
+	var lines = [label];
+	var style_names = [];
+	style_names.push(style_name);
+	
+	var base_styles = ['xsmaller'];
+	var stats = prep_center_text(context, base_styles, lines, style_names);
+	
+	var center = new Point(context.canvas.width/2, stats.total_height/2);
+	center_text(context, base_styles, lines, style_names, center, stats);
+}
+
+function draw_alert_labels(context)
 {
 	if ('http://www.gnos.org/2012/schema#map' in GNOS.alert_data)
 	{
@@ -399,7 +472,7 @@ function draw_map_labels(context)
 		var base_styles = ['map'];
 		var stats = prep_center_text(context, base_styles, lines, style_names);
 		
-		var center = new Point(context.canvas.width/2, context.canvas.height - stats.total_height);
+		var center = new Point(context.canvas.width/2, context.canvas.height - stats.total_height/2);
 		center_text(context, base_styles, lines, style_names, center, stats);
 	}
 }

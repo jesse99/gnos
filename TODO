@@ -17,6 +17,7 @@ http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=13&ved=0CIYBEBYwAjg
 restful uris: http://redrata.com/restful-uri-design/
 javascript model/view: http://documentcloud.github.com/backbone/
 
+
 * Need a group relation
 	- group name can stuff "ttnt" or "10.8.0.0/8"
 	- probably need to treat the group as an object

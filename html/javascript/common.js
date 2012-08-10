@@ -65,3 +65,37 @@ function escapeHtml(str)
 	return div.innerHTML;
 };
 
+// Converts an interval in milliseconds to a string like "2 seconds" or "1.2 hours".
+function interval_to_time(interval)
+{
+	if (interval < 1000)
+	{
+		var value = interval.toFixed();
+		var units = "millisecond";
+	}
+	else if (interval < 60*1000)
+	{
+		var value = (interval/1000).toFixed();
+		var units = "second";
+	}
+	else if (interval < 60*60*1000)
+	{
+		var value = (interval/(60*1000)).toFixed(1);
+		var units = "minute";
+	}
+	else if (interval < 60*60*60*1000)
+	{
+		var value = (interval/(60*60*1000)).toFixed(1);
+		var units = "hour";
+	}
+	else
+	{
+		var value = (interval/(24*60*60*1000)).toFixed(2);
+		var units = "day";
+	}
+	
+	if (value !== '1')		// note that we don't want to say 1.0 minute
+		return value + " " + units + "s";
+	else
+		return value + " " + units;
+}

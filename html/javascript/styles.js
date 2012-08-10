@@ -11,17 +11,17 @@ GNOS.styles =
 		fontFamily: 'arial',		// font name (TODO: add web safe fonts) or serif, sans-serif, cursive, monospace
 		
 		lineWidth: 1,
-		strokeStyle: "black",	
-		fillStyle: "black",	
+		strokeStyle: "black",
+		fillStyle: "black",
 	},
 	
-	'map':						{fontSize: xlarger},
-	'host':						{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lightblue', fontSize: smaller},
+	'map':					{fontSize: xlarger},
+	'host':					{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lightblue', fontSize: smaller},
 	'router':					{lineWidth: 8, strokeStyle: 'black', fillStyle: 'mistyrose'},
 	'switch':					{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lavender'},
 	
-	'identity':					{},
-	'link':						{},
+	'identity':				{},
+	'link':					{},
 	'route':					{lineWidth: 4, strokeStyle: 'royalblue'},
 	'broken_relation':		{strokeStyle: 'red'},
 	
@@ -30,16 +30,19 @@ GNOS.styles =
 	'secondary_relation':	{fontSize: smaller},
 	'tertiary_relation':		{fontSize: smaller},
 	
-	'label':						{strokeStyle: 'black', fillStyle: 'black'},
-	'primary_label':			{fontWeight: bolder, fontSize: xlarger},
+	'label':					{strokeStyle: 'black', fillStyle: 'black'},
+	'primary_label':		{fontWeight: bolder, fontSize: xlarger},
 	'secondary_label':		{},
 	'tertiary_label':			{fontSize: smaller},
-	'error_label':				{strokeStyle: 'red', fillStyle: 'red', fontWeight: bolder, fontSize: larger},
+	'error_label':			{strokeStyle: 'red', fillStyle: 'red', fontWeight: bolder, fontSize: larger},
 	
-	'good_level':				{strokeStyle: 'black', fillStyle: 'green'},
-	'ok_level':					{strokeStyle: 'black', fillStyle: 'deepskyblue'},
-	'warn_level':				{strokeStyle: 'black', fillStyle: 'lightsalmon'},
+	'good_level':			{strokeStyle: 'black', fillStyle: 'green'},
+	'ok_level':				{strokeStyle: 'black', fillStyle: 'deepskyblue'},
+	'warn_level':			{strokeStyle: 'black', fillStyle: 'lightsalmon'},
 	'danger_level':			{strokeStyle: 'black', fillStyle: 'red'},
+	
+	'smaller':				{fontSize: smaller},
+	'xsmaller':				{fontSize: xsmaller},
 };
 
 // Applies cascading styles to the current canvas context.
