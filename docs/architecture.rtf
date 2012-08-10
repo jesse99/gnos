@@ -1,13 +1,12 @@
-{\rtf1\ansi\ansicpg1252\cocoartf1138\cocoasubrtf230
-{\fonttbl\f0\fnil\fcharset0 Verdana;}
+{\rtf1\ansi\ansicpg1252\cocoartf1138\cocoasubrtf470
+{\fonttbl\f0\froman\fcharset0 Times-Roman;}
 {\colortbl;\red255\green255\blue255;}
 \deftab480
 \pard\pardeftab480\pardirnatural
 
-\f0\fs46 \cf0 Terms\
-\pard\pardeftab480\pardirnatural
+\f0\b\fs50 \cf0 Terms\
 
-\b\fs28 \cf0 network model
+\fs36 network model
 \b0  - Common properties of the network persisted by gnos using RDF. \
 
 \b network modeler
@@ -21,21 +20,18 @@
 
 \b plugins
 \b0  - HTTP clients running on the server. Used to augment the network model or provide custom views.\
-\pard\pardeftab480\pardirnatural
-\cf0 \
+\
 
-\fs46 Operation\
+\b\fs50 Operation\
 
-\fs28 \'95\'a0Plugins can retrieve the network model.\
+\b0\fs36 \'95\'a0Plugins can retrieve the network model.\
 \'95 Plugins can retrieve system info (e.g. gnos resource root, server version, network model version).\
 \'95 Plugins need a way to insert their own views (and maybe override standard views).\
 \
-\pard\pardeftab480\pardirnatural
 
-\fs46 \cf0 Notes\
-\pard\pardeftab480\pardirnatural
+\b\fs50 Notes\
 
-\fs28 \cf0 \'95\'a0Network modelers should support pushed updates as well as polling.\
+\b0\fs36 \'95\'a0Network modelers should support pushed updates as well as polling.\
 \'95 Should allow custom network modelers to PUT information in different formats. Would probably need to have some sort of schema for the json or whatever data. Otoh the data isn't much use without custom views and the views probably need to understand RDF.\
 \'95\'a0Where does sampled data go? Samplers can ask gnos for a path to dump it into? Or POST a chunk and have gnos store it into round robin database?\
 \'95 Gnos could support viewing arbitrary charts for sampled data (would probably need to associate the data with a subject).\

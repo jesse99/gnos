@@ -1,10 +1,10 @@
 {\rtf1\ansi\ansicpg1252\cocoartf1138\cocoasubrtf470
-{\fonttbl\f0\fnil\fcharset0 Verdana;\f1\fswiss\fcharset0 Helvetica;}
+{\fonttbl\f0\froman\fcharset0 Times-Roman;}
 {\colortbl;\red255\green255\blue255;\red255\green0\blue0;}
 \deftab480
 \pard\pardeftab480\pardirnatural
 
-\f0\fs28 \cf0 The goals on the client side are as follows:\
+\f0\fs36 \cf0 The goals on the client side are as follows:\
 \
 \'95\'a0All information about the network is displayed on a single web page.\
 \'95\'a0The web page should support different information densities; ranging from a Tufte supergraphic sort of thing down to a very low information density view representing a single aspect of the network.\
@@ -17,54 +17,44 @@ The client deals with a map (a network), objects (hosts and routers), and relati
 The page has two primary views. On top is a map showing objects, object specific indicators, and relations between the objects. On the bottom is a dynamic view displaying information about the selection(s) or the network if there is no selection. \
 \
 
-\b\fs44 Map\
-
-\b0\fs28 \
-\pard\pardeftab480\pardirnatural
-\cf0 Would be cool to have a time slider. Ideally this would be handled client side (and maybe just in the map view).
-\b \
+\b\fs50 Map
+\b0\fs36 \
+Would be cool to have a time slider. Ideally this would be handled client side (and maybe just in the map view).\
 \
-objects\
 
-\b0 Objects are displayed as one or more lines of text. Most likely a filled circle or ellipse is used for the background. Objects can be re-positioned by dragging them. Positions should be locally persisted (would have to use the map name as a key). \cf2 What if the network changes? Maybe include a hash of device names when saving?\cf0 \
+\b\fs50 objects\
+
+\b0\fs36 Objects are displayed as one or more lines of text. Most likely a filled circle or ellipse is used for the background. Objects can be re-positioned by dragging them. Positions should be locally persisted (would have to use the map name as a key). \cf2 What if the network changes? Maybe include a hash of device names when saving?\cf0 \
 \
-\pard\pardeftab480\pardirnatural
 
-\b \cf0 relations\
-\pard\pardeftab480\pardirnatural
+\b\fs50 relations\
 
-\b0 \cf0 Relations can be undirected, bidirectional, or unidirectional. Undirected relations are drawn with a simple line. Bidirectional are drawn with a red arrowed line if the relation exists in only one direction, and with a simple line if the relation exists in both directions. Unidirectional relations are drawn with an arrowed line.\
+\b0\fs36 Relations can be undirected, bidirectional, or unidirectional. Undirected relations are drawn with a simple line. Bidirectional are drawn with a red arrowed line if the relation exists in only one direction, and with a simple line if the relation exists in both directions. Unidirectional relations are drawn with an arrowed line.\
 \
 Relations should, by default, show numeric values (e.g. route cost or link bandwidth used).\
 \
+\pard\pardeftab480\pardirnatural
 \cf2 Will need one to many relations for shared mediums.\cf0 \
 \
 \pard\pardeftab480\pardirnatural
 
-\b \cf0 indicators\
+\b\fs50 \cf0 indicators\
 
-\b0 These are annotations attached to objects and relations. They can be a progress bar sort of thing (e.g. for file system usage or bandwidth used), an exclamation (e.g. if there are open error alerts), or a text note. Clicking on at least some indicators changes the current info view.\
+\b0\fs36 These are annotations attached to objects and relations. They can be a progress bar sort of thing (e.g. for file system usage or bandwidth used), an exclamation (e.g. if there are open error alerts), or a text note. Clicking on at least some indicators changes the current info view.\
 \
 
-\b legend
-\b0 \
-At least some settings will require legends. For example, to explain the color coding for different relations.\
+\b\fs50 legend\
+
+\b0\fs36 At least some settings will require legends. For example, to explain the color coding for different relations.\
 \
-\pard\pardeftab480\pardirnatural
 
-\b\fs44 \cf0 Inspectors\
-\pard\pardeftab480\pardirnatural
-
-\b0\fs28 \cf0 \
+\b\fs50 Inspectors
+\b0\fs36 \
 The map has an associated inspector "window". This is a draggable overlay that sits on top of the map. The contents of the inspector change according to the selection. The inspector is used to filter content in or out of the views.\
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\
 
-\f1\fs24 \cf0 \
-\pard\pardeftab480\pardirnatural
-
-\f0\b\fs44 \cf0 Info Views\
-
-\b0\fs28 \
+\b\fs50 Info Views
+\b0\fs36 \
 Shows information about the entire map or the selection (maybe also selections). Inspectors control what is shown. Click or maybe a double click could display the view in a new window.\
 \
 Would be nice if the default network view showed a lot of information. Maybe using a grid of sparklines.\

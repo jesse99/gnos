@@ -1,10 +1,10 @@
 {\rtf1\ansi\ansicpg1252\cocoartf1138\cocoasubrtf470
-{\fonttbl\f0\fnil\fcharset0 Verdana;\f1\fswiss\fcharset0 Helvetica;}
+{\fonttbl\f0\froman\fcharset0 Times-Roman;}
 {\colortbl;\red255\green255\blue255;\red255\green0\blue0;}
 \deftab480
 \pard\pardeftab480\pardirnatural
 
-\f0\fs28 \cf0 This is the store that stores the bulk of the information which is rendered by the gnos\
+\f0\fs36 \cf0 This is the store that stores the bulk of the information which is rendered by the gnos\
 home page (the network map view). It's populated by the snmp-modeler.py script\
 and the gnos command line. The map view uses SPARQL queries together with \
 server-sent events to automatically update the view as the model changes.\
@@ -15,133 +15,81 @@ on high-level semantic concepts instead of network specific data (which, for exa
 allow views to work unchanged if custom modelers add new information to the model).\
 \
 The schema is defined with the aid of a couple of different namespace prefixes:\
+gnos - http://www.gnos.org/2012/schema#\
+xsd - http://www.w3.org/2001/XMLSchema#\
+\
 \pard\pardeftab480\pardirnatural
 
-\i \cf0 gnos
-\i0  - http://www.gnos.org/2012/schema#\
-
-\i xsd
-\i0  - http://www.w3.org/2001/XMLSchema#\
+\b\fs50 \cf0 Map\
 \pard\pardeftab480\pardirnatural
 
-\f1\fs24 \cf0 \
-\pard\pardeftab480\pardirnatural
-
-\f0\b\fs44 \cf0 Map\
-\pard\pardeftab480\pardirnatural
-
-\fs28 \cf0 gnos:map
-\b0 \
+\b0\fs36 \cf0 gnos:map\
 gnos:poll_interval	xsd:integer			30 (seconds)\
 \
-												zero or one\
+										zero or one\
 gnos:last_update	xsd:dateTime\
-\pard\pardeftab480\pardirnatural
-
-\f1\fs24 \cf0 \
 \
 \pard\pardeftab480\pardirnatural
 
-\f0\b\fs44 \cf0 Devices\
+\b\fs50 \cf0 Devices\
 \pard\pardeftab480\pardirnatural
 
-\fs28 \cf0 http://10.1.0.1\
-
-\b0 gnos:center_x			xsd:float			0.3 (unit scale where origin is upper-left)\
+\b0\fs36 \cf0 http://10.1.0.1\
+gnos:center_x			xsd:float			0.3 (unit scale where origin is upper-left)\
 gnos:center_y			xsd:float			0.6\
 gnos:style				xsd:string			"", "host", "router", "large", etc\
-\pard\pardeftab480\pardirnatural
-
-\f1\fs24 \cf0 \
-\pard\pardeftab480\pardirnatural
-
-\f0\fs28 \cf0 												zero or one\
+\
+											zero or one\
 gnos:primary_label		xsd:string			"GRS-1"\
 gnos:secondary_label	xsd:string			"10.1.0.1"\
 gnos:tertiary_label		xsd:string			"server room"\
-\pard\pardeftab480\pardirnatural
-
-\f1\fs24 \cf0 \
 \
 \pard\pardeftab480\pardirnatural
 
-\f0\b\fs44 \cf0 Relations\
+\b\fs50 \cf0 Relations\
 \pard\pardeftab480\pardirnatural
 
-\fs28 \cf0 _:rel1
-\b0 \
-gnos:src					blank
-\f1\fs24 		
-\f0\fs28 		http://10.1.0.1\
-gnos:dst					blank
-\f1\fs24 		
-\f0\fs28 		http://10.1.0.2\
+\b0\fs36 \cf0 _:rel1\
+gnos:src					blank				http://10.1.0.1\
+gnos:dst					blank				http://10.1.0.2\
 gnos:type					xsd:string			"undirected" or "bidirectional" or "unidirectional"\
 gnos:style				xsd:string			"", "link", "route", etc\
-\pard\pardeftab480\pardirnatural
-
-\f1\fs24 \cf0 \
-\pard\pardeftab480\pardirnatural
-
-\f0\fs28 \cf0 												zero or one\
+\
+												zero or one\
 gnos:primary_label		xsd:string			"5 cost"\
 gnos:secondary_label	xsd:string			"150Kbps"\
 gnos:tertiary_label		xsd:string			"ospf"\
 \
 \pard\pardeftab480\pardirnatural
 
-\f1\fs24 \cf0 \
+\b\fs50 \cf0 Indicators\
 \pard\pardeftab480\pardirnatural
 
-\f0\b\fs44 \cf0 Indicators\
-\pard\pardeftab480\pardirnatural
-
-\fs28 \cf0 _:meter1
-\b0 \
+\b0\fs36 \cf0 _:meter1\
 gnos:meter				xsd:string			"CPU"\
-gnos:target				blank
-\f1\fs24 		
-\f0\fs28 		http://10.1.0.1\
-gnos:level					xsd:float
-\f1\fs24 		
-\f0\fs28 	0.2 (range is 0.0 to 1.0)\
+gnos:target				blank				http://10.1.0.1\
+gnos:level					xsd:float		0.2 (range is 0.0 to 1.0)\
 \
 												zero or one\
 gnos:description			xsd:string			"snapshot of CPU usage"\
-\pard\pardeftab480\pardirnatural
-
-\f1\fs24 \cf0 \
-\pard\pardeftab480\pardirnatural
-
-\f0\b\fs28 \cf0 _:error1 or _:warning1
-\b0 \
+\
+_:error1 or _:warning1\
 gnos:name				xsd:string			"alert"\
 gnos:label				xsd:string			"Error Alerts"\
 \
 \pard\pardeftab480\pardirnatural
 
-\f1\fs24 \cf0 \
+\b\fs50 \cf0 Details\
 \pard\pardeftab480\pardirnatural
 
-\f0\b\fs44 \cf0 Details\
-\pard\pardeftab480\pardirnatural
-
-\fs28 \cf0 _:info1
-\b0 \
+\b0\fs36 \cf0 _:info1\
 gnos:info				xsd:string			"active alerts"\
-gnos:target			blank
-\f1\fs24 		
-\f0\fs28 		http://10.1.0.1\
+gnos:target			blank				http://10.1.0.1\
 gnos:content			xsd:string			"<li class='active-alerts'>...</li>"\
 gnos:weight			xsd:float			0.9 (larger values are displayed first)\
 gnos:open			xsd:string			"always", "yes", or "no" (uses details if not "always")\
-\pard\pardeftab480\pardirnatural
-
-\f1\fs24 \cf0 \
-\pard\pardeftab480\pardirnatural
-
-\f0\b\fs28 \cf0 _:sample1
-\b0 \
+\
+_:sample1\
 \pard\pardeftab480\pardirnatural
 \cf2 todo\
 maybe includes a path to an url that serves up a circular buffer\cf0 \
