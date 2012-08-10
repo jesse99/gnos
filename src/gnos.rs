@@ -59,7 +59,6 @@ fn update_globals(store: rrdf::store, options: options::options) -> bool
 	store.add(~"gnos:globals", ~[
 		(~"gnos:admin", rrdf::bool_value(true)),		// TODO: get this from a setting
 		(~"gnos:debug", rrdf::bool_value(true)),		// TODO: get this from command line
-		(~"gnos:poll_rate", rrdf::int_value(options.poll_rate as i64)),
 	]);
 	
 	let devices = vec::zip(vec::from_elem(options.devices.len(), ~"gnos:device"), do options.devices.map |n| {rrdf::iri_value(n)});
