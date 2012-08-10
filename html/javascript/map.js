@@ -137,7 +137,7 @@ WHERE 															\
 	
 	source.addEventListener('error', function(event)
 	{
-		if (event.eventPhase == 2)
+		if (event.eventPhase === 2)
 		{
 			console.log('primary stream closed');
 		}
@@ -180,7 +180,7 @@ WHERE 															\
 	
 	source.addEventListener('error', function(event)
 	{
-		if (event.eventPhase == 2)
+		if (event.eventPhase === 2)
 		{
 			console.log('alerts stream closed');
 		}
@@ -272,7 +272,7 @@ function find_line_infos(relations)
 		var relation = relations[i];
 		
 		var key = relation.src < relation.dst ? relation.src + "/" + relation.dst : relation.dst + "/" + relation.src;
-		if (relation.type == "undirected")
+		if (relation.type === "undirected")
 		{
 			// undirected: no arrows
 			if (key in lines)
@@ -280,7 +280,7 @@ function find_line_infos(relations)
 			else
 				lines[key] = {r: relation, s: null, broken: false, from_arrow: no_arrow, to_arrow: no_arrow};
 		}
-		else if (relation.type == "unidirectional")
+		else if (relation.type === "unidirectional")
 		{
 			// unidirectional: arrow for each relation
 			if (key in lines)
@@ -288,7 +288,7 @@ function find_line_infos(relations)
 			else
 				lines[key] = {r: relation, s: null, broken: false, from_arrow: no_arrow, to_arrow: has_arrow};
 		}
-		else if (relation.type == "bidirectional")
+		else if (relation.type === "bidirectional")
 		{
 			// two-way bidirectional: no arrows
 			// one-way bidirectional: broken (red) arrow
@@ -446,7 +446,7 @@ function draw_device(context, device)
 	
 	if (GNOS.alert_data && device.name in GNOS.alert_data)
 	{
-		if (GNOS.alert_data[device.name] == 1)
+		if (GNOS.alert_data[device.name] === 1)
 			lines.push("1 error alert");
 		else
 			lines.push("{0} error alerts".format(GNOS.alert_data[device.name]));

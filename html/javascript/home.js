@@ -24,7 +24,7 @@ function updateAlerts(data, kind)
 		var row = data[i];
 		//console.log('row{0}: {1}', i, row);
 		
-		if ((kind == 'active' && !('end' in row)) || (kind != 'active' && 'end' in row))
+		if ((kind === 'active' && !('end' in row)) || (kind !== 'active' && 'end' in row))
 		{
 			if ('end' in row)
 			{
@@ -89,7 +89,7 @@ WHERE 															\
 	
 	source.addEventListener('error', function(event)
 	{
-		if (event.eventPhase == 2)
+		if (event.eventPhase === 2)
 		{
 			console.log('> alerts stream closed');
 		}

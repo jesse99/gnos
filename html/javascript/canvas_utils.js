@@ -160,7 +160,7 @@ function draw_disc(context, styles, disc)
 	context.closePath();
 	
 	context.fill();
-	if (context.lineWidth != 0)
+	if (context.lineWidth !== 0)
 		context.stroke();
 	context.restore();
 	
@@ -286,7 +286,7 @@ function do_draw_arrow(context, line, unit, tip, x, y, arrow)
 
 function do_compute_text_metrics(context, lines, base_styles, styles)
 {
-	assert(lines.length == styles.length, "lines and styles need to match");
+	assert(lines.length === styles.length, "lines and styles need to match");
 	
 	var heights = [];
 	var widths = [];

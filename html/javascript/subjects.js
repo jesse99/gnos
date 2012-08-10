@@ -37,7 +37,7 @@ WHERE 														\
 	
 	source.addEventListener('error', function(event)
 	{
-		if (event.eventPhase == 2)
+		if (event.eventPhase === 2)
 		{
 			console.log('> subjects stream closed');
 		}

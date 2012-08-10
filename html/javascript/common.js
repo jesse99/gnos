@@ -13,9 +13,9 @@ String.prototype.format = function()
 		function(match, number, json)
 		{
 			if (json)
-				return typeof args[number] != 'undefined' ? JSON.stringify(args[number]) : 'undefined';
+				return typeof args[number] !== 'undefined' ? JSON.stringify(args[number]) : 'undefined';
 			else
-				return typeof args[number] != 'undefined' ? args[number] : 'undefined';
+				return typeof args[number] !== 'undefined' ? args[number] : 'undefined';
 		}
 	);
 };
@@ -45,7 +45,7 @@ function clone(obj)
 // Based on a similar function from JavaScript: The Definitive Guide.
 function freezeProps(object /*, names*/)
 {
-	var props = arguments.length == 1
+	var props = arguments.length === 1
 		? Object.getOwnPropertyNames(object) : Array.prototype.splice.call(arguments, 1);
 		
 	// Make each configurable property read-only and permanent.
