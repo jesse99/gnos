@@ -94,6 +94,12 @@ Disc.prototype.intersects = function (rhs)
 	return this.center.distance(rhs.center) <= this.radius || rhs.center.distance(this.center) <= rhs.radius;
 }
 
+// Returns true if this intersects the rhs Point.
+Disc.prototype.intersects_pt = function (rhs)
+{
+	return this.center.distance(rhs) <= this.radius;
+}
+
 // Returns the point on this perimeter closest to pt.
 Disc.prototype.intersection = function (pt)
 {

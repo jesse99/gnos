@@ -99,3 +99,23 @@ function interval_to_time(interval)
 	else
 		return value + " " + units;
 }
+
+// Returns [x, y] for the position of an element on the page,
+// From http://www.quirksmode.org/js/findpos.html
+function findPos(obj)
+{
+	var curleft = 0;
+	var curtop = 0;
+	
+	if (obj.offsetParent)
+	{
+		do
+		{
+			curleft += obj.offsetLeft;
+			curtop += obj.offsetTop;
+		}
+		while (obj = obj.offsetParent);
+	}
+	
+	return [curleft, curtop];
+}

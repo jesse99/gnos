@@ -23,6 +23,9 @@ window.onload = function()
 	resize_canvas();
 	window.onresize = resize_canvas;
 	
+	var map = document.getElementById('map');
+	map.addEventListener("click", handle_canvas_click);
+	
 	draw_initial_map();
 	register_primary_query();
 	register_alerts_query();
@@ -41,6 +44,28 @@ function resize_canvas()
 	else
 	{
 		draw_initial_map();
+	}
+}
+
+function handle_canvas_click(event)
+{
+	if (event.button == 0)
+	{
+		var pos = findPos(this);
+		var pt = new Point(event.clientX - pos[0], event.clientY - pos[1]);
+		
+		for (var name in GNOS.devices)
+		{
+			var device = GNOS.devices[name];
+			var disc = new Disc(device.center, device.radius);
+			if (disc.intersects_pt(pt))
+			{
+				console.log("clicked {0}".format(name));
+				break;
+			}
+		}
+		
+		event.preventDefault();
 	}
 }
 
@@ -223,7 +248,7 @@ function populate_devices(context, devices, meters)
 		GNOS.devices[device.name] =
 			{
 				center: new Point(device.center_x * context.canvas.width, device.center_y * context.canvas.height),
-				radius: 0.0,				// set by draw_device
+				radius: 0.0,			// set by draw_device
 				stroke_width: 0.0,		// set by draw_device
 				meters: []
 			};

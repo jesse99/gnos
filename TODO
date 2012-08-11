@@ -71,6 +71,7 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- also can use swoogle to search for ontologies
 * Make gnos a sparql endpoint?
 	- note that there is a protocol for this
+* May want to allow double clicking on relations.
 * Netflow:
 	Netflow Overview:
 	http://www.cisco.com/en/US/prod/collateral/iosswrel/ps6537/ps6555/ps6601/prod_white_paper0900aecd80406232.html
