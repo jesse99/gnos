@@ -39,6 +39,11 @@ LineShape.prototype.draw = function (context)
 	context.restore();
 }
 
+LineShape.prototype.hit_test = function (pt)
+{
+	return false;		// TODO: not implemented
+}
+
 LineShape.prototype.toString = function ()
 {
 	return "LineShape at " + this.geometry.toString();
@@ -85,6 +90,11 @@ ProgressBarShape.prototype.draw = function (context)
 	this.label.draw(context);
 }
 
+ProgressBarShape.prototype.hit_test = function (pt)
+{
+	return false;		// TODO: not implemented
+}
+
 ProgressBarShape.prototype.toString = function ()
 {
 	return "ProgressBarShape at " + this.geometry.toString();
@@ -121,6 +131,13 @@ DiscShape.prototype.draw = function (context)
 	if (context.lineWidth !== 0)
 		context.stroke();
 	context.restore();
+}
+
+DiscShape.prototype.hit_test = function (pt)
+{
+	var d2 = this.geometry.center.distance_squared(pt);
+	var r = this.geometry.radius + this.stroke_width/2;
+	return d2 <= r*r;
 }
 
 DiscShape.prototype.toString = function ()
@@ -183,6 +200,11 @@ TextLinesShape.prototype.draw = function (context)
 		
 		context.restore();
 	}
+}
+
+TextLinesShape.prototype.hit_test = function (pt)
+{
+	return false;		// TODO: not implemented
 }
 
 TextLinesShape.prototype.toString = function ()

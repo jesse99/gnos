@@ -20,6 +20,13 @@ Point.prototype.distance = function (rhs)
 	return Math.sqrt(dx*dx + dy*dy);
 }
 
+Point.prototype.distance_squared = function (rhs)
+{
+	var dx = this.x - rhs.x;
+	var dy = this.y - rhs.y;
+	return dx*dx + dy*dy;
+}
+
 Point.prototype.toString = function ()
 {
 	return "{x: " + this.x + ", y: " + this.y + "}";

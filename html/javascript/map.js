@@ -19,8 +19,8 @@ window.onload = function()
 	resize_canvas();
 	window.onresize = resize_canvas;
 	
-	//var map = document.getElementById('map');
-	//map.addEventListener("click", handle_canvas_click);
+	var map = document.getElementById('map');
+	map.addEventListener("click", handle_canvas_click);
 	
 	draw_initial_map();
 	register_primary_query();
@@ -52,9 +52,8 @@ function handle_canvas_click(event)
 		
 		for (var name in GNOS.devices)
 		{
-			var device = GNOS.devices[name];
-			var disc = new Disc(device.center, device.radius);
-			if (disc.intersects_pt(pt))
+			var shape = GNOS.devices[name];
+			if (shape.hit_test(pt))
 			{
 				console.log("clicked {0}".format(name));
 				break;
@@ -593,6 +592,11 @@ DeviceShape.prototype.draw = function (context)
 		dy += shape.height;
 		context.restore();
 	}
+}
+
+DeviceShape.prototype.hit_test = function (pt)
+{
+	return this.disc.hit_test(pt);
 }
 
 DeviceShape.prototype.toString = function ()
