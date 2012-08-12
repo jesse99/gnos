@@ -92,12 +92,18 @@ ProgressBarShape.prototype.toString = function ()
 
 // ---- DiscShape class -------------------------------------------------------
 // Draws a filled disc. If context.lineWidth is non-zero a border is also added.
-function DiscShape(disc, style_names)
+function DiscShape(context, disc, style_names)
 {
 	this.geometry = disc;
 	this.style_names = style_names;
 	this.width = disc.radius;
 	this.height = disc.radius;
+	
+	context.save();
+	var style = apply_styles(context, this.style_names);
+	this.stroke_width = context.lineWidth;
+	context.restore();
+	
 	freezeProps(this);
 }
 
@@ -125,6 +131,7 @@ DiscShape.prototype.toString = function ()
 // ---- TextLinesShape class ---------------------------------------------------
 // Draws lines of text. 
 // center - Point indicating where the text should be drawn. Currently the text will be centered on this.
+//              Or a function taking a this argument returning a Point.
 // lines - Array of strings to draw.
 // base_styles - Array of style names to be applied before style_names.
 // style_names - Array of style names. Each name is used with a line in lines.
@@ -132,7 +139,7 @@ function TextLinesShape(context, center, lines, base_styles, style_names)
 {
 	assert(lines.length === style_names.length, "lines and style_names need to match");
 	
-	this.geometry = center;
+	this.geometry = Point.zero;
 	this.lines = lines;
 	this.base_styles = base_styles;
 	this.style_names = style_names;
@@ -140,6 +147,11 @@ function TextLinesShape(context, center, lines, base_styles, style_names)
 	this.stats = this.do_prep_center_text(context);
 	this.width = this.stats.max_width;
 	this.height = this.stats.total_height;
+	
+	if (typeof(center) == "function")
+		this.geometry = center(this);
+	else
+		this.geometry = center;
 	freezeProps(this);
 }
 
@@ -148,6 +160,11 @@ TextLinesShape.prototype.draw = function (context)
 	if (this.lines)
 	{
 		context.save();
+		
+		var style = compose_styles(this.base_styles);
+		if (style['clearRect'])
+			context.clearRect(this.geometry.x - this.stats.max_width/2, this.geometry.y - this.stats.total_height/2, this.stats.max_width, this.stats.total_height);
+		
 		context.textAlign = 'center';
 		context.textBaseline = 'top';
 		context.fillStyle = 'black';

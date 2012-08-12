@@ -1,7 +1,9 @@
 "use strict";
 
 // Maps device names ("_:device1") to shapes.
-GNOS.shapes = {};
+GNOS.devices = {};
+GNOS.labels = {};
+GNOS.relations = {};
 
 GNOS.primary_data = null;
 GNOS.alert_data = null;
@@ -22,7 +24,7 @@ window.onload = function()
 	
 	draw_initial_map();
 	register_primary_query();
-	//register_alerts_query();
+	register_alerts_query();
 }
 
 function resize_canvas()
@@ -48,9 +50,9 @@ function handle_canvas_click(event)
 		var pos = findPos(this);
 		var pt = new Point(event.clientX - pos[0], event.clientY - pos[1]);
 		
-		for (var name in GNOS.shapes)
+		for (var name in GNOS.devices)
 		{
-			var device = GNOS.shapes[name];
+			var device = GNOS.devices[name];
 			var disc = new Disc(device.center, device.radius);
 			if (disc.intersects_pt(pt))
 			{
@@ -160,6 +162,7 @@ WHERE 														\
 	source.addEventListener('message', function(event)
 	{
 		GNOS.primary_data = event.data;
+		populate_shapes();
 		redraw();
 	});
 	
@@ -199,11 +202,14 @@ WHERE 														\
 		{
 			var row = data[i];
 			GNOS.alert_data[row.device] = row.count;
-			console.log("row{0}: {1:j}".format(i, row));
+			//console.log("row{0}: {1:j}".format(i, row));
 		}
 		
 		if (GNOS.primary_data)
+		{
+			populate_shapes();
 			redraw();
+		}
 	});
 	
 	source.addEventListener('open', function(event)
@@ -226,15 +232,118 @@ function redraw()
 	var context = map.getContext('2d');
 	context.clearRect(0, 0, map.width, map.height);
 	
-	var data = JSON.parse(GNOS.primary_data);
-	populate_devices(context, data[0], data[2]);
-	draw_map(context, data[0], data[3]);
-	//draw_relations(context, data[1]);
+	for (var name in GNOS.labels)
+	{
+		GNOS.labels[name].draw(context);
+	}
+	for (var name in GNOS.devices)
+	{
+		GNOS.devices[name].draw(context);
+	}
+	for (var name in GNOS.relations)
+	{
+		GNOS.relations[name].draw(context);
+	}
 }
 
-function populate_devices(context, devices, meters)
+function populate_shapes()
 {
 	GNOS.devices = {};
+	
+	var data = JSON.parse(GNOS.primary_data);
+	add_map_label_shapes(data[3]);
+	add_device_shapes(data[0], data[2]);
+	add_relation_shapes(data[1]);
+}
+
+function add_map_label_shapes(times)
+{
+	GNOS.labels = {};
+
+	var map = document.getElementById('map');
+	var context = map.getContext('2d');
+	
+	var row = times[0];
+	var labels = get_updated_label(row.last_update, row.poll_interval);
+	add_update_label_shapes(context, labels[0], labels[1]);
+	
+	if (GNOS.alert_data)
+		add_alert_label_shapes(context);
+}
+
+function add_update_label_shapes(context, label, style_name)
+{
+	var shape = new TextLinesShape(context,
+		function (self)
+		{
+			return new Point(context.canvas.width/2, self.stats.total_height/2);
+		}, [label], ['label', 'xsmaller'], [style_name]);
+	GNOS.labels['last updated'] = shape;
+}
+
+function add_alert_label_shapes(context)
+{
+	if ('http://www.gnos.org/2012/schema#map' in GNOS.alert_data)
+	{
+		var count = GNOS.alert_data['http://www.gnos.org/2012/schema#map'];
+		if (count)
+			var label = "1 error alert";
+		else
+			var label = "{0} error alerts".format(count);
+		
+		var shape = new TextLinesShape(context,
+			function (self)
+			{
+				return new Point(context.canvas.width/2, context.canvas.height - self.stats.total_height/2);
+			}, [label], ['map', 'label'], ['error_label']);
+		GNOS.labels['alerts'] = shape;
+	}
+}
+
+function get_updated_label(last_update, poll_interval)
+{
+	if (!last_update)
+	{
+		// missing current (will happen if the modeler machine is slow or fails to respond)
+		var label = "store has not been updated";
+		var style_name = "error_label";
+	}
+	else
+	{
+		var last = new Date(last_update).getTime();
+		var current = new Date().getTime();
+		var next = last + 1000*poll_interval;
+		
+		var last_delta = interval_to_time(current - last);
+		if (current < next)
+		{
+			var next_delta = interval_to_time(next - current);	
+			var label = "updated {0} ago (next due in {1})".format(last_delta, next_delta);
+			var style_name = "label";
+		}
+		else if (current < next + 60*1000)		// next will be when modeler starts grabbing new data so there will be a bit of a delay before it makes it all the way to the client
+		{
+			var label = "updated {0} ago (next is due)".format(last_delta);
+			var style_name = "label";
+		}
+		else
+		{
+			var next_delta = interval_to_time(current - next);	
+			var label = "updated {0} ago (next was due {1} ago)".format(last_delta, next_delta);
+			var style_name = "error_label";
+		}
+	}
+	
+	return [label, style_name];
+}
+
+// device has
+// required fields: name, center_x, center_y
+// optional fields: style, primary_label, secondary_label, tertiary_label
+function add_device_shapes(devices, meters)
+{
+	var map = document.getElementById('map');
+	var context = map.getContext('2d');
 	
 	for (var i = 0; i < devices.length; ++i)
 	{
@@ -283,55 +392,106 @@ function populate_devices(context, devices, meters)
 		}
 		
 		// Then error alerts.
+		if (GNOS.alert_data && device.name in GNOS.alert_data)
+		{
+			if (GNOS.alert_data[device.name] === 1)
+				var label = "1 error alert";
+			else
+				var label = "{0} error alerts".format(GNOS.alert_data[device.name]);
+			shapes.push(new TextLinesShape(context, Point.zero, [label], label_styles, ['error_label']));
+		}
 		
 		// And, under the foregoing, a disc representing the device.
 		var center = new Point(device.center_x * context.canvas.width, device.center_y * context.canvas.height);
-		GNOS.shapes[device.name] = new DeviceShape(center, base_styles, shapes);
-		console.log("added {0} = {1}".format(device.name, GNOS.shapes[device.name]));
+		GNOS.devices[device.name] = new DeviceShape(context, center, base_styles, shapes);
+		//console.log("added {0} = {1}".format(device.name, GNOS.devices[device.name]));
 	}
-	
-//	for (var i=0; i < meters.length; ++i)
-//	{
-//		var meter = meters[i];
-//		if (meter.device in GNOS.shapes)
-//			GNOS.shapes[meter.device].meters.push({label: meter.label, level: meter.level, description: meter.description});
-//		else
-//			console.log("meter {0} exists on {1} but that device doesn't exist".format(meter.label, meter.device));
-//	}
 }
 
-function draw_initial_map()
+// relation has
+//     required fields: src, dst, type
+//     optional fields: style, primary_label, secondary_label, tertiary_label
+function add_relation_shapes(relations)
 {
 	var map = document.getElementById('map');
 	var context = map.getContext('2d');
-	context.clearRect(0, 0, map.width, map.height);
 	
-	var base_styles = ['primary_label', 'xlarger'];
-	var lines = ['Loading...'];
-	var style_names = ['primary_label'];
+	GNOS.relations = {};
 	
-	var shape = new TextLinesShape(context, new Point(context, map.width/2, map.height/2), lines, base_styles, style_names);
-	shape.draw(context);
-}
-
-function draw_relations(context, relations)
-{
 	var infos = find_line_infos(relations);
 	var lines = [];
 	for (var key in infos)
 	{
-		var line = draw_relation(context, infos[key]);
-		lines.push(line);
+		var info = infos[key];
+		lines.push(add_relation_line(info));
 	}
 	
 	var i = 0;
 	for (var key in infos)		// do this after drawing lines so that the labels appear on top
 	{
-		label_relation(context, infos[key].r, lines[i], 0.3);
+		add_relation_label(context, infos[key].r, lines[i], 0.3);
 		if (infos[key].s)
-			label_relation(context, infos[key].s, lines[i], 0.7);
+			add_relation_label(context, infos[key].s, lines[i], 0.7);
 		i += 1;
 	}
+}
+
+function add_relation_line(info)
+{
+	if ('style' in info.r)
+		var style = info.r.style;
+	else
+		var style = 'identity';
+		
+	if (info.broken)
+		var style_names = [style, 'broken_relation'];
+	else
+		var style_names = [style];
+	
+	var src = GNOS.devices[info.r.src];
+	var dst = GNOS.devices[info.r.dst];
+	
+	var line = discs_to_line(src.disc.geometry, dst.disc.geometry);
+	line = line.shrink(src.disc.stroke_width/2, dst.disc.stroke_width/2);	// path strokes are centered on the path
+	var shape = new LineShape(line, style_names, info.from_arrow, info.to_arrow);
+	
+	GNOS.relations[info.r.src + '/' + info.r.dst] = shape;
+	
+	return line;
+}
+
+function add_relation_label(context, relation, line, p)
+{
+	if ('style' in relation)
+		var style = relation.style;
+	else
+		var style = 'identity';
+		
+	// TODO: Should allow labels to have EOL characters. (We don't want to allow multiple
+	// labels in the store because the joins get all whacko).
+	var lines = [];
+	var style_names = [];
+	if ('primary_label' in relation)
+	{
+		lines.push(relation.primary_label);
+		style_names.push('primary_relation');
+	}
+	if ('secondary_label' in relation)
+	{
+		lines.push(relation.secondary_label);
+		style_names.push('secondary_relation');
+	}
+	if ('tertiary_label' in relation)
+	{
+		lines.push(relation.tertiary_label);
+		style_names.push('tertiary_relation');
+	}
+	
+	var center = line.interpolate(p);
+	var base_styles = [style, 'label', 'relation_label'];
+	
+	var shape = new TextLinesShape(context, center, lines, base_styles, style_names);
+	GNOS.relations[relation.src + '/' + relation.dst + '/' + p] = shape;
 }
 
 // Returns object mapping src/dst device subjects to objects of the form:
@@ -382,245 +542,23 @@ function find_line_infos(relations)
 	return lines;
 }
 
-// relation has
-//     required fields: src, dst, type
-//     optional fields: style, primary_label, secondary_label, tertiary_label
-function draw_relation(context, info)
+function draw_initial_map()
 {
-	//console.log("relation from {0} to {1}".format(GNOS.shapes[info.r.src].center, GNOS.shapes[info.r.dst].center));
+	var map = document.getElementById('map');
+	var context = map.getContext('2d');
+	context.clearRect(0, 0, map.width, map.height);
 	
-	if ('style' in info.r)
-		var style = info.r.style;
-	else
-		var style = 'identity';
-		
-	if (info.broken)
-		var styles = [style, 'broken_relation'];
-	else
-		var styles = [style];
+	var base_styles = ['primary_label', 'xlarger'];
+	var lines = ['Loading...'];
+	var style_names = ['primary_label'];
 	
-	var src = GNOS.shapes[info.r.src];
-	var dst = GNOS.shapes[info.r.dst];
-	
-	var line = discs_to_line(new Disc(src.center, src.radius), new Disc(dst.center, dst.radius));
-	line = line.shrink(src.stroke_width/2, dst.stroke_width/2);	// path strokes are centered on the path
-	draw_line(context, styles, line, info.from_arrow, info.to_arrow);
-	
-	return line;
-}
-
-function label_relation(context, relation, line, p)
-{
-	if ('style' in relation)
-		var style = relation.style;
-	else
-		var style = 'identity';
-		
-	// TODO: Should allow labels to have new lines. (We don't want to allow multiple
-	// labels in the store because the joins get all whacko).
-	var text = [];
-	var style_names = [];
-	if ('primary_label' in relation)
-	{
-		text.push(relation.primary_label);
-		style_names.push('primary_relation');
-	}
-	if ('secondary_label' in relation)
-	{
-		text.push(relation.secondary_label);
-		style_names.push('secondary_relation');
-	}
-	if ('tertiary_label' in relation)
-	{
-		text.push(relation.tertiary_label);
-		style_names.push('tertiary_relation');
-	}
-	
-	var center = line.interpolate(p);
-	var base_styles = [style, 'label', 'relation_label'];
-	
-	var stats = prep_center_text(context, base_styles, text, style_names);
-	context.clearRect(center.x - stats.max_width/2, center.y - stats.total_height/2, stats.max_width, stats.total_height);
-	center_text(context, base_styles, text, style_names, center, stats);
-}
-
-function draw_map(context, devices, times)
-{
-	for (var i=0; i < devices.length; ++i)
-	{
-		var device = devices[i];
-		//console.log('device{0}: {1:j}'.format(i, device));
-		
-		draw_device(context, device);
-	}
-	
-	//draw_map_labels(context, times);
-}
-
-function get_updated_label(last_update, poll_interval)
-{
-	if (!last_update)
-	{
-		// missing current (will happen if the modeler machine is slow or fails to respond)
-		var label = "store has not been updated";
-		var style_name = "error_label";
-	}
-	else
-	{
-		var last = new Date(last_update).getTime();
-		var current = new Date().getTime();
-		var next = last + 1000*poll_interval;
-		
-		var last_delta = interval_to_time(current - last);
-		if (current < next)
-		{
-			var next_delta = interval_to_time(next - current);	
-			var label = "updated {0} ago (next due in {1})".format(last_delta, next_delta);
-			var style_name = "label";
-		}
-		else if (current < next + 60*1000)		// next will be when modeler starts grabbing new data so there will be a bit of a delay before it makes it all the way to the client
-		{
-			var label = "updated {0} ago (next is due)".format(last_delta);
-			var style_name = "label";
-		}
-		else
-		{
-			var next_delta = interval_to_time(current - next);	
-			var label = "updated {0} ago (next was due {1} ago)".format(last_delta, next_delta);
-			var style_name = "error_label";
-		}
-	}
-	
-	return [label, style_name];
-}
-
-function draw_map_labels(context, times)
-{
-	var row = times[0];
-	var labels = get_updated_label(row.last_update, row.poll_interval);
-	draw_updated_label(context, labels[0], labels[1]);
-
-	if (GNOS.alert_data)
-		draw_alert_labels(context);
-}
-
-function draw_updated_label(context, label, style_name)
-{
-	var lines = [label];
-	var style_names = [];
-	style_names.push(style_name);
-	
-	var base_styles = ['xsmaller'];
-	var stats = prep_center_text(context, base_styles, lines, style_names);
-	
-	var center = new Point(context.canvas.width/2, stats.total_height/2);
-	center_text(context, base_styles, lines, style_names, center, stats);
-}
-
-function draw_alert_labels(context)
-{
-	if ('http://www.gnos.org/2012/schema#map' in GNOS.alert_data)
-	{
-		var count = GNOS.alert_data['http://www.gnos.org/2012/schema#map'];
-		
-		var lines = [];
-		var style_names = [];
-		if (count)
-			lines.push("1 error alert");
-		else
-			lines.push("{0} error alerts".format(count));
-		style_names.push('error_label');
-		
-		var base_styles = ['map'];
-		var stats = prep_center_text(context, base_styles, lines, style_names);
-		
-		var center = new Point(context.canvas.width/2, context.canvas.height - stats.total_height/2);
-		center_text(context, base_styles, lines, style_names, center, stats);
-	}
-}
-
-// device has
-// required fields: name, center_x, center_y
-// optional fields: style, primary_label, secondary_label, tertiary_label
-function draw_device(context, device)
-{
-	// Figure out which styles apply to the device as a whole.
-//	var base_styles = ['identity'];
-//	if ('style' in device)
-//		base_styles = device.style.split(' ');
-	
-	// Get each line of text to render and the style for that line.
-//	var lines = [];
-//	var style_names = [];
-//	if ('primary_label' in device)
-//	{
-//		lines.push(device.primary_label);
-//		style_names.push('primary_label');
-//	}
-//	if ('secondary_label' in device)
-//	{
-//		lines.push(device.secondary_label);
-//		style_names.push('secondary_label');
-//	}
-//	if ('tertiary_label' in device)
-//	{
-//		lines.push(device.tertiary_label);
-//		style_names.push('tertiary_label');
-//	}
-	
-//	var next_meter = lines.length;
-//	for (var i = 0; i < GNOS.shapes[device.name].meters.length; ++i)
-//	{
-//		var meter = GNOS.shapes[device.name].meters[i];
-//		if (meter.level >= GNOS.ok_level)				// TODO: may want an inspector option to show all meters
-//		{
-//			lines.push("{0}% {1}".format(Math.round(100*meter.level), meter.label));	// TODO: option to show description?
-//			style_names.push('secondary_label');
-//		}
-//	}
-	
-//	if (GNOS.alert_data && device.name in GNOS.alert_data)
-//	{
-//		if (GNOS.alert_data[device.name] === 1)
-//			lines.push("1 error alert");
-//		else
-//			lines.push("{0} error alerts".format(GNOS.alert_data[device.name]));
-//		style_names.push('error_label');
-//	}
-	
-	// Get the dimensions of the text.
-//	var stats = prep_center_text(context, base_styles, lines, style_names);
-	//console.log("stats: {0:j}".format(stats));
-	
-	// Draw a disc behind the text.
-//	var center = new Point(map.width * device.center_x, map.height * device.center_y);
-//	var radius = 1.1 * Math.max(stats.total_height, stats.max_width)/2;
-//	var style = draw_disc(context, base_styles, new Disc(center, radius));
-//	
-//	GNOS.shapes[device.name].radius = radius;
-//	GNOS.shapes[device.name].stroke_width = style.lineWidth;
-	
-	// Draw a progress bar sort of thing for each meter.
-//	for (var i = 0; i < GNOS.shapes[device.name].meters.length; ++i)
-//	{
-//		var meter = GNOS.shapes[device.name].meters[i];
-//		if (meter.level >= GNOS.ok_level)				// TODO: may want an inspector option to show all meters
-//		{
-//			draw_meter(context, base_styles, meter, stats, center, radius, next_meter);
-//			next_meter += 1;
-//		}
-//	}
-	
-	// Draw the text.
-//	base_styles.push('label');
-//	center_text(context, base_styles, lines, style_names, center, stats);
-		console.log("drawing {0} = {1}".format(device.name, GNOS.shapes[device.name]));
-	GNOS.shapes[device.name].draw(context);
+	var shape = new TextLinesShape(context, new Point(context, map.width/2, map.height/2), lines, base_styles, style_names);
+	shape.draw(context);
 }
 
 // ---- DeviceShape class -------------------------------------------------------
 // Used to draw a device consisting of a DiscShape and an array of arbitrary shapes.
-function DeviceShape(center, base_styles, shapes)
+function DeviceShape(context, center, base_styles, shapes)
 {
 	var width = shapes.reduce(function(value, shape)
 	{
@@ -632,7 +570,7 @@ function DeviceShape(center, base_styles, shapes)
 	}, 0);
 	var radius = 1.1 * Math.max(this.total_height, width)/2;
 	
-	this.disc = new DiscShape(new Disc(center, radius), base_styles);
+	this.disc = new DiscShape(context, new Disc(center, radius), base_styles);
 	this.shapes = shapes;
 	freezeProps(this);
 }

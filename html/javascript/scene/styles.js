@@ -26,7 +26,7 @@ GNOS.styles =
 	'route':					{lineWidth: 4, strokeStyle: 'royalblue'},
 	'broken_relation':		{strokeStyle: 'red'},
 	
-	'relation_label':			{},
+	'relation_label':			{clearRect: true},		// currently clearRect is only used by TextLinesShape
 	'primary_relation':		{},
 	'secondary_relation':	{fontSize: smaller},
 	'tertiary_relation':		{fontSize: smaller},
