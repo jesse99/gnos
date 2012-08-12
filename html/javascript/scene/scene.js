@@ -40,9 +40,23 @@ Scene.prototype.draw = function (context)
 {
 	for (var i = 0; i < this.shapes.length; ++i)
 	{
-		//context.save();
-		this.shapes[i].draw(context);
-		//context.restore();
+		// We could save and restore the context here, but it seems to work out better
+		// if the code that changes settings is the code that reverts it (among other
+		// things this works a lot better with composite shapes).
+		//
+		// Here we set some of the most important canvas properties to awful values
+		// to ensure that shapes set the properties that they care about instead of 
+		// assuming that they are still reasonable.
+		context.strokeStyle = 'magenta';
+		context.fillStyle = 'magenta';
+		context.lineWidth = 10;
+		
+		var shape = this.shapes[i];
+		shape.draw(context);
+		
+		// Make sure thet the properties we set still have their awful values.
+		// If not then the shape didn't restore the context.
+		assert(context.strokeStyle === '#ff00ff' && context.fillStyle === '#ff00ff' && context.lineWidth === 10, shape + " didn't restore context");
 	}
 }
 

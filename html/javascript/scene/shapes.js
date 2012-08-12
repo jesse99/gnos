@@ -174,10 +174,10 @@ function TextLinesShape(context, center, lines, base_styles, style_names)
 
 TextLinesShape.prototype.draw = function (context)
 {
+	context.save();
+	
 	if (this.lines)
 	{
-		context.save();
-		
 		var style = compose_styles(this.base_styles);
 		if (style['clearRect'])
 			context.clearRect(this.geometry.x - this.stats.max_width/2, this.geometry.y - this.stats.total_height/2, this.stats.max_width, this.stats.total_height);
@@ -197,9 +197,11 @@ TextLinesShape.prototype.draw = function (context)
 			context.fillText(line, this.geometry.x, y);
 			y += this.stats.heights[i];
 		}
-		
-		context.restore();
 	}
+	
+	// Note that we always need to restore the context to avoid tripping the
+	// assert in Scene.prototype.draw.
+	context.restore();
 }
 
 TextLinesShape.prototype.hit_test = function (pt)
