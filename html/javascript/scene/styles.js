@@ -1,3 +1,4 @@
+// Cascading style sheets sort of thing applied to shapes.
 "use strict";
 
 // Table mapping names to styles.
@@ -18,7 +19,7 @@ GNOS.styles =
 	'map':					{fontSize: xlarger},
 	'host':					{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lightblue', fontSize: smaller},
 	'router':					{lineWidth: 8, strokeStyle: 'black', fillStyle: 'mistyrose'},
-	'switch':					{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lavender'},
+	'switch':				{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lavender'},
 	
 	'identity':				{},
 	'link':					{},
@@ -43,6 +44,8 @@ GNOS.styles =
 	
 	'smaller':				{fontSize: smaller},
 	'xsmaller':				{fontSize: xsmaller},
+	'larger':					{fontSize: larger},
+	'xlarger':				{fontSize: xlarger},
 };
 
 // Applies cascading styles to the current canvas context.
