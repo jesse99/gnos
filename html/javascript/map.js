@@ -1,10 +1,6 @@
 "use strict";
 
-// Maps device names ("_:device1") to shapes.
-GNOS.devices = {};
-GNOS.labels = {};
-GNOS.relations = {};
-
+GNOS.scene = new Scene();
 GNOS.primary_data = null;
 GNOS.alert_data = null;
 
@@ -50,14 +46,10 @@ function handle_canvas_click(event)
 		var pos = findPos(this);
 		var pt = new Point(event.clientX - pos[0], event.clientY - pos[1]);
 		
-		for (var name in GNOS.devices)
+		var shape = GNOS.scene.hit_test(pt);
+		if (shape)
 		{
-			var shape = GNOS.devices[name];
-			if (shape.hit_test(pt))
-			{
-				console.log("clicked {0}".format(name));
-				break;
-			}
+			console.log("clicked {0}".format(shape));
 		}
 		
 		event.preventDefault();
@@ -231,23 +223,12 @@ function redraw()
 	var context = map.getContext('2d');
 	context.clearRect(0, 0, map.width, map.height);
 	
-	for (var name in GNOS.labels)
-	{
-		GNOS.labels[name].draw(context);
-	}
-	for (var name in GNOS.devices)
-	{
-		GNOS.devices[name].draw(context);
-	}
-	for (var name in GNOS.relations)
-	{
-		GNOS.relations[name].draw(context);
-	}
+	GNOS.scene.draw(context);
 }
 
 function populate_shapes()
 {
-	GNOS.devices = {};
+	GNOS.scene.remove_all();
 	
 	var data = JSON.parse(GNOS.primary_data);
 	add_map_label_shapes(data[3]);
@@ -257,8 +238,6 @@ function populate_shapes()
 
 function add_map_label_shapes(times)
 {
-	GNOS.labels = {};
-
 	var map = document.getElementById('map');
 	var context = map.getContext('2d');
 	
@@ -277,7 +256,7 @@ function add_update_label_shapes(context, label, style_name)
 		{
 			return new Point(context.canvas.width/2, self.stats.total_height/2);
 		}, [label], ['label', 'xsmaller'], [style_name]);
-	GNOS.labels['last updated'] = shape;
+	GNOS.scene.append(shape);
 }
 
 function add_alert_label_shapes(context)
@@ -295,7 +274,7 @@ function add_alert_label_shapes(context)
 			{
 				return new Point(context.canvas.width/2, context.canvas.height - self.stats.total_height/2);
 			}, [label], ['map', 'label'], ['error_label']);
-		GNOS.labels['alerts'] = shape;
+		GNOS.scene.append(shape);
 	}
 }
 
@@ -402,8 +381,9 @@ function add_device_shapes(devices, meters)
 		
 		// And, under the foregoing, a disc representing the device.
 		var center = new Point(device.center_x * context.canvas.width, device.center_y * context.canvas.height);
-		GNOS.devices[device.name] = new DeviceShape(context, center, base_styles, shapes);
-		//console.log("added {0} = {1}".format(device.name, GNOS.devices[device.name]));
+		var shape = new DeviceShape(context, device.name, center, base_styles, shapes);
+		GNOS.scene.append(shape);
+		//console.log("added {0} = {1}".format(device.name, shape));
 	}
 }
 
@@ -414,8 +394,6 @@ function add_relation_shapes(relations)
 {
 	var map = document.getElementById('map');
 	var context = map.getContext('2d');
-	
-	GNOS.relations = {};
 	
 	var infos = find_line_infos(relations);
 	var lines = [];
@@ -447,14 +425,14 @@ function add_relation_line(info)
 	else
 		var style_names = [style];
 	
-	var src = GNOS.devices[info.r.src];
-	var dst = GNOS.devices[info.r.dst];
+	var src = GNOS.scene.find(function (shape) {return shape.name === info.r.src});
+	var dst = GNOS.scene.find(function (shape) {return shape.name === info.r.dst});
 	
 	var line = discs_to_line(src.disc.geometry, dst.disc.geometry);
 	line = line.shrink(src.disc.stroke_width/2, dst.disc.stroke_width/2);	// path strokes are centered on the path
 	var shape = new LineShape(line, style_names, info.from_arrow, info.to_arrow);
 	
-	GNOS.relations[info.r.src + '/' + info.r.dst] = shape;
+	GNOS.scene.append(shape);
 	
 	return line;
 }
@@ -490,7 +468,7 @@ function add_relation_label(context, relation, line, p)
 	var base_styles = [style, 'label', 'relation_label'];
 	
 	var shape = new TextLinesShape(context, center, lines, base_styles, style_names);
-	GNOS.relations[relation.src + '/' + relation.dst + '/' + p] = shape;
+	GNOS.scene.append(shape);
 }
 
 // Returns object mapping src/dst device subjects to objects of the form:
@@ -557,7 +535,7 @@ function draw_initial_map()
 
 // ---- DeviceShape class -------------------------------------------------------
 // Used to draw a device consisting of a DiscShape and an array of arbitrary shapes.
-function DeviceShape(context, center, base_styles, shapes)
+function DeviceShape(context, name, center, base_styles, shapes)
 {
 	var width = shapes.reduce(function(value, shape)
 	{
@@ -571,6 +549,7 @@ function DeviceShape(context, center, base_styles, shapes)
 	
 	this.disc = new DiscShape(context, new Disc(center, radius), base_styles);
 	this.shapes = shapes;
+	this.name = name;
 	freezeProps(this);
 }
 
@@ -601,5 +580,5 @@ DeviceShape.prototype.hit_test = function (pt)
 
 DeviceShape.prototype.toString = function ()
 {
-	return "DeviceShape at " + this.disc.geometry.toString();
+	return "DeviceShape for " + this.name;
 }
