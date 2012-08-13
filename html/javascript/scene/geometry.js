@@ -1,5 +1,7 @@
 // Immutable Point, Size, Rect, etc classes.
 // All coordinates are screen coordinates.
+// These are immutable in that the properties they define are fixed, but new mutable
+// properties can be added to any of these.
 "use strict";
 
 // ---- Point class -----------------------------------------------------------

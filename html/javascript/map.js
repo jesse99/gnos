@@ -400,20 +400,20 @@ function add_relation_shapes(relations)
 	for (var key in infos)
 	{
 		var info = infos[key];
-		lines.push(add_relation_line(info));
+		lines.push(add_relation_line_shape(info));
 	}
 	
 	var i = 0;
 	for (var key in infos)		// do this after drawing lines so that the labels appear on top
 	{
-		add_relation_label(context, infos[key].r, lines[i], 0.3);
+		add_relation_label_shape(context, infos[key].r, lines[i], 0.3);
 		if (infos[key].s)
-			add_relation_label(context, infos[key].s, lines[i], 0.7);
+			add_relation_label_shape(context, infos[key].s, lines[i], 0.7);
 		i += 1;
 	}
 }
 
-function add_relation_line(info)
+function add_relation_line_shape(info)
 {
 	if ('style' in info.r)
 		var style = info.r.style;
@@ -437,7 +437,7 @@ function add_relation_line(info)
 	return line;
 }
 
-function add_relation_label(context, relation, line, p)
+function add_relation_label_shape(context, relation, line, p)
 {
 	if ('style' in relation)
 		var style = relation.style;
@@ -550,6 +550,7 @@ function DeviceShape(context, name, center, base_styles, shapes)
 	this.disc = new DiscShape(context, new Disc(center, radius), base_styles);
 	this.shapes = shapes;
 	this.name = name;
+	this.clickable = true;
 	freezeProps(this);
 }
 

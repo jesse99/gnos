@@ -60,14 +60,16 @@ Scene.prototype.draw = function (context)
 	}
 }
 
+// Note that this will only return shapes which have a true clickable property.
 Scene.prototype.hit_test = function (pt)
 {
 	// Iterate backwards so that the first shapes that respond to
 	// clicks are the shapes that appear on top.
 	for (var i = this.shapes.length - 1; i >= 0; --i)
 	{
-		if (this.shapes[i].hit_test(pt))
-			return this.shapes[i];
+		var shape = this.shapes[i];
+		if (shape.clickable && shape.hit_test(pt))
+			return shape;
 	}
 	
 	return null;

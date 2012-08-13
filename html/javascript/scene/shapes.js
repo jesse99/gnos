@@ -1,4 +1,4 @@
-// The objects that scene draws, hit tests, and (eventually) moves.
+// Immutable objects that scene draws, hit tests, and (eventually) moves.
 "use strict";
 
 // ---- LineShape class -------------------------------------------------------
