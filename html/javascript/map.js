@@ -236,7 +236,7 @@ function register_selection_query(name)
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 														\
-	?title ?detail ?weight ?open								\
+	?title ?detail ?open											\
 WHERE 														\
 {																\
 	?details gnos:title ?title .									\
@@ -244,7 +244,7 @@ WHERE 														\
 	?details gnos:detail ?detail .								\
 	?details gnos:weight ?weight .								\
 	?details gnos:open ?open 									\
-}'.format(name);
+}  ORDER BY DESC(?weight) ASC(?title)'.format(name);
 
 	GNOS.selection_source = new EventSource('/query?name=primary&expr={0}'.
 		format(encodeURIComponent(expr)));
@@ -261,7 +261,7 @@ WHERE 														\
 			//console.log("{0}: {1:j}".format(i, row));
 			
 			var content = details_to_html(row);
-			details.push(content);					// TODO: use weight
+			details.push(content);
 		}
 		set_details(details);
 		
@@ -286,7 +286,7 @@ WHERE 														\
 	});
 }
 
-// details has title, detail, weight, and open properties
+// details has title, detail, and open properties
 function details_to_html(details)
 {
 	if (details.open === "always")
