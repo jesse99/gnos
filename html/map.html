@@ -22,15 +22,17 @@ with dynamic content set according to the selection and insprector settings. -->
 			Canvas not supported
 		</canvas>
 		
-		<p id='info'>Info stuff goes here</p>
-		
-		<hr/>
+		<section id='details'>
+			<!-- Detail information for the current map selection is added here. -->
+		</section>
 		
 		{{#admin}}
-		<ul class="url-list">
-		<li><a href="/models">models</a></li>
-		<li><a href="/shutdown">shutdown</a></li>
-		</ul>
+		<section id='nav'>
+			<ul class="url-list">
+				<li><a href="/models">models</a></li>
+				<li><a href="/shutdown">shutdown</a></li>
+			</ul>
+		</section>
 		{{/admin}}
 	</body>
 <html>

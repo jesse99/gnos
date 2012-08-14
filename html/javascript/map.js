@@ -43,13 +43,22 @@ function handle_canvas_click(event)
 {
 	if (event.button == 0)
 	{
-		var pos = findPos(this);
+		var pos = findPosRelativeToViewport(this);
 		var pt = new Point(event.clientX - pos[0], event.clientY - pos[1]);
 		
 		var shape = GNOS.scene.hit_test(pt);
 		if (shape)
 		{
+			var html1 = '<p>details for <em>{0}</em></p>'.format(shape.name);
+			var html2 = '<p>More stuff would go here.</p>'.format(shape.name);
+			var html3 = '<p>Yet more incredibly useful information.</p>'.format(shape.name);
+			set_details([html1, html2, html3]);
 			console.log("clicked {0}".format(shape));
+		}
+		else
+		{
+			var html = '<p>No details available.</p>';
+			set_details([html]);
 		}
 		
 		event.preventDefault();
@@ -531,6 +540,19 @@ function draw_initial_map()
 	
 	var shape = new TextLinesShape(context, new Point(context, map.width/2, map.height/2), lines, base_styles, style_names);
 	shape.draw(context);
+}
+
+function set_details(details_array)
+{
+	var root = document.getElementById('details');
+	
+	var html = '';
+	for (var i = 0; i < details_array.length; ++i)
+	{
+		var details = details_array[i];
+		html += details + '\n';
+	}
+	root.innerHTML = html;
 }
 
 // ---- DeviceShape class -------------------------------------------------------

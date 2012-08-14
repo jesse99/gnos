@@ -100,7 +100,7 @@ function interval_to_time(interval)
 		return value + " " + units;
 }
 
-// Returns [x, y] for the position of an element on the page,
+// Returns [x, y] for the absolute position of an element on the page,
 // From http://www.quirksmode.org/js/findpos.html
 function findPos(obj)
 {
@@ -118,4 +118,36 @@ function findPos(obj)
 	}
 	
 	return [curleft, curtop];
+}
+
+// getPageScroll() by quirksmode.org
+// Finds the scroll position of a page
+function getPageScroll()
+{
+	var xScroll, yScroll;
+	if (self.pageYOffset)
+	{
+		yScroll = self.pageYOffset;
+		xScroll = self.pageXOffset;
+	} 
+	else if (document.documentElement && document.documentElement.scrollTop)
+	{
+		yScroll = document.documentElement.scrollTop;
+		xScroll = document.documentElement.scrollLeft;
+	} 
+	else if (document.body)	// all other Explorers
+	{
+		yScroll = document.body.scrollTop;
+		xScroll = document.body.scrollLeft;
+	}
+	return [xScroll, yScroll]
+}
+
+// Finds the position of an element relative to the viewport.
+// From http://blog.stannard.net.au/2010/05/22/find-the-position-of-an-element-with-javascript/
+function findPosRelativeToViewport(obj)
+{
+	var objPos = findPos(obj)
+	var scroll = getPageScroll()
+	return [ objPos[0]-scroll[0], objPos[1]-scroll[1] ]
 }
