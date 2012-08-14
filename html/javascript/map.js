@@ -258,8 +258,10 @@ WHERE 														\
 		for (var i = 0; i < data.length; ++i)
 		{
 			var row = data[i];
-			console.log("{0}: {1:j}".format(i, row));
-			details.push(row.detail);	// TODO: use title, weight, open
+			//console.log("{0}: {1:j}".format(i, row));
+			
+			var content = details_to_html(row);
+			details.push(content);					// TODO: use weight
 		}
 		set_details(details);
 		
@@ -282,6 +284,32 @@ WHERE 														\
 			console.log('selection stream {0} closed'.format(name));
 		}
 	});
+}
+
+// details has title, detail, weight, and open properties
+function details_to_html(details)
+{
+	if (details.open === "always")
+	{
+		var html = details.detail;
+	}
+	else
+	{
+		if (details.open === "yes")
+			var html = '<details open="open">\n';
+		else if (details.open === "no")
+			var html = '<details>\n';
+		else
+			assert(false, "details.open was " + details.open);
+			
+		if (details.title)
+			html += '<summary>{0}</summary>\n'.format(details.title);
+			
+		html += '{0}\n'.format(details.detail);
+		html += '</details>\n';
+	}
+		
+	return html;
 }
 
 function deregister_selection_query()
