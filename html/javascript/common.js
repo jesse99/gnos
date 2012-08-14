@@ -120,6 +120,15 @@ function findPos(obj)
 	return [curleft, curtop];
 }
 
+// Finds the position of an element relative to the viewport.
+// From http://blog.stannard.net.au/2010/05/22/find-the-position-of-an-element-with-javascript/
+function findPosRelativeToViewport(obj)
+{
+	var objPos = findPos(obj)
+	var scroll = getPageScroll()
+	return [ objPos[0]-scroll[0], objPos[1]-scroll[1] ]
+}
+
 // getPageScroll() by quirksmode.org
 // Finds the scroll position of a page
 function getPageScroll()
@@ -141,13 +150,4 @@ function getPageScroll()
 		xScroll = document.body.scrollLeft;
 	}
 	return [xScroll, yScroll]
-}
-
-// Finds the position of an element relative to the viewport.
-// From http://blog.stannard.net.au/2010/05/22/find-the-position-of-an-element-with-javascript/
-function findPosRelativeToViewport(obj)
-{
-	var objPos = findPos(obj)
-	var scroll = getPageScroll()
-	return [ objPos[0]-scroll[0], objPos[1]-scroll[1] ]
 }
