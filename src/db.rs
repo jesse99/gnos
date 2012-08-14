@@ -106,6 +106,15 @@ fn add_got(store: store, _data: ~str) -> bool
 	]);
 	
 	// details
+	let map_summary = get_blank_name(store, ~"summary");
+	store.add(map_summary, ~[
+		(~"gnos:title",       string_value(~"Game of Thrones", ~"")),
+		(~"gnos:target",    iri_value(~"gnos:map")),
+		(~"gnos:detail",    string_value(~"<p class='summary'>A song of ice and fire.</p>", ~"")),
+		(~"gnos:weight",  float_value(0.9f64)),
+		(~"gnos:open",     string_value(~"always", ~"")),
+	]);
+
 	let wall_summary = get_blank_name(store, ~"summary");
 	store.add(wall_summary, ~[
 		(~"gnos:title",       string_value(~"Night's Watch Vows", ~"")),

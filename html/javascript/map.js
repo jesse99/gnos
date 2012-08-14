@@ -4,6 +4,9 @@ GNOS.scene = new Scene();
 GNOS.primary_data = null;
 GNOS.alert_data = null;
 
+GNOS.selection_name = null;
+GNOS.selection_source = null;
+
 // Thresholds for different meter levels.
 GNOS.good_level		= 0.0;
 GNOS.ok_level		= 0.5;
@@ -36,32 +39,6 @@ function resize_canvas()
 	else
 	{
 		draw_initial_map();
-	}
-}
-
-function handle_canvas_click(event)
-{
-	if (event.button == 0)
-	{
-		var pos = findPosRelativeToViewport(this);
-		var pt = new Point(event.clientX - pos[0], event.clientY - pos[1]);
-		
-		var shape = GNOS.scene.hit_test(pt);
-		if (shape)
-		{
-			var html1 = '<p>details for <em>{0}</em></p>'.format(shape.name);
-			var html2 = '<p>More stuff would go here.</p>'.format(shape.name);
-			var html3 = '<p>Yet more incredibly useful information.</p>'.format(shape.name);
-			set_details([html1, html2, html3]);
-			console.log("clicked {0}".format(shape));
-		}
-		else
-		{
-			var html = '<p>No details available.</p>';
-			set_details([html]);
-		}
-		
-		event.preventDefault();
 	}
 }
 
@@ -224,6 +201,99 @@ WHERE 														\
 			console.log('alerts stream closed');
 		}
 	});
+}
+
+function handle_canvas_click(event)
+{
+	if (event.button == 0)
+	{
+		var pos = findPosRelativeToViewport(this);
+		var pt = new Point(event.clientX - pos[0], event.clientY - pos[1]);
+		
+		var shape = GNOS.scene.hit_test(pt);
+		if (shape)
+			var name = shape.name;
+		else
+			var name = "gnos:map";
+		
+		if (name != GNOS.selection_name)
+		{
+			var html = '<p>Loading details.</p>';
+			set_details([html]);
+			
+			deregister_selection_query();
+			register_selection_query(name);
+			GNOS.selection_name = name;
+		}
+		
+		event.preventDefault();
+	}
+}
+
+function register_selection_query(name)
+{
+	var expr = '												\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
+SELECT 														\
+	?title ?detail ?weight ?open								\
+WHERE 														\
+{																\
+	?details gnos:title ?title .									\
+	?details gnos:target <{0}> .								\
+	?details gnos:detail ?detail .								\
+	?details gnos:weight ?weight .								\
+	?details gnos:open ?open 									\
+}'.format(name);
+
+	GNOS.selection_source = new EventSource('/query?name=primary&expr={0}'.
+		format(encodeURIComponent(expr)));
+	GNOS.selection_source.addEventListener('message', function(event)
+	{
+		GNOS.alert_data = {};
+		var data = JSON.parse(event.data);
+		console.log("found {0} details for {1}".format(data.length, name));
+		
+		var details = [];
+		for (var i = 0; i < data.length; ++i)
+		{
+			var row = data[i];
+			console.log("{0}: {1:j}".format(i, row));
+			details.push(row.detail);	// TODO: use title, weight, open
+		}
+		set_details(details);
+		
+		if (GNOS.primary_data)
+		{
+			populate_shapes();
+			redraw();
+		}
+	});
+	
+	GNOS.selection_source.addEventListener('open', function(event)
+	{
+		console.log('selection stream {0} opened'.format(name));
+	});
+	
+	GNOS.selection_source.addEventListener('error', function(event)
+	{
+		if (event.eventPhase === 2)
+		{
+			console.log('selection stream {0} closed'.format(name));
+		}
+	});
+}
+
+function deregister_selection_query()
+{
+	if (GNOS.selection_source)
+	{
+		console.log("closing down {0} selection query".format(GNOS.selection_name));
+		GNOS.selection_source.close();
+		
+		GNOS.selection_name = null;
+		GNOS.selection_source = null;
+	}
 }
 
 function redraw()

@@ -37,8 +37,8 @@ gnos:last_update		xsd:dateTime\
 
 \fs36 http://10.1.0.1\
 
-\b0 gnos:center_x			xsd:float			0.3 (unit scale where origin is upper-left)\
-gnos:center_y			xsd:float			0.6\
+\b0 \ul gnos:center_x\ulnone 			xsd:float			0.3 (unit scale where origin is upper-left)\
+\ul gnos:center_y\ulnone 			xsd:float			0.6\
 gnos:style				xsd:string			"", "host", "router", "large", etc\
 \
 												zero or one\
@@ -51,8 +51,8 @@ gnos:tertiary_label		xsd:string			"server room"\
 
 \fs36 _:rel1\
 
-\b0 gnos:src					blank				http://10.1.0.1\
-gnos:dst					blank				http://10.1.0.2\
+\b0 \ul gnos:src\ulnone 					blank				http://10.1.0.1\
+\ul gnos:dst\ulnone 					blank				http://10.1.0.2\
 gnos:type					xsd:string			"undirected" or "bidirectional" or "unidirectional"\
 gnos:style				xsd:string			"", "link", "route", etc\
 \
@@ -66,25 +66,24 @@ gnos:tertiary_label		xsd:string			"ospf"\
 
 \fs36 _:meter1\
 
-\b0 gnos:meter				xsd:string			"CPU"\
+\b0 \ul gnos:meter\ulnone 				xsd:string			"CPU"\
 gnos:target				blank				http://10.1.0.1\
 gnos:level				xsd:float			0.2 (range is 0.0 to 1.0)\
 \
 												zero or one\
 gnos:description			xsd:string			"snapshot of CPU usage"\
 \
-\pard\pardeftab480\pardirnatural
 
-\b\fs50 \cf0 Details\
+\b\fs50 Details\
 
 \fs36 _:summary1\
 
 \b0 gnos:title					xsd:string			"10.1.0.1 SNMP" (can be empty)\
-gnos:target				xsd:iri				http://10.1.0.1\
-gnos:detail				xsd:string			"html with SNMP keys and values"\
+gnos:device				xsd:iri				http://10.1.0.1\
+\ul gnos:detail\ulnone 				xsd:string			(html with SNMP keys and values)\
 gnos:weight				xsd:float			0.1 (larger values are displayed first)\
 gnos:open				xsd:string			"always", "yes", or "no" (uses disclosure widget if not "always")\
-\pard\pardeftab480\pardirnatural
-\cf0 \
-Note that style objects can cascade styles by separating each style with a space.\
+\
+Note that style objects can cascade styles by separating each style with a space. \
+Underlined predicates represent primary key sort of names.\
 }
