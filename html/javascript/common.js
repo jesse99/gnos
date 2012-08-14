@@ -9,7 +9,7 @@ var GNOS = {}
 String.prototype.format = function()
 {
 	var args = arguments;
-	return this.replace(/{(\d+)(:j)?}/g,
+	return this.replace(/{(\d+?)(:j)?}/g,
 		function(match, number, json)
 		{
 			if (json)
@@ -126,7 +126,7 @@ function findPosRelativeToViewport(obj)
 {
 	var objPos = findPos(obj)
 	var scroll = getPageScroll()
-	return [ objPos[0]-scroll[0], objPos[1]-scroll[1] ]
+	return [objPos[0] - scroll[0], objPos[1] - scroll[1]]
 }
 
 // getPageScroll() by quirksmode.org
