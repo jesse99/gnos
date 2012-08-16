@@ -676,6 +676,10 @@ function DeviceShape(context, name, center, base_styles, shapes)
 
 DeviceShape.prototype.draw = function (context)
 {
+	if (GNOS.selection_name == this.name)
+		this.disc.extra_styles = ['selection'];
+	else
+		this.disc.extra_styles = [];
 	this.disc.draw(context);
 	
 	var dx = this.disc.geometry.center.x;

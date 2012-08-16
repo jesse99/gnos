@@ -115,12 +115,15 @@ function DiscShape(context, disc, style_names)
 	context.restore();
 	
 	freezeProps(this);
+	this.extra_styles = [];
 }
 
 DiscShape.prototype.draw = function (context)
 {
 	context.save();
-	var style = apply_styles(context, this.style_names);
+	
+	var styles = this.style_names.concat(this.extra_styles);
+	var style = apply_styles(context, styles);
 	//console.log("drawing disc with {0:j} and {1:j}".format(this.style_names, compose_styles(this.style_names)));
 	
 	context.beginPath();
