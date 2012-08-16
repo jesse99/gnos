@@ -121,6 +121,8 @@ javascript model/view: http://documentcloud.github.com/backbone/
 * Store last N snapshots? Separate stores?
 * Might be nice if subject page color coded fields that change as new results come in.
 * Protege is an open source ontology editor.
+* Maybe allow people to do tcpdumps on device(s)
+	- possibly use something like http://www.tcptrace.org/index.html views
 * Figure out how to get data into gnos:
 	- how big is the store? should the home page have an estimate of the store size?
 	- gnos needs to scp over config file

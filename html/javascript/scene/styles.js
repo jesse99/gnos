@@ -8,7 +8,7 @@ GNOS.styles =
 	{
 		fontStyle: 'normal',		// or italic, oblique
 		fontWeight: 400,		// 100 to 900 where normal is 400 and 700 is bold
-		fontSize: 10,				// in points
+		fontSize: 10,			// in points
 		fontFamily: 'arial',		// font name (TODO: add web safe fonts) or serif, sans-serif, cursive, monospace
 		
 		lineWidth: 1,
@@ -17,9 +17,9 @@ GNOS.styles =
 	},
 	
 	'map':					{fontSize: xlarger},
-	'host':					{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lightblue', fontSize: smaller},
-	'router':					{lineWidth: 8, strokeStyle: 'black', fillStyle: 'mistyrose'},
-	'switch':				{lineWidth: 2, strokeStyle: 'black', fillStyle: 'lavender'},
+	'host':					{lineWidth: 2, strokeStyle: scale_lightness('lightblue', 0.6), fillStyle: 'lightblue', fontSize: smaller},
+	'router':					{lineWidth: 8, strokeStyle: scale_lightness('mistyrose', 0.8), fillStyle: 'mistyrose'},
+	'switch':				{lineWidth: 2, strokeStyle: scale_lightness('lavender', 0.8), fillStyle: 'lavender'},
 	
 	'identity':				{},
 	'link':					{},
@@ -131,3 +131,17 @@ function xsmaller(style)
 	return result;
 }
 
+// This is a very common way to adjust the lightness of a color, but it's not a very
+// good way because linear changes in HSL lightness are not perceived as linear changes
+// by the eye. Something like CIELAB would probably work better.
+//
+// But, for now, we're hard-coding these adjustments so it doesn't really matter.
+function scale_lightness(color_name, scaling)
+{
+	var color = Color.get(color_name);
+	var hsl = color.hslData();
+	console.log("hsl = {0:j}".format(hsl));
+	hsl[2] = Math.min(scaling*hsl[2], 1.0);
+	console.log("    hsl = {0:j}".format(hsl));
+	return Color.hsl(hsl[0], hsl[1], hsl[2]).hexTriplet();
+}
