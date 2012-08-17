@@ -141,8 +141,6 @@ function scale_lightness(color_name, scaling)
 {
 	var color = Color.get(color_name);
 	var hsl = color.hslData();
-	console.log("hsl = {0:j}".format(hsl));
 	hsl[2] = Math.min(scaling*hsl[2], 1.0);
-	console.log("    hsl = {0:j}".format(hsl));
 	return Color.hsl(hsl[0], hsl[1], hsl[2]).hexTriplet();
 }
