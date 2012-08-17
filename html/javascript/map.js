@@ -39,6 +39,7 @@ function resize_canvas()
 	size_to_window(context);
 	if (GNOS.primary_data)
 	{
+		populate_shapes();
 		redraw();
 	}
 	else
