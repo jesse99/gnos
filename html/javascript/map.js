@@ -7,6 +7,11 @@ GNOS.alert_data = null;
 GNOS.selection_name = null;
 GNOS.selection_source = null;
 
+GNOS.last_update = undefined;
+GNOS.poll_interval = undefined;
+GNOS.update_shape = null;
+GNOS.timer_id = undefined;
+
 // Thresholds for different meter levels.
 GNOS.good_level		= 0.0;
 GNOS.ok_level		= 0.5;
@@ -139,6 +144,7 @@ WHERE 														\
 	source.addEventListener('message', function(event)
 	{
 		GNOS.primary_data = event.data;
+		GNOS.last_update = new Date().getTime();
 		populate_shapes();
 		redraw();
 	});
@@ -146,6 +152,7 @@ WHERE 														\
 	source.addEventListener('open', function(event)
 	{
 		console.log('primary stream opened');
+		GNOS.timer_id = setInterval(upate_time, 1000);
 	});
 	
 	source.addEventListener('error', function(event)
@@ -153,6 +160,7 @@ WHERE 														\
 		if (event.eventPhase === 2)
 		{
 			console.log('primary stream closed');
+			GNOS.poll_interval = undefined;			// we want to keep the timer going to show people how out of date the info is
 		}
 	});
 }
@@ -349,21 +357,10 @@ function add_map_label_shapes(times)
 	var context = map.getContext('2d');
 	
 	var row = times[0];
-	var labels = get_updated_label(row.last_update, row.poll_interval);
-	add_update_label_shapes(context, labels[0], labels[1]);
+	GNOS.poll_interval = row.poll_interval;
 	
 	if (GNOS.alert_data)
 		add_alert_label_shapes(context);
-}
-
-function add_update_label_shapes(context, label, style_name)
-{
-	var shape = new TextLinesShape(context,
-		function (self)
-		{
-			return new Point(context.canvas.width/2, self.stats.total_height/2);
-		}, [label], ['label', 'xsmaller'], [style_name]);
-	GNOS.scene.append(shape);
 }
 
 function add_alert_label_shapes(context)
@@ -385,22 +382,37 @@ function add_alert_label_shapes(context)
 	}
 }
 
-function get_updated_label(last_update, poll_interval)
+function upate_time()
 {
-	if (!last_update)
+	if (GNOS.last_update)
 	{
-		// missing current (will happen if the modeler machine is slow or fails to respond)
-		var label = "store has not been updated";
-		var style_name = "error_label";
-	}
-	else
-	{
-		var last = new Date(last_update).getTime();
-		var current = new Date().getTime();
-		var next = last + 1000*poll_interval;
+		var map = document.getElementById('map');
+		var context = map.getContext('2d');
 		
-		var last_delta = interval_to_time(current - last);
-		if (current < next)
+		// Have to erase the old one too because it may have a larger width.
+		if (GNOS.update_shape)
+			context.clearRect(GNOS.update_shape.bbox.left, GNOS.update_shape.bbox.top, GNOS.update_shape.bbox.width, GNOS.update_shape.bbox.height);
+		
+		var labels = get_updated_label(GNOS.last_update, GNOS.poll_interval);
+		GNOS.update_shape = new TextLinesShape(context,
+			function (self)
+			{
+				return new Point(context.canvas.width/2, self.stats.total_height/2);
+			}, [labels[0]], ['xsmaller'], [labels[1]]);
+		context.clearRect(GNOS.update_shape.bbox.left, GNOS.update_shape.bbox.top, GNOS.update_shape.bbox.width, GNOS.update_shape.bbox.height);
+		GNOS.update_shape.draw(context);
+	}
+}
+
+function get_updated_label(last, poll_interval)
+{
+	var current = new Date().getTime();
+	var last_delta = interval_to_time(current - last);
+	
+	if (poll_interval)
+	{
+		var next = last + 1000*poll_interval;
+		if (current <= next)
 		{
 			var next_delta = interval_to_time(next - current);	
 			var label = "updated {0} ago (next due in {1})".format(last_delta, next_delta);
@@ -417,6 +429,12 @@ function get_updated_label(last_update, poll_interval)
 			var label = "updated {0} ago (next was due {1} ago)".format(last_delta, next_delta);
 			var style_name = "error_label";
 		}
+	}
+	else
+	{
+		// No longer updating (server has gone down or lost connection).
+		var label = "updated {0} ago (not connected)".format(last_delta);
+		var style_name = "error_label";
 	}
 	
 	return [label, style_name];

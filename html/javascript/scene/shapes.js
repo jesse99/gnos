@@ -172,6 +172,7 @@ function TextLinesShape(context, center, lines, base_styles, style_names)
 		this.geometry = center(this);
 	else
 		this.geometry = center;
+	this.bbox = new Rect(this.geometry.x - this.width/2, this.geometry.y - this.height/2, this.width, this.height);
 	freezeProps(this);
 }
 

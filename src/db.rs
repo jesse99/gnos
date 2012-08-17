@@ -39,7 +39,7 @@ fn add_got(store: store, state_chan: comm::chan<model::msg>, poll_rate: u16)
 {
 	// map
 	store.add(~"gnos:map", ~[
-		(~"gnos:poll_interval", int_value(10)),
+		(~"gnos:poll_interval", int_value(poll_rate as i64)),
 		(~"gnos:last_update",  dateTime_value(std::time::now())),
 	]);
 	

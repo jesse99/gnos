@@ -50,10 +50,26 @@ Size.prototype.toString = function ()
 }
 
 // ---- Rect class ------------------------------------------------------------
-function Rect(topLeft, size)
+function Rect(/*topLeft, size   or   left, top, width, height*/)
 {
-	this.topLeft = topLeft;
-	this.size = size;
+	var args = arguments;
+	if (args.length == 2)
+	{
+		this.topLeft = topLeft;
+		this.size = size;
+	}
+	else
+	{
+		assert(args.length == 4, "Expected {0} length to be 2 or 4".format(args));
+		this.topLeft = new Point(args[0], args[1]);
+		this.size = new Size(args[2], args[3]);
+	}
+	
+	this.left = this.topLeft.x;
+	this.top = this.topLeft.y;
+	this.width = this.size.width;
+	this.height = this.size.height;
+	
 	freezeProps(this);
 }
 
