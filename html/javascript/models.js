@@ -65,21 +65,11 @@ WHERE 														\
 		format(name, encodeURIComponent(expr)));
 	source.addEventListener('message', function(event)
 	{
-		var body = document.getElementById("{0}-store".format(name));
 		var data = JSON.parse(event.data);
 		
-		var html = "";
-		for (var i = 0; i < data.length; ++i)
-		{
-			var row = data[i];
-			
-			var klass = i & 1 ? "odd" : "even";
-			html += '<tr class="{0}"><td class="value"><span>\
-							<a href="/subject/{3}/{1}">{2}</a>\
-						</span></td></tr>\n'.format(
-							klass, encodeURIComponent(row.name), escapeHtml(row.name), encodeURIComponent(name));
-		}
-		body.innerHTML = html;
+		var element = document.getElementById('body');
+		animated_draw(element, function() {update_html(name, data);});
+		
 	});
 	GNOS.models[name] = source;
 	
@@ -95,4 +85,22 @@ WHERE 														\
 			console.log('models> {0} stream closed'.format(name));
 		}
 	});
+}
+
+function update_html(name, data)
+{
+	var html = "";
+	for (var i = 0; i < data.length; ++i)
+	{
+		var row = data[i];
+		
+		var klass = i & 1 ? "odd" : "even";
+		html += '<tr class="{0}"><td class="value"><span>\
+						<a href="/subject/{3}/{1}">{2}</a>\
+					</span></td></tr>\n'.format(
+						klass, encodeURIComponent(row.name), escapeHtml(row.name), encodeURIComponent(name));
+	}
+	
+	var body = document.getElementById("{0}-store".format(name));
+	body.innerHTML = html;
 }

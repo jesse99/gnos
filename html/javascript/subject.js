@@ -3,17 +3,17 @@
 window.onload = function()
 {
 	var table = document.getElementById('subject');
-	var expr = '																\
-PREFIX devices: <http://network/>										\
-PREFIX gnos: <http://www.gnos.org/2012/schema#>					\
-SELECT 																		\
+	var expr = '														\
+PREFIX devices: <http://network/>									\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>				\
+SELECT 																\
 	?predicate_url ?predicate_label ?value_url ?value_label			\
-WHERE 																		\
-{																				\
-	{0} ?predicate_url ?value . 											\
+WHERE 																\
+{																		\
+	{0} ?predicate_url ?value . 										\
 	BIND(rrdf:pname(?predicate_url) AS ?predicate_label) .			\
-	BIND(isIRI(?value) || isBlank(?value) AS ?is_url) .					\
-	BIND(IF(?is_url, ?value, "") AS ?value_url) .						\
+	BIND(isIRI(?value) || isBlank(?value) AS ?is_url) .				\
+	BIND(IF(?is_url, ?value, "") AS ?value_url) .					\
 	BIND(IF(?is_url, rrdf:pname(?value), ?value) AS ?value_label)	\
 } ORDER BY ?predicate_label ?value_label'.format(table.getAttribute("data-about"));
 
@@ -24,33 +24,8 @@ WHERE 																		\
 	{
 		var data = JSON.parse(event.data);
 		
-		var html = '';
-		for (var i=0; i < data.length; ++i)
-		{
-			var row = data[i];
-			//console.log('predicate_url: "{0}", predicate_label: "{1}", value_url: "{2}", 
-			//	value_label: "{3}"'.format(row.predicate_url, row.predicate_label, row.value_url, row.value_label));
-			var klass = i & 1 ? "odd" : "even";
-			html += '<tr class="{0}">'.format(klass);
-			
-			html += '	<td class="predicate">';
-			html += '	{0}'.format(make_link(row.predicate_url, row.predicate_label));
-			html += '	</td>';
-			
-			html += '	<td class="value"><span>	';
-			if (row.value_url)
-			{
-				html += '		{0}'.format(make_link(row.value_url, row.value_label));
-			}
-			else
-			{
-				html += '		{0}'.format(escapeHtml(row.value_label));
-			}
-			html += '	</span></td>';
-			
-			html += '</tr>';
-		}
-		table.innerHTML = html;
+		var element = document.getElementById('body');
+		animated_draw(element, function() {update_html(data);});
 	});
 	
 	source.addEventListener('open', function(event)
@@ -65,6 +40,39 @@ WHERE 																		\
 			console.log('> subject stream closed');
 		}
 	});
+}
+
+function update_html(data)
+{
+	var html = '';
+	for (var i = 0; i < data.length; ++i)
+	{
+		var row = data[i];
+		//console.log('predicate_url: "{0}", predicate_label: "{1}", value_url: "{2}", 
+		//	value_label: "{3}"'.format(row.predicate_url, row.predicate_label, row.value_url, row.value_label));
+		var klass = i & 1 ? "odd" : "even";
+		html += '<tr class="{0}">'.format(klass);
+		
+		html += '	<td class="predicate">';
+		html += '	{0}'.format(make_link(row.predicate_url, row.predicate_label));
+		html += '	</td>';
+		
+		html += '	<td class="value"><span>	';
+		if (row.value_url)
+		{
+			html += '		{0}'.format(make_link(row.value_url, row.value_label));
+		}
+		else
+		{
+			html += '		{0}'.format(escapeHtml(row.value_label));
+		}
+		html += '	</span></td>';
+		
+		html += '</tr>';
+	}
+	
+	var table = document.getElementById('subject');
+	table.innerHTML = html;
 }
 
 function make_link(url, label)

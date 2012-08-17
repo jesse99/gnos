@@ -151,3 +151,48 @@ function getPageScroll()
 	}
 	return [xScroll, yScroll]
 }
+
+// Fades the element out, calls render, and fades in.
+// TODO: replace this with jquery fadeOut and fadeIn
+function animated_draw(element, render)
+{
+	var timeout = 600;		// ms (this is the slow jquery speed)
+	var steps = 20;			// 10 in each direction
+	
+	var interpolate = function(p, min, max)
+	{
+		assert(min <= max, "min is larger than max");
+		
+		p = Math.max(p, 0.0);
+		p = Math.min(p, 1.0);
+		return min + p*(max - min);
+	};
+	
+	var max = parseFloat(element.style.opacity) || 1.0;
+	var min = 0.1;
+	if (min < max)
+	{
+		var p = 0.99;
+		var delta = -(max - min)/steps;
+		assert(delta < 0.0, "delta has to be negative or fade won't terminate");
+		
+		var fade = window.setInterval(function ()
+		{
+			var opacity = interpolate(p, min, max);
+			element.style.opacity = opacity;
+			
+			p += delta;
+			if (p <= 0.0)
+			{
+				render();
+				delta = -delta;
+			}
+			else if (p >= 1.0)
+			{
+				element.style.opacity = max;
+				window.clearInterval(fade);
+			}
+		}, timeout/steps);
+	}
+}
+

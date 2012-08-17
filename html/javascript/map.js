@@ -146,7 +146,7 @@ WHERE 														\
 		GNOS.primary_data = event.data;
 		GNOS.last_update = new Date().getTime();
 		populate_shapes();
-		redraw();
+		animated_redraw("map");
 	});
 	
 	source.addEventListener('open', function(event)
@@ -193,7 +193,7 @@ WHERE 														\
 		if (GNOS.primary_data)
 		{
 			populate_shapes();
-			redraw();
+			animated_redraw("map");
 		}
 	});
 	
@@ -276,7 +276,7 @@ WHERE 														\
 		if (GNOS.primary_data)
 		{
 			populate_shapes();
-			redraw();
+			animated_redraw("details");
 		}
 	});
 	
@@ -330,6 +330,12 @@ function deregister_selection_query()
 		GNOS.selection_name = null;
 		GNOS.selection_source = null;
 	}
+}
+
+function animated_redraw(name)
+{
+	var element = document.getElementById(name);
+	animated_draw(element, redraw);
 }
 
 function redraw()
