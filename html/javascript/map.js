@@ -353,9 +353,12 @@ function populate_shapes()
 	GNOS.scene.remove_all();
 	
 	var data = JSON.parse(GNOS.primary_data);
-	add_map_label_shapes(data[3]);
-	add_device_shapes(data[0], data[2]);
-	add_relation_shapes(data[1]);
+	if (data[0].length > 0)
+	{
+		add_map_label_shapes(data[3]);
+		add_device_shapes(data[0], data[2]);
+		add_relation_shapes(data[1]);
+	}
 }
 
 function add_map_label_shapes(times)
@@ -398,7 +401,7 @@ function upate_time()
 		
 		// Have to erase the old one too because it may have a larger width.
 		if (GNOS.update_shape)
-			context.clearRect(GNOS.update_shape.bbox.left, GNOS.update_shape.bbox.top, GNOS.update_shape.bbox.width, GNOS.update_shape.bbox.height);
+			context.clearRect(GNOS.update_shape.bbox.left, GNOS.update_shape.bbox.top, GNOS.update_shape.bbox.width, 1.1*GNOS.update_shape.bbox.height);	// text seem to draw outside the bbox so we use the lame 1.1
 		
 		var labels = get_updated_label(GNOS.last_update, GNOS.poll_interval);
 		GNOS.update_shape = new TextLinesShape(context,
@@ -468,15 +471,15 @@ function add_device_shapes(devices, meters)
 		var label_styles = base_styles.concat('label');
 		if ('primary_label' in device)
 		{
-			shapes.push(new TextLinesShape(context, Point.zero, [device.primary_label], label_styles, ['primary_label']));
+			add_device_label(context, shapes, device.primary_label, label_styles, ['primary_label']);
 		}
 		if ('secondary_label' in device)
 		{
-			shapes.push(new TextLinesShape(context, Point.zero, [device.secondary_label], label_styles, ['secondary_label']));
+			add_device_label(context, shapes, device.secondary_label, label_styles, ['secondary_label']);
 		}
 		if ('tertiary_label' in device)
 		{
-			shapes.push(new TextLinesShape(context, Point.zero, [device.tertiary_label], label_styles, ['tertiary_label']));
+			add_device_label(context, shapes, device.tertiary_label, label_styles, ['tertiary_label']);
 		}
 		
 		// Then meter indicators.
@@ -516,6 +519,16 @@ function add_device_shapes(devices, meters)
 		var shape = new DeviceShape(context, device.name, center, base_styles, shapes);
 		GNOS.scene.append(shape);
 		//console.log("added {0} = {1}".format(device.name, shape));
+	}
+}
+
+//	shapes.push(new TextLinesShape(context, Point.zero, [device.primary_label], label_styles, ['primary_label']));
+function add_device_label(context, shapes, text, base_styles, style_names)
+{
+	var lines = text.split('\n');
+	for (var i = 0; i < lines.length; ++i)
+	{
+		shapes.push(new TextLinesShape(context, Point.zero, [lines[i]], base_styles, style_names));
 	}
 }
 

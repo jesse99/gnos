@@ -18,9 +18,9 @@ fn copy_scripts(root: ~str, user: ~str, host: ~str) -> option::option<~str>
 	utils::scp_files(files, user, host)
 }
 
-fn run_snmp(user: ~str, host: ~str) -> option::option<~str>
+fn run_snmp(user: ~str, host: ~str, script: ~str) -> option::option<~str>
 {
-	utils::run_remote_command(user, host, ~"python snmp-modeler.py -vv sat.json")
+	utils::run_remote_command(user, host, ~"python snmp-modeler.py -vv " + script)
 }
 
 fn snmp_exited(err: option::option<~str>, state_chan: comm::chan<model::msg>)
@@ -41,7 +41,8 @@ fn setup(options: options::options, state_chan: comm::chan<model::msg>)
 	let action: task_runner::job_fn = || copy_scripts(root, #env["GNOS_USER"], client);
 	let cp = {action: action, policy: task_runner::shutdown_on_failure};
 	
-	let action: task_runner::job_fn = || run_snmp(#env["GNOS_USER"], client);
+	let ccc = copy(options.script);
+	let action: task_runner::job_fn = || run_snmp(#env["GNOS_USER"], client, ccc);
 	let run = {action: action, policy: task_runner::notify_on_exit(|err| {snmp_exited(err, state_chan)})};
 	
 	task_runner::sequence(~[cp, run], cleanup);
@@ -61,7 +62,7 @@ fn update_globals(store: rrdf::store, options: options::options) -> bool
 		(~"gnos:debug", rrdf::bool_value(true)),		// TODO: get this from command line
 	]);
 	
-	let devices = vec::zip(vec::from_elem(options.devices.len(), ~"gnos:device"), do options.devices.map |n| {rrdf::iri_value(n)});
+	let devices = vec::zip(vec::from_elem(options.devices.len(), ~"gnos:device"), do options.devices.map |n| {rrdf::iri_value(n.managed_ip)});
 	store.add(~"gnos:globals", devices);
 	
 	let names = model::get_standard_store_names();
@@ -102,10 +103,11 @@ fn main(args: ~[~str])
 	
 	let options2 = copy options;
 	let options3 = copy options;
+	let options4 = copy options;
 	let models_v: server::response_handler = |_settings, _request, response| {get_models::get_models(response, state_chan)};
-	let subject_v: server::response_handler = |_settings, request, response| {get_subject::get_subject(request, response)};	
+	let subject_v: server::response_handler = |_settings, request, response| {get_subject::get_subject(request, response)};
 	let map_v: server::response_handler = |_settings, _request, response| {get_map::get_map(options2, response)};
-	let modeler_p: server::response_handler = |_settings, request, response| {put_snmp::put_snmp(state_chan, request, response)};
+	let modeler_p: server::response_handler = |_settings, request, response| {put_snmp::put_snmp(options4, state_chan, request, response)};
 	let query_s: server::open_sse = |_settings, request, push| {get_query::get_query(state_chan, request, push)};
 	let bail_v: server::response_handler = |_settings, _request, _response| {get_shutdown(options3)};
 	

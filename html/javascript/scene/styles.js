@@ -18,8 +18,8 @@ GNOS.styles =
 	
 	'map':					{fontSize: xlarger},
 	'host':					{lineWidth: 2, strokeStyle: scale_lightness('lightblue', 0.6), fillStyle: 'lightblue', fontSize: smaller},
-	'router':					{lineWidth: 2, strokeStyle: scale_lightness('mistyrose', 0.8), fillStyle: 'mistyrose'},
-	'switch':				{lineWidth: 2, strokeStyle: scale_lightness('lavender', 0.8), fillStyle: 'lavender'},
+	'router':					{lineWidth: 2, strokeStyle: scale_lightness('lavender', 0.8), fillStyle: 'lavender'},
+	'switch':				{lineWidth: 2, strokeStyle: scale_lightness('mistyrose', 0.8), fillStyle: 'mistyrose'},
 	'selection':				{lineWidth: 6, strokeStyle: 'dodgerblue'},
 	
 	'identity':				{},

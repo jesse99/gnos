@@ -1,38 +1,38 @@
 {
 	"poll-rate": 20,
-	"client": "10.8.0.149",
+	"client": "10.8.0.179",
 	"server": "10.6.210.175",
 	"port": 8080,
 	"path": "/snmp-modeler",
 	"devices":
 	{
-		"GRS-A":
+		"GRS-1":
 		{
-			"ip": "10.101.100.2",
+			"ip": "10.101.0.2",
 			"community": "public",
 			"center_x": 0.25,
 			"center_y": 0.50,
 			"type": "router"
 		},
-		"GRS-B":
+		"GRS-2":
 		{
-			"ip": "10.102.100.2",
+			"ip": "10.102.0.2",
 			"community": "public",
 			"center_x": 0.50,
 			"center_y": 0.25,
 			"type": "router"
 		},
-		"GRS-C":
+		"GRS-3":
 		{
-			"ip": "10.103.100.2",
+			"ip": "10.103.0.2",
 			"community": "public",
 			"center_x": 0.75,
 			"center_y": 0.50,
 			"type": "router"
 		},
-		"GRS-D":
+		"GRS-4":
 		{
-			"ip": "10.104.100.2",
+			"ip": "10.104.0.2",
 			"community": "public",
 			"center_x": 0.50,
 			"center_y": 0.75,

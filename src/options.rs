@@ -1,7 +1,9 @@
 //! Command line options processing.
 import std::getopts::*;
 
-export options, get_version, validate, parse_command_line;
+export options, device, get_version, validate, parse_command_line;
+
+type device = {name: ~str, managed_ip: ~str, community: ~str, center_x: float, center_y: float, style: ~str};
 
 /// Various options derived from the command line and the network.json file.
 type options =
@@ -9,6 +11,7 @@ type options =
 	// these are from the command line
 	root: ~str,
 	admin: bool,
+	script: ~str,
 	db: bool,
 	
 	// these are from the network.json file
@@ -16,7 +19,7 @@ type options =
 	server: ~str,
 	port: u16,
 	poll_rate: u16,
-	devices: ~[~str],
+	devices: ~[device],
 	
 	// this is from main
 	cleanup: ~[task_runner::exit_fn],
@@ -66,6 +69,7 @@ fn parse_command_line(args: ~[~str]) -> options
 	{
 		root: opt_str(match, ~"root"),
 		admin: opt_present(match, ~"admin"),
+		script: path::basename(match.free[0]),
 		db: opt_present(match, ~"db"),
 		
 		client: network.client,
@@ -98,6 +102,94 @@ fn print_usage()
 	io::println(~"-h, --help  prints this message and exits");
 	io::println(~"--root=DIR  path to the directory containing html files");
 	io::println(~"--version   prints the gnos version number and exits");
+}
+
+fn load_network_file(path: ~str) -> {client: ~str, server: ~str, port: u16, poll_rate: u16, devices: ~[device]}
+{
+	alt io::file_reader(path)
+	{
+		result::ok(reader)
+		{
+			alt json::from_reader(reader)
+			{
+				result::ok(json::dict(data))
+				{
+					{
+						client: get_network_str(path, data, ~"client"),
+						server: get_network_str(path, data, ~"server"),
+						port: get_network_u16(path, data, ~"port"),
+						poll_rate: get_network_u16(path, data, ~"poll-rate"),
+						devices: get_network_devices(path, data, ~"devices"),
+					}
+				}
+				result::ok(x)
+				{
+					io::stderr().write_line(#fmt["Error parsing '%s': expected json::dict but found %?.", path, x]);
+					libc::exit(1)
+				}
+				result::err(err)
+				{
+					io::stderr().write_line(#fmt["Error parsing '%s' on line %?: %s.", path, err.line, *err.msg]);
+					libc::exit(1)
+				}
+			}
+		}
+		result::err(err)
+		{
+			io::stderr().write_line(#fmt["Error reading '%s': %s.", path, err]);
+			libc::exit(1)
+		}
+	}
+}
+
+fn get_network_devices(path: ~str, data: std::map::hashmap<~str, json::json>, key: ~str) -> ~[device]
+{
+	alt data.find(key)
+	{
+		option::some(json::dict(value))
+		{
+			let mut devices = ~[];
+			for value.each
+			|key, value|
+			{
+				vec::push(devices, get_network_device(path, key, value));
+			}
+			devices
+		}
+		option::some(x)
+		{
+			io::stderr().write_line(#fmt["In '%s' %s was expected to be a json::dict but was %?.", path, key, x]);
+			libc::exit(1)
+		}
+		option::none
+		{
+			io::stderr().write_line(#fmt["Expected to find %s in '%s'.", key, path]);
+			libc::exit(1)
+		}
+	}
+}
+
+fn get_network_device(path: ~str, name: ~str, value: json::json) -> device
+{
+	alt value
+	{
+		json::dict(value)
+		{
+			{
+				name: name,
+				managed_ip: get_network_str(path, value, ~"ip"),
+				community: get_network_str(path, value, ~"community"),
+				center_x: get_network_float(path, value, ~"center_x"),
+				center_y: get_network_float(path, value, ~"center_y"),
+				style: get_network_str(path, value, ~"type"),
+			}
+		}
+		x
+		{
+			io::stderr().write_line(#fmt["In '%s' %s was expected to be a json::dict but was %?.", path, name, x]);
+			libc::exit(1)
+		}
+	}
 }
 
 fn get_network_str(path: ~str, data: std::map::hashmap<~str, json::json>, key: ~str) -> ~str
@@ -152,23 +244,17 @@ fn get_network_u16(path: ~str, data: std::map::hashmap<~str, json::json>, key: ~
 	}
 }
 
-fn get_network_key_names(path: ~str, data: std::map::hashmap<~str, json::json>, key: ~str) -> ~[~str]
+fn get_network_float(path: ~str, data: std::map::hashmap<~str, json::json>, key: ~str) -> float
 {
 	alt data.find(key)
 	{
-		option::some(json::dict(value))
+		option::some(json::num(value))
 		{
-			let mut names = ~[];
-			for value.each_key
-			|key|
-			{
-				vec::push(names, key);
-			}
-			names
+			value
 		}
 		option::some(x)
 		{
-			io::stderr().write_line(#fmt["In '%s' %s was expected to be a json::dict but was %?.", path, key, x]);
+			io::stderr().write_line(#fmt["In '%s' %s was expected to be a json::num but was %?.", path, key, x]);
 			libc::exit(1)
 		}
 		option::none
@@ -178,42 +264,3 @@ fn get_network_key_names(path: ~str, data: std::map::hashmap<~str, json::json>, 
 		}
 	}
 }
-
-fn load_network_file(path: ~str) -> {client: ~str, server: ~str, port: u16, poll_rate: u16, devices: ~[~str]}
-{
-	alt io::file_reader(path)
-	{
-		result::ok(reader)
-		{
-			alt json::from_reader(reader)
-			{
-				result::ok(json::dict(data))
-				{
-					{
-						client: get_network_str(path, data, ~"client"),
-						server: get_network_str(path, data, ~"server"),
-						port: get_network_u16(path, data, ~"port"),
-						poll_rate: get_network_u16(path, data, ~"poll-rate"),
-						devices: get_network_key_names(path, data, ~"devices"),
-					}
-				}
-				result::ok(x)
-				{
-					io::stderr().write_line(#fmt["Error parsing '%s': expected json::dict but found %?.", path, x]);
-					libc::exit(1)
-				}
-				result::err(err)
-				{
-					io::stderr().write_line(#fmt["Error parsing '%s' on line %?: %s.", path, err.line, *err.msg]);
-					libc::exit(1)
-				}
-			}
-		}
-		result::err(err)
-		{
-			io::stderr().write_line(#fmt["Error reading '%s': %s.", path, err]);
-			libc::exit(1)
-		}
-	}
-}
-

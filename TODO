@@ -295,29 +295,3 @@ simple reuseable goo to map rdf to tables and whatnot
 
 /Users/jessejones/Documents/javascript.rtf
 /Users/jessejones/Documents/Developer/rust.rtf
-
-
-{{name}}					variable
-<name's value>
-if name is not present expansion will be empty
-
-
-{{#in_ca}}
-	true	=> body is expanded
-	[]		=> body is expanded for each element
-	fn 		=> fn is passed the pre-expanded body
-	map	=> body is expanded using the map
-{{/in_ca}}
-
-{{^repo}}
-	expanded if repo doesn't exist, or is false, or is empty list
-{{/repo}}
-
-{{! is a comment}}		may contain new lines
-
-{{> file}}					include file
-
-
-do we get a log or anything on empty expansions?
-probably want a mustache language
-

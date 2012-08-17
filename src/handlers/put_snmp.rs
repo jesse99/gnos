@@ -1,19 +1,21 @@
 // This is the code that handles PUTs from the snmp-modeler script. It parses the
 // incoming json, converts it into triplets, and updates the model.
 import model::{msg, update_msg};
-import rrdf::{store, string_value, get_blank_name, object, literal_to_object, bool_value, blank_value, typed_value,
-	dateTime_value};
+import options::{options, device};
+import rrdf::{store, string_value, get_blank_name, object, literal_to_object, bool_value, float_value, blank_value, typed_value,
+	int_value, dateTime_value};
 import rrdf::store::{base_iter, store_trait};
 
 export put_snmp;
 
-fn put_snmp(state_chan: comm::chan<msg>, request: server::request, response: server::response) -> server::response
+fn put_snmp(options: options, state_chan: comm::chan<msg>, request: server::request, response: server::response) -> server::response
 {
 	// Unfortunately we don't send an error back to the modeler if the json was invalid.
 	// Of course that shouldn't happen...
 	#info["got new modeler data"];
 	let addr = request.remote_addr;
-	comm::send(state_chan, update_msg(~"primary", |s, d| {json_to_store(addr, s, d)}, request.body));
+	let ooo = copy(options);
+	comm::send(state_chan, update_msg(~"primary", |s, d| {json_to_store(ooo, addr, s, d)}, request.body));
 	{body: ~"" with response}
 }
 
@@ -34,14 +36,15 @@ fn put_snmp(state_chan: comm::chan<msg>, request: server::request, response: ser
 //    },
 //    ...
 // }
-fn json_to_store(remote_addr: ~str, store: store, body: ~str) -> bool
+fn json_to_store(options: options, remote_addr: ~str, store: store, body: ~str) -> bool
 {
 	alt std::json::from_str(body)
 	{
 		result::ok(data)
 		{
 			store.clear();
-			store.add_triple(~[], {subject: ~"gnos:system", predicate: ~"gnos:last_update", object: dateTime_value(std::time::now())});
+			store.add_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:last_update", object: dateTime_value(std::time::now())});
+			store.add_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:poll_interval", object: int_value(options.poll_rate as i64)});
 			
 			alt data
 			{
@@ -54,7 +57,7 @@ fn json_to_store(remote_addr: ~str, store: store, body: ~str) -> bool
 						{
 							std::json::dict(device)
 							{
-								add_device(store, managed_ip, device);
+								add_device(store, options.devices, managed_ip, device);
 							}
 							_
 							{
@@ -89,7 +92,7 @@ fn json_to_store(remote_addr: ~str, store: store, body: ~str) -> bool
 // "ipDefaultTTL": "64", 
 // "ipForwDatagrams": "8", 
 // "ipForwarding": "forwarding(1)", 
-// "ipInDelivers": "338776", 
+// "ipInDelivers": "338776", 				TODO: a lot of this has been deprecated, see http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput=ipInDelivers&translate=Translate&submitValue=SUBMIT&submitClicked=true
 // "ipInReceives": "449623", 
 // "ipNetToMediaType": "dynamic(3)", 
 // "ipOutDiscards": "1", 
@@ -99,38 +102,73 @@ fn json_to_store(remote_addr: ~str, store: store, body: ~str) -> bool
 // "sysLocation": "air", 
 // "sysName": "GRS", 
 // "sysUpTime": "5080354"
-fn add_device(store: store, managed_ip: ~str, device: std::map::hashmap<~str, std::json::json>)
+fn add_device(store: store, devices: ~[device], managed_ip: ~str, device: std::map::hashmap<~str, std::json::json>)
 {
-	let entries = ~[
-		(~"gnos:managed_ip", typed_value(managed_ip, ~"gnos:ip_address")),
-		(~"gnos:name", string_value(lookup(device, ~"sysName", ~"unknown"), ~"")),	// TODO: admin property, if set, should override this
-		(~"gnos:description", string_value(lookup(device, ~"sysDescr", ~""), ~"")),		// TODO: admin property, if set, should override this
-		(~"gnos:snmp", blank_value(add_snmp(store, managed_ip, device))),
-	] + add_interfaces(store, managed_ip, device);
-	
-	let subject = #fmt["devices:%s", managed_ip];
-	store.add(subject, entries);
+	alt devices.find(|d| {d.managed_ip == managed_ip})
+	{
+		option::some(jdevice)
+		{
+			let entries = ~[
+				(~"gnos:center_x", float_value(jdevice.center_x as f64)),
+				(~"gnos:center_y", float_value(jdevice.center_y as f64)),
+				(~"gnos:style", string_value(jdevice.style, ~"")),
+				
+				(~"gnos:primary_label", string_value(jdevice.name, ~"")),
+				(~"gnos:secondary_label", string_value(managed_ip, ~"")),		// TODO: do we want this?
+				(~"gnos:tertiary_label", string_value(get_device_label(device), ~"")),
+			];
+			
+			let subject = #fmt["http://:%s", managed_ip];
+			store.add(subject, entries);
+		}
+		option::none
+		{
+			#error["Couldn't find %s in the network json file", managed_ip];
+		}
+	};
 }
 
-fn add_interfaces(store: store, managed_ip: ~str, device: std::map::hashmap<~str, std::json::json>) -> ~[(~str, object)]
+fn get_device_label(device: std::map::hashmap<~str, std::json::json>) -> ~str
 {
-	alt device[~"interfaces"]
+	get_device_label_component(device, ~"ipInReceives", ~"received") +
+	get_device_label_component(device, ~"ipForwDatagrams", ~"forwarded") +
+	get_device_label_component(device, ~"ipInDelivers", ~"delivered")
+}
+
+fn get_device_label_component(device: std::map::hashmap<~str, std::json::json>, key: ~str, label: ~str) -> ~str
+{
+	alt lookup(device, key, ~"")
 	{
-		std::json::list(interfaces)
+		~""
 		{
-			do vec::map(*interfaces)
-			|interface|
-			{
-				add_interface(store, managed_ip, interface)
-			}
+			~""
 		}
-		_
+		value
 		{
-			#error["Expected list for %s interfaces but found %?", managed_ip, device.get(~"interfaces")];
-			~[]
+			#fmt["%s: %s\n", label, value]
 		}
 	}
 }
+
+//fn add_interfaces(store: store, managed_ip: ~str, device: std::map::hashmap<~str, std::json::json>) -> ~[(~str, object)]
+//{
+//	alt device[~"interfaces"]
+//	{
+//		std::json::list(interfaces)
+//		{
+//			do vec::map(*interfaces)
+//			|interface|
+//			{
+//				add_interface(store, managed_ip, interface)
+//			}
+//		}
+//		_
+//		{
+//			#error["Expected list for %s interfaces but found %?", managed_ip, device.get(~"interfaces")];
+//			~[]
+//		}
+//	}
+//}
 
 // "ifAdminStatus": "up(1)", 
 // "ifDescr": "eth3", 
@@ -147,72 +185,72 @@ fn add_interfaces(store: store, managed_ip: ~str, device: std::map::hashmap<~str
 // "ifType": "ethernetCsmacd(6)", 
 // "ipAdEntAddr": "10.101.3.2", 
 // "ipAdEntNetMask": "255.255.255.0"
-fn add_interface(store: store, managed_ip: ~str, data: std::json::json) -> (~str, object)
-{
-	alt data
-	{
-		std::json::dict(interface)
-		{
-			let name = lookup(interface, ~"ifDescr", ~"");
-			let label = #fmt["%s-%s", managed_ip, name];
-			
-			let entries = ~[
-				(~"gnos:ifname", string_value(name, ~"")),
-				(~"gnos:ip", string_value(lookup(interface, ~"ipAdEntAddr", ~""), ~"")),
-				(~"gnos:netmask", string_value(lookup(interface, ~"ipAdEntNetMask", ~""), ~"")),
-				(~"gnos:mac", string_value(lookup(interface, ~"ifPhysAddress", ~""), ~"")),
-				(~"gnos:mtu", literal_to_object(lookup(interface, ~"ifMtu", ~""), ~"http://www.w3.org/2001/XMLSchema#integer", ~"")),
-				(~"gnos:enabled", bool_value(str::contains(lookup(interface, ~"ifOperStatus", ~""), ~"(1)"))),	// TODO: verify that we want this and not ifAdminStatus
-				(~"gnos:snmp", blank_value(add_snmp(store, label, interface))),
-			];
-			
-			let subject = get_blank_name(store, label);
-			store.add(subject, entries);
-			(~"gnos:interface", blank_value(subject))
-		}
-		_
-		{
-			#error["Expected dict for %s interfaces but found %?", managed_ip, data];
-			(~"gnos:missing-interface", string_value(~"", ~""))
-		}
-	}
-}
+//fn add_interface(store: store, managed_ip: ~str, data: std::json::json) -> (~str, object)
+//{
+//	alt data
+//	{
+//		std::json::dict(interface)
+//		{
+//			let name = lookup(interface, ~"ifDescr", ~"");
+//			let label = #fmt["%s-%s", managed_ip, name];
+//			
+//			let entries = ~[
+//				(~"gnos:ifname", string_value(name, ~"")),
+//				(~"gnos:ip", string_value(lookup(interface, ~"ipAdEntAddr", ~""), ~"")),
+//				(~"gnos:netmask", string_value(lookup(interface, ~"ipAdEntNetMask", ~""), ~"")),
+//				(~"gnos:mac", string_value(lookup(interface, ~"ifPhysAddress", ~""), ~"")),
+//				(~"gnos:mtu", literal_to_object(lookup(interface, ~"ifMtu", ~""), ~"http://www.w3.org/2001/XMLSchema#integer", ~"")),
+//				(~"gnos:enabled", bool_value(str::contains(lookup(interface, ~"ifOperStatus", ~""), ~"(1)"))),	// TODO: verify that we want this and not ifAdminStatus
+//				(~"gnos:snmp", blank_value(add_snmp(store, label, interface))),
+//			];
+//			
+//			let subject = get_blank_name(store, label);
+//			store.add(subject, entries);
+//			(~"gnos:interface", blank_value(subject))
+//		}
+//		_
+//		{
+//			#error["Expected dict for %s interfaces but found %?", managed_ip, data];
+//			(~"gnos:missing-interface", string_value(~"", ~""))
+//		}
+//	}
+//}
 
 // We store snmp data for various objects in the raw so that views are able to use it
 // and so admins can view the complete raw data.
-fn add_snmp(store: store, label: ~str, object: std::map::hashmap<~str, std::json::json>) -> ~str
-{
-	let mut entries = ~[];
-	vec::reserve(entries, object.size());
-	
-	for object.each()			// unfortunately hashmap doesn't support the base_iter protocol so there's no nice way to do this
-	|name, value|
-	{
-		alt value
-		{
-			std::json::string(s)
-			{
-				vec::push(entries, (~"snmp:" + name, string_value(*s, ~"")));
-			}
-			std::json::dict(_d)
-			{
-				// our caller should handle this with another call to add_smp
-			}
-			std::json::list(_l)
-			{
-				// this is the interfaces list (handled in add_device)
-			}
-			_
-			{
-				#error["%s was expected to contain string, dict, and list items but %s was %?", label, name, value];
-			}
-		}
-	};
-	
-	let subject = #fmt["%s-snmp", label];
-	store.add(subject, entries);
-	ret subject;
-}
+//fn add_snmp(store: store, label: ~str, object: std::map::hashmap<~str, std::json::json>) -> ~str
+//{
+//	let mut entries = ~[];
+//	vec::reserve(entries, object.size());
+//	
+//	for object.each()			// unfortunately hashmap doesn't support the base_iter protocol so there's no nice way to do this
+//	|name, value|
+//	{
+//		alt value
+//		{
+//			std::json::string(s)
+//			{
+//				vec::push(entries, (~"snmp:" + name, string_value(*s, ~"")));
+//			}
+//			std::json::dict(_d)
+//			{
+//				// our caller should handle this with another call to add_smp
+//			}
+//			std::json::list(_l)
+//			{
+//				// this is the interfaces list (handled in add_device)
+//			}
+//			_
+//			{
+//				#error["%s was expected to contain string, dict, and list items but %s was %?", label, name, value];
+//			}
+//		}
+//	};
+//	
+//	let subject = #fmt["%s-snmp", label];
+//	store.add(subject, entries);
+//	ret subject;
+//}
 
 // Lookup an SNMP value.
 fn lookup(table: std::map::hashmap<~str, std::json::json>, key: ~str, default: ~str) -> ~str
