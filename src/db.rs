@@ -9,13 +9,33 @@ export setup;
 
 // TODO: In the future this should be replaced with a turtle file
 // and --db should take a path to it (and maybe others).
-fn setup(state_chan: comm::chan<model::msg>) 
+fn setup(state_chan: comm::chan<model::msg>, poll_rate: u16) 
 {
-	comm::send(state_chan, model::update_msg(~"primary", add_got, ~""));
+	comm::send(state_chan, model::update_msg(~"primary", |store, _data| {add_got(store, state_chan, poll_rate); true}, ~""));
 	add_alerts(state_chan);
 }
 
-fn add_got(store: store, _data: ~str) -> bool
+fn update_got(state_chan: comm::chan<model::msg>, winterfell_loyalty: ~str, wl: f64, kings_landing_loyalty: ~str, kl: f64, poll_rate: u16)
+{
+	libc::funcs::posix88::unistd::sleep(poll_rate as core::libc::types::os::arch::c95::c_uint);
+	
+	let delta = if wl > 0.4f64 && kl > 0.4f64 {-0.01f64} else {0.01f64};
+	let wl = wl + delta;
+	let kl = kl + delta;
+	
+	comm::send(state_chan, model::update_msg(~"primary", 
+		|store, _data|
+		{
+			#info["setting winterfell_loyalty to %?", wl];
+			store.replace_triple(~[], {subject: winterfell_loyalty, predicate: ~"gnos:level", object: float_value(wl)});
+			store.replace_triple(~[], {subject: kings_landing_loyalty, predicate: ~"gnos:level", object: float_value(kl)});
+			true
+		}, ~""));
+		
+	update_got(state_chan, winterfell_loyalty, wl, kings_landing_loyalty, kl, poll_rate);
+}
+
+fn add_got(store: store, state_chan: comm::chan<model::msg>, poll_rate: u16)
 {
 	// map
 	store.add(~"gnos:map", ~[
@@ -151,7 +171,8 @@ fn add_got(store: store, _data: ~str) -> bool
 		(~"gnos:open",     string_value(~"no", ~"")),
 	]);
 	
-	true
+	//do task::spawn_sched(task::manual_threads(2))
+	do task::spawn {update_got(state_chan, winterfell_loyalty, 0.6f64, kings_landing_loyalty, 0.9f64, poll_rate);}
 }
 
 fn add_alerts(state_chan: comm::chan<model::msg>) -> bool

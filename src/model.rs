@@ -1,5 +1,5 @@
 import to_str::to_str;
-import rrdf::{create_store, get_blank_name, store, solution, solution_row_methods,
+import rrdf::{create_store, get_blank_name, store, solution, object, solution_row, solution_row_methods,
 	triple, string_value, int_value, dateTime_value, selector, compile, solution_row_methods, solution_methods,
 	store_methods};
 import rrdf::solution::solution_row_trait;
@@ -20,11 +20,11 @@ type update_fn = fn~ (store: store, data: ~str) -> bool;
 /// server-sent events. Store should be "model" or "alerts".
 enum msg
 {
-	query_msg(~str, ~str, comm::chan<solution>),					// store + SPARQL query + channel to send results back along
-	update_msg(~str, update_fn, ~str),									// store + function to use to update the store + data to use
+	query_msg(~str, ~str, comm::chan<solution>),				// store + SPARQL query + channel to send results back along
+	update_msg(~str, update_fn, ~str),							// store + function to use to update the store + data to use
 	
 	register_msg(~str, ~str, ~[~str], comm::chan<~[solution]>),	// store + key + SPARQL queries + channel to send results back along
-	deregister_msg(~str, ~str),											// store + key
+	deregister_msg(~str, ~str),										// store + key
 }
 
 /// Alerts are conditions that hold for a period of time (e.g. a router off line).
@@ -48,6 +48,8 @@ enum alert_level
 	debug_level,
 }
 
+type registration = {queries: ~[~str], channel: comm::chan<~[solution]>, solutions: @mut ~[solution]};
+
 fn get_standard_store_names() -> ~[~str]
 {
 	ret ~[~"globals", ~"primary", ~"alerts"];
@@ -66,15 +68,13 @@ fn manage_state(port: comm::port<msg>)
 	
 	let stores = std::map::str_hash();
 	let queries = std::map::str_hash();			// query string => compiled query (cache)
-	let mut updaters = std::map::str_hash();	// store name => {query key => (query string, channel<solution>)}
-	let mut listeners = std::map::str_hash();
+	let registered = std::map::str_hash();		// store name => {registrar key => (query string, channel<solution>)}
 	
 	for get_standard_store_names().each
 	|name|
 	{
 		stores.insert(name,  create_store(namespaces, @std::map::str_hash()));
-		updaters.insert(name, std::map::str_hash());
-		listeners.insert(name, std::map::str_hash());
+		registered.insert(name, std::map::str_hash());
 		
 		stores[~"globals"].add_triple(~[], {subject: ~"gnos:globals", predicate: ~"gnos:device", object: string_value(name, ~"")});
 	}
@@ -94,29 +94,20 @@ fn manage_state(port: comm::port<msg>)
 				if f(stores.get(name), data)
 				{
 					#info["Updated %s store", name];
-					let updated = update_updaters(stores.get(name), queries, updaters[name]);
-					updaters.insert(name, updated);
-					if name == ~"alerts"
-					{
-						for iter::eachi(stores.get(name))
-						|i, statement: triple|
-						{
-							#debug["%?: %s", i, statement.to_str()];
-						}
-					}
+					update_registered(stores, name, queries, registered);
 				}
 			}
 			register_msg(name, key, exprs, channel)
 			{
-				let added = listeners[name].insert(key, (exprs, channel));
-				assert added;
-				
 				let solutions = eval_queries(stores.get(name), queries, exprs);
-				comm::send(channel, solutions);
+				comm::send(channel, copy(solutions));
+				
+				let added = registered[name].insert(key, {queries: exprs, channel: channel, solutions: @mut solutions});
+				assert added;
 			}
 			deregister_msg(name, key)
 			{
-				listeners[name].remove(key);
+				registered[name].remove(key);
 			}
 		}
 	}
@@ -243,6 +234,28 @@ fn close_alert(store: store, device: ~str, id: ~str) -> bool
 }
 
 // ---- Internal functions ----------------------------------------------------
+fn update_registered(stores: hashmap<~str, store>, name: ~str, queries: hashmap<~str, selector>, registered: hashmap<~str, hashmap<~str, registration>>)
+{
+	let store = stores.find(name);
+	if store.is_some()
+	{
+		let map = registered.find(name);
+		if option::is_some(map)
+		{
+			for map.get().each_value
+			|r|
+			{
+				let solutions = eval_queries(store.get(), queries, r.queries);
+				if solutions != *r.solutions
+				{
+					comm::send(r.channel, copy(solutions));
+					*r.solutions = solutions;
+				}
+			}
+		}
+	}
+}
+
 fn update_err_count(store: store, device: ~str, delta: i64)
 {
 	alt store.find_object(device, ~"gnos:num_errors")
@@ -323,40 +336,6 @@ fn eval_queries(store: store, queries: hashmap<~str, selector>, exprs: ~[~str]) 
 	}
 }
 
-fn update_updaters(store: store, queries: hashmap<~str, selector>, updaters: hashmap<~str, (~str, comm::chan<solution>)>) -> hashmap<~str, (~str, comm::chan<solution>)>
-{
-	let new_updaters = std::map::str_hash();
-	
-	for updaters.each
-	|key, value|
-	{
-		let (query, channel) = value;
-		let selector = get_selector(queries, query);
-		if option::is_some(selector)
-		{
-			alt option::get(selector)(store)
-			{
-				result::ok(solution)
-				{
-					comm::send(channel, copy(solution));
-					new_updaters.insert(key, (query, channel));
-				}
-				result::err(err)
-				{
-					#error["'%s' failed with %s", query, err];
-					new_updaters.remove(key);
-				}
-			}
-		}
-		else
-		{
-			new_updaters.remove(key);
-		}
-	};
-	
-	ret new_updaters;
-}
-
 fn eval_query(store: store, expr: ~str) -> result::result<solution, ~str>
 {
 	alt compile(expr)
@@ -381,4 +360,3 @@ fn eval_query(store: store, expr: ~str) -> result::result<solution, ~str>
 		}
 	}
 }
-

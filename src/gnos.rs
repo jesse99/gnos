@@ -94,7 +94,7 @@ fn main(args: ~[~str])
 	}
 	else
 	{
-		db::setup(state_chan);
+		db::setup(state_chan, options.poll_rate);
 	}
 	
 	let options1 = copy options;
