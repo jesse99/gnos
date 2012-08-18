@@ -17,9 +17,9 @@ GNOS.styles =
 	},
 	
 	'map':					{fontSize: xlarger},
-	'host':					{lineWidth: 2, strokeStyle: scale_lightness('lightblue', 0.6), fillStyle: 'lightblue', fontSize: smaller},
-	'router':					{lineWidth: 2, strokeStyle: scale_lightness('lavender', 0.8), fillStyle: 'lavender'},
-	'switch':				{lineWidth: 2, strokeStyle: scale_lightness('mistyrose', 0.8), fillStyle: 'mistyrose'},
+	'host':					{lineWidth: 1, strokeStyle: scale_lightness('lavender', 0.8), fillStyle: 'lavender', fontSize: smaller},
+	'router':					{lineWidth: 1, strokeStyle: scale_lightness('PapayaWhip', 0.4), fillStyle: 'PapayaWhip'},
+	'switch':				{lineWidth: 1, strokeStyle: scale_lightness('mistyrose', 0.8), fillStyle: 'mistyrose'},
 	'selection':				{lineWidth: 6, strokeStyle: 'dodgerblue'},
 	
 	'identity':				{},
@@ -35,7 +35,7 @@ GNOS.styles =
 	'label':					{strokeStyle: 'black', fillStyle: 'black'},
 	'primary_label':		{fontWeight: bolder, fontSize: xlarger},
 	'secondary_label':		{},
-	'tertiary_label':			{fontSize: smaller},
+	'tertiary_label':			{fontSize: xsmaller},
 	'error_label':			{strokeStyle: 'red', fillStyle: 'red', fontWeight: bolder, fontSize: larger},
 	
 	'good_level':			{strokeStyle: 'black', fillStyle: 'green'},

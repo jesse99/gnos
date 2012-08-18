@@ -1,9 +1,10 @@
 // This is the code that handles PUTs from the snmp-modeler script. It parses the
 // incoming json, converts it into triplets, and updates the model.
-import model::{msg, update_msg};
+import model::{msg, update_msg, query_msg};
 import options::{options, device};
 import rrdf::{store, string_value, get_blank_name, object, literal_to_object, bool_value, float_value, blank_value, typed_value,
-	int_value, dateTime_value};
+	iri_value, int_value, dateTime_value, solution, solution_row};
+import rrdf::solution::{solution_row_trait};
 import rrdf::store::{base_iter, store_trait};
 
 export put_snmp;
@@ -12,11 +13,37 @@ fn put_snmp(options: options, state_chan: comm::chan<msg>, request: server::requ
 {
 	// Unfortunately we don't send an error back to the modeler if the json was invalid.
 	// Of course that shouldn't happen...
-	#info["got new modeler data"];
 	let addr = request.remote_addr;
+	#info["got new modeler data from %s", addr];
+	
+	// Arguably cleaner to do this inside of json_to_store (or add_device) but we'll deadlock if we try
+	// to do a query inside of an update_mesg callback.
+	let old = query_old_info(state_chan);
+	
 	let ooo = copy(options);
-	comm::send(state_chan, update_msg(~"primary", |s, d| {json_to_store(ooo, addr, s, d)}, request.body));
+	comm::send(state_chan, update_msg(~"primary", |s, d| {json_to_store(ooo, addr, s, d, old)}, request.body));
 	{body: ~"" with response}
+}
+
+fn query_old_info(state_chan: comm::chan<msg>) -> solution
+{
+	let po = comm::port();
+	let ch = comm::chan(po);
+	
+	let query = ~"
+PREFIX gnos: <http://www.gnos.org/2012/schema#>
+SELECT
+	?subject ?old_timestamp ?old_ipInReceives ?old_ipForwDatagrams ?old_ipInDelivers
+WHERE
+{
+	?subject gnos:old_timestamp ?old_timestamp .
+	?subject gnos:old_ipInReceives ?old_ipInReceives .
+	?subject gnos:old_ipForwDatagrams ?old_ipForwDatagrams .
+	?subject gnos:old_ipInDelivers ?old_ipInDelivers .
+}";
+	
+	comm::send(state_chan, query_msg(~"primary", query, ch));
+	comm::recv(po)
 }
 
 // Format is:
@@ -36,7 +63,7 @@ fn put_snmp(options: options, state_chan: comm::chan<msg>, request: server::requ
 //    },
 //    ...
 // }
-fn json_to_store(options: options, remote_addr: ~str, store: store, body: ~str) -> bool
+fn json_to_store(options: options, remote_addr: ~str, store: store, body: ~str, old: solution) -> bool
 {
 	alt std::json::from_str(body)
 	{
@@ -57,7 +84,7 @@ fn json_to_store(options: options, remote_addr: ~str, store: store, body: ~str) 
 						{
 							std::json::dict(device)
 							{
-								add_device(store, options.devices, managed_ip, device);
+								add_device(store, options.devices, managed_ip, device, old);
 							}
 							_
 							{
@@ -102,23 +129,32 @@ fn json_to_store(options: options, remote_addr: ~str, store: store, body: ~str) 
 // "sysLocation": "air", 
 // "sysName": "GRS", 
 // "sysUpTime": "5080354"
-fn add_device(store: store, devices: ~[device], managed_ip: ~str, device: std::map::hashmap<~str, std::json::json>)
+fn add_device(store: store, devices: ~[device], managed_ip: ~str, device: std::map::hashmap<~str, std::json::json>, old: solution)
 {
 	alt devices.find(|d| {d.managed_ip == managed_ip})
 	{
 		option::some(jdevice)
 		{
+			let old_subject = option::some(iri_value(~"http://network/" + managed_ip));
+			let old_row = old.find(|r| {r.search(~"subject") == old_subject});
+			
 			let entries = ~[
 				(~"gnos:center_x", float_value(jdevice.center_x as f64)),
 				(~"gnos:center_y", float_value(jdevice.center_y as f64)),
 				(~"gnos:style", string_value(jdevice.style, ~"")),
 				
 				(~"gnos:primary_label", string_value(jdevice.name, ~"")),
-				(~"gnos:secondary_label", string_value(managed_ip, ~"")),		// TODO: do we want this?
-				(~"gnos:tertiary_label", string_value(get_device_label(device), ~"")),
+				(~"gnos:secondary_label", string_value(managed_ip, ~"")),
+				(~"gnos:tertiary_label", string_value(get_device_label(device, old_row).trim(), ~"")),
+				
+				// These are undocumented because they not intended to be used by clients.
+				(~"gnos:old_timestamp", float_value(utils::imprecise_time_s() as f64)),
+				(~"gnos:old_ipInReceives", int_value(get_snmp_i64(device, ~"ipInReceives", 0))),
+				(~"gnos:old_ipForwDatagrams", int_value(get_snmp_i64(device, ~"ipForwDatagrams", 0))),
+				(~"gnos:old_ipInDelivers", int_value(get_snmp_i64(device, ~"ipInDelivers", 0))),
 			];
 			
-			let subject = #fmt["http://:%s", managed_ip];
+			let subject = #fmt["devices:%s", managed_ip];
 			store.add(subject, entries);
 		}
 		option::none
@@ -128,14 +164,17 @@ fn add_device(store: store, devices: ~[device], managed_ip: ~str, device: std::m
 	};
 }
 
-fn get_device_label(device: std::map::hashmap<~str, std::json::json>) -> ~str
+fn get_device_label(device: std::map::hashmap<~str, std::json::json>, old: option::option<solution_row>) -> ~str
 {
-	get_device_label_component(device, ~"ipInReceives", ~"received") +
-	get_device_label_component(device, ~"ipForwDatagrams", ~"forwarded") +
-	get_device_label_component(device, ~"ipInDelivers", ~"delivered")
+	let old_timestamp = if old.is_some() {old.get().get(~"old_timestamp").as_f64()} else {0.0 as f64};
+	let delta_s = utils::imprecise_time_s() as f64 - old_timestamp;
+	
+	get_device_label_component(device, ~"ipInReceives", ~"recv", old, delta_s) +
+	get_device_label_component(device, ~"ipForwDatagrams", ~"for", old, delta_s) +
+	get_device_label_component(device, ~"ipInDelivers", ~"del", old, delta_s)
 }
 
-fn get_device_label_component(device: std::map::hashmap<~str, std::json::json>, key: ~str, label: ~str) -> ~str
+fn get_device_label_component(device: std::map::hashmap<~str, std::json::json>, key: ~str, label: ~str, old: option::option<solution_row>, delta_s: f64) -> ~str
 {
 	alt lookup(device, key, ~"")
 	{
@@ -145,7 +184,20 @@ fn get_device_label_component(device: std::map::hashmap<~str, std::json::json>, 
 		}
 		value
 		{
-			#fmt["%s: %s\n", label, value]
+			let new_value = i64::from_str(value).get() as f64;
+			let new_str_value = utils::i64_to_unit_str(new_value as i64);
+			
+			let old_value = if old.is_some() {old.get().get(~"old_" + key).as_f64()} else {0.0 as f64};
+			if old_value > 0.0f64
+			{
+				let pps = (new_value - old_value)/delta_s;
+				let pps_str_value = utils::i64_to_unit_str(pps as i64);
+				#fmt["%s: %sp %spps\n", label, new_str_value, pps_str_value]
+			}
+			else
+			{
+				#fmt["%s: %sp\n", label, new_str_value]
+			}
 		}
 	}
 }
@@ -251,6 +303,32 @@ fn get_device_label_component(device: std::map::hashmap<~str, std::json::json>, 
 //	store.add(subject, entries);
 //	ret subject;
 //}
+
+fn get_snmp_i64(table: std::map::hashmap<~str, std::json::json>, key: ~str, default: i64) -> i64
+{
+	alt lookup(table, key, ~"")
+	{
+		~""
+		{
+			default
+		}
+		text
+		{
+			alt i64::from_str(text)
+			{
+				option::some(value)
+				{
+					value
+				}
+				option::none
+				{
+					#error["%s was %s, but expected an int", key, text];
+					default
+				}
+			}
+		}
+	}
+}
 
 // Lookup an SNMP value.
 fn lookup(table: std::map::hashmap<~str, std::json::json>, key: ~str, default: ~str) -> ~str

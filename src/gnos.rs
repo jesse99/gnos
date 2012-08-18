@@ -62,7 +62,7 @@ fn update_globals(store: rrdf::store, options: options::options) -> bool
 		(~"gnos:debug", rrdf::bool_value(true)),		// TODO: get this from command line
 	]);
 	
-	let devices = vec::zip(vec::from_elem(options.devices.len(), ~"gnos:device"), do options.devices.map |n| {rrdf::iri_value(n.managed_ip)});
+	let devices = vec::zip(vec::from_elem(options.devices.len(), ~"gnos:device"), do options.devices.map |n| {rrdf::string_value(n.managed_ip, ~"")});
 	store.add(~"gnos:globals", devices);
 	
 	let names = model::get_standard_store_names();

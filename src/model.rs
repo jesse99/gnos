@@ -76,7 +76,7 @@ fn manage_state(port: comm::port<msg>)
 		stores.insert(name,  create_store(namespaces, @std::map::str_hash()));
 		registered.insert(name, std::map::str_hash());
 		
-		stores[~"globals"].add_triple(~[], {subject: ~"gnos:globals", predicate: ~"gnos:device", object: string_value(name, ~"")});
+		//stores[~"globals"].add_triple(~[], {subject: ~"gnos:globals", predicate: ~"gnos:device", object: string_value(name, ~"")});
 	}
 	
 	loop
