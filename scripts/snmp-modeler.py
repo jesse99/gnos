@@ -11,7 +11,7 @@
 # to an arbitrary LAN.
 # 4) This design makes it easy for users to write custom modelers using ssh
 # or whatever.
-import json, itertools, httplib, logging, logging.handlers, sys, time
+import json, itertools, httplib, logging, logging.handlers, socket, sys, time
 
 try:
 	import argparse
@@ -293,7 +293,7 @@ class Poll(object):
 				sys.exit(3)
 		except Exception as e:
 			address = "%s:%s" % (self.__config['server'], self.__config['port'])
-			logger.error("Error PUTing to %s:%s: %s" % (address, self.__config['path'], e), exc_info = True)
+			logger.error("Error PUTing to %s:%s: %s" % (address, self.__config['path'], e), exc_info = type(e) != socket.error)
 			#self.__connection.close()
 			#self.__connection = httplib.HTTPConnection(self.__config['server'], strict = True, timeout = 10)
 			sys.exit(3)
