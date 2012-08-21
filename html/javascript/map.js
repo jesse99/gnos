@@ -703,7 +703,7 @@ function DeviceShape(context, name, center, base_styles, shapes)
 	{
 		return value + shape.height;
 	}, 0);
-	var radius = 1.2 * Math.max(this.total_height, width)/2;
+	var radius = 1.3 * Math.max(this.total_height, width)/2;
 	
 	this.disc = new DiscShape(context, new Disc(center, radius), base_styles);
 	this.shapes = shapes;

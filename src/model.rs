@@ -6,13 +6,16 @@ import rrdf::solution::solution_row_trait;
 import rrdf::store::{base_iter, store_trait};
 import rrdf::store::to_str; 
 
-export update_fn, msg, query_msg, update_msg, register_msg, deregister_msg, manage_state, get_state,
+export update_fn, msg, query_msg, update_msg, updates_msg, register_msg, deregister_msg, manage_state, get_state,
 	alert, alert_level, error_level, warning_level, info_level, debug_level, open_alert, close_alert, get_standard_store_names;
 
 /// Function used to update a store within the model task.
 ///
 /// Data can be anything, but is typically json. Return true if the store was updated.
 type update_fn = fn~ (store: store, data: ~str) -> bool;
+
+/// Like update_fn except that it takes multiple stores.
+type updates_fn = fn~ (store: ~[store], data: ~str) -> bool;
 
 /// Enum used to communicate with the model task.
 ///
@@ -22,6 +25,7 @@ enum msg
 {
 	query_msg(~str, ~str, comm::chan<solution>),				// store + SPARQL query + channel to send results back along
 	update_msg(~str, update_fn, ~str),							// store + function to use to update the store + data to use
+	updates_msg(~[~str], updates_fn, ~str),						// stores + function to use to update the stores + data to use
 	
 	register_msg(~str, ~str, ~[~str], comm::chan<~[solution]>),	// store + key + SPARQL queries + channel to send results back along
 	deregister_msg(~str, ~str),										// store + key
@@ -52,7 +56,7 @@ type registration = {queries: ~[~str], channel: comm::chan<~[solution]>, solutio
 
 fn get_standard_store_names() -> ~[~str]
 {
-	ret ~[~"globals", ~"primary", ~"alerts"];
+	ret ~[~"globals", ~"primary", ~"alerts", ~"snmp"];
 }
 
 /// Runs within a task and manages triple stores holding gnos state.
@@ -63,7 +67,7 @@ fn manage_state(port: comm::port<msg>)
 	let namespaces = ~[
 		{prefix: ~"devices", path: ~"http://network/"},
 		{prefix: ~"gnos", path: ~"http://www.gnos.org/2012/schema#"},
-		{prefix: ~"snmp", path: ~"http://www.gnos.org/2012/snmp/"},
+		{prefix: ~"snmp", path: ~"http://snmp/"},
 	];
 	
 	let stores = std::map::str_hash();
@@ -75,8 +79,6 @@ fn manage_state(port: comm::port<msg>)
 	{
 		stores.insert(name,  create_store(namespaces, @std::map::str_hash()));
 		registered.insert(name, std::map::str_hash());
-		
-		//stores[~"globals"].add_triple(~[], {subject: ~"gnos:globals", predicate: ~"gnos:device", object: string_value(name, ~"")});
 	}
 	
 	loop
@@ -95,6 +97,23 @@ fn manage_state(port: comm::port<msg>)
 				{
 					#info["Updated %s store", name];
 					update_registered(stores, name, queries, registered);
+				}
+			}
+			updates_msg(names, f, data)
+			{
+				// This is a bit of a lame special case, but there are some advantages:
+				// 1) It allows multiple stores to be updated atomically.
+				// 2) At the moment json is not sendable so we can use this message to avoid re-parsing
+				// the (potentially very large) json strings modelers send us.
+				let ss = do names.map |name| {stores.get(name)};
+				if f(ss, data)
+				{
+					#info["Updated %s stores", str::connect(names, ~", ")];
+					for names.each
+					|name|
+					{
+						update_registered(stores, name, queries, registered);
+					}
 				}
 			}
 			register_msg(name, key, exprs, channel)
