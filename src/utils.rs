@@ -78,7 +78,7 @@ fn imprecise_time_s() -> float
 // Takes an integer value and returns a string like "234", "200K", "3.2M", etc.
 fn i64_to_unit_str(value: i64) -> ~str
 {
-	if value < 1024
+	if value < 10*1024
 	{
 		#fmt["%?", value]
 	}

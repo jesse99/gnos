@@ -165,6 +165,12 @@ fn add_device(store: store, devices: ~[device], managed_ip: ~str, device: std::m
 			
 			let subject = #fmt["devices:%s", managed_ip];
 			store.add(subject, entries);
+			
+			let interfaces = device.find(~"interfaces");
+			if interfaces.is_some()
+			{
+				add_interfaces(store, managed_ip, interfaces.get());
+			}
 		}
 		option::none
 		{
@@ -185,12 +191,109 @@ fn add_device_notes(store: store, managed_ip: ~str, _device: std::map::hashmap<~
 	
 	let subject = get_blank_name(store, ~"summary");
 	store.add(subject, ~[
-		(~"gnos:title",       string_value(~"device notes", ~"")),
+		(~"gnos:title",       string_value(~"notes", ~"")),
 		(~"gnos:target",    iri_value(#fmt["devices:%s", managed_ip])),
 		(~"gnos:detail",    string_value(html, ~"")),
-		(~"gnos:weight",  float_value(0.1f64)),
+		(~"gnos:weight",  float_value(0.9f64)),
 		(~"gnos:open",     string_value(~"no", ~"")),
 	]);
+}
+
+fn add_interfaces(store: store, managed_ip: ~str, data: std::json::json)
+{
+	alt data
+	{
+		std::json::list(interfaces)
+		{
+			for interfaces.each
+			|interface|
+			{
+				alt interface
+				{
+					std::json::dict(d)
+					{
+						add_interface(store, managed_ip, d);
+					}
+					_
+					{
+						#error["interface from device %s was expected to be a dict but is %?", managed_ip, interface];
+					}
+				}
+			}
+		}
+		_
+		{
+			#error["interfaces from device %s was expected to be a list but is %?", managed_ip, data];
+		}
+	}
+}
+
+// ifLastChange:		"1504"		uptime device entered current state 
+// 
+// in octets: 10Mb, 1Mbps
+// in unicast: 152Kp, 2Kpps
+// out octets: 9Mbp, 2Mbps
+// out unicast: 151Kp, 5Kpps
+// 
+// &uarr;
+// &darr;
+fn add_interface(store: store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::json>)
+{
+	//let admin_status = lookup(interface, ~"ifAdminStatus", ~"missing");
+	let oper_status = lookup(interface, ~"ifOperStatus", ~"missing");
+	if oper_status.contains(~"(1)")
+	{
+		let ip = lookup(interface, ~"ipAdEntAddr", ~"?.?.?.?");
+		let name = lookup(interface, ~"ifDescr", ~"eth?");
+
+		let mut html = ~"";
+		html += ~"<p class='details'>\n";
+		html += get_int_value(interface, ~"speed", ~"ifSpeed", ~"bps");
+		html += get_int_value(interface, ~"mtu", ~"ifMtu", ~"B");
+		html += get_str_value(interface, ~"net mask", ~"ipAdEntNetMask");
+		html += get_str_value(interface, ~"mac addr", ~"ifPhysAddress");
+		html += get_int_value(interface, ~"in bytes", ~"ifInOctets", ~"bps");	// TODO: include delta
+		html += get_int_value(interface, ~"in unicast", ~"ifInUcastPkts", ~"p");	// TODO: might want to include an arrow or a color to indicate direction
+		html += get_int_value(interface, ~"out bytes", ~"ifOutOctets", ~"bps");
+		html += get_int_value(interface, ~"out unicast", ~"ifOutUcastPkts", ~"p");
+		html += #fmt["<a href='./subject/snmp/snmp:%s-%s'>SNMP</a>\n", ip, name];
+		html += ~"</p>\n";
+		
+		let subject = get_blank_name(store, ~"interface");
+		store.add(subject, ~[
+			(~"gnos:title",       string_value(#fmt["%s %s", ip, name], ~"")),
+			(~"gnos:target",    iri_value(#fmt["devices:%s", managed_ip])),
+			(~"gnos:detail",    string_value(html, ~"")),
+			(~"gnos:weight",  float_value(0.2f64)),			// TODO: munge name into weight
+			(~"gnos:open",     string_value(~"no", ~"")),
+		]);
+	}
+}
+
+fn get_int_value(data: std::map::hashmap<~str, std::json::json>, label: ~str, key: ~str, units: ~str) -> ~str
+{
+	let value = get_snmp_i64(data, key, 0);
+	if value > 0
+	{
+		#fmt["<strong>%s:</strong> %s%s<br>\n", label, utils::i64_to_unit_str(value), units]
+	}
+	else
+	{
+		~""
+	}
+}
+
+fn get_str_value(data: std::map::hashmap<~str, std::json::json>, label: ~str, key: ~str) -> ~str
+{
+	let value = lookup(data, key, ~"");
+	if value.is_not_empty()
+	{
+		#fmt["<strong>%s:</strong> %s<br>\n", label, value]
+	}
+	else
+	{
+		~""
+	}
 }
 
 fn get_device_label(device: std::map::hashmap<~str, std::json::json>, old: option::option<solution_row>) -> ~str
