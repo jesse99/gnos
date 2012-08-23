@@ -245,7 +245,7 @@ function register_selection_query(name)
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 														\
-	?title ?detail ?open											\
+	?title ?detail ?open	?weight								\
 WHERE 														\
 {																\
 	?details gnos:title ?title .									\
@@ -253,7 +253,7 @@ WHERE 														\
 	?details gnos:detail ?detail .								\
 	?details gnos:weight ?weight .								\
 	?details gnos:open ?open 									\
-}  ORDER BY DESC(?weight) ASC(?title)'.format(name);
+}  ORDER BY ASC(?weight) ASC(?title)'.format(name);
 
 	GNOS.selection_source = new EventSource('/query?name=primary&expr={0}'.
 		format(encodeURIComponent(expr)));
@@ -261,7 +261,7 @@ WHERE 														\
 	{
 		GNOS.alert_data = {};
 		var data = JSON.parse(event.data);
-		console.log("found {0} details for {1}".format(data.length, name));
+		//console.log("found {0} details for {1}".format(data.length, name));
 		
 		var details = [];
 		for (var i = 0; i < data.length; ++i)

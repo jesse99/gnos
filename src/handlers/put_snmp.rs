@@ -245,18 +245,18 @@ fn add_interface(store: store, managed_ip: ~str, interface: std::map::hashmap<~s
 	{
 		let ip = lookup(interface, ~"ipAdEntAddr", ~"?.?.?.?");
 		let name = lookup(interface, ~"ifDescr", ~"eth?");
-
+		
 		let mut html = ~"";
 		html += ~"<p class='details'>\n";
-		html += get_int_value(interface, ~"speed", ~"ifSpeed", ~"bps");
-		html += get_int_value(interface, ~"mtu", ~"ifMtu", ~"B");
-		html += get_str_value(interface, ~"net mask", ~"ipAdEntNetMask");
-		html += get_str_value(interface, ~"mac addr", ~"ifPhysAddress");
-		html += get_int_value(interface, ~"in bytes", ~"ifInOctets", ~"bps");	// TODO: include delta
-		html += get_int_value(interface, ~"in unicast", ~"ifInUcastPkts", ~"p");	// TODO: might want to include an arrow or a color to indicate direction
-		html += get_int_value(interface, ~"out bytes", ~"ifOutOctets", ~"bps");
-		html += get_int_value(interface, ~"out unicast", ~"ifOutUcastPkts", ~"p");
-		html += #fmt["<a href='./subject/snmp/snmp:%s-%s'>SNMP</a>\n", ip, name];
+			html += get_int_value(interface, ~"speed", ~"ifSpeed", ~"bps");
+			html += get_int_value(interface, ~"mtu", ~"ifMtu", ~"B");
+			html += get_str_value(interface, ~"net mask", ~"ipAdEntNetMask");
+			html += get_str_value(interface, ~"mac addr", ~"ifPhysAddress");
+			html += get_int_value(interface, ~"in bytes", ~"ifInOctets", ~"bps");
+			html += get_int_value(interface, ~"in unicast", ~"ifInUcastPkts", ~"p");
+			html += get_int_value(interface, ~"out bytes", ~"ifOutOctets", ~"bps");
+			html += get_int_value(interface, ~"out unicast", ~"ifOutUcastPkts", ~"p");
+			html += #fmt["<a href='./subject/snmp/snmp:%s-%s'>SNMP</a>\n", ip, name];
 		html += ~"</p>\n";
 		
 		let subject = get_blank_name(store, ~"interface");
@@ -264,10 +264,31 @@ fn add_interface(store: store, managed_ip: ~str, interface: std::map::hashmap<~s
 			(~"gnos:title",       string_value(#fmt["%s %s", ip, name], ~"")),
 			(~"gnos:target",    iri_value(#fmt["devices:%s", managed_ip])),
 			(~"gnos:detail",    string_value(html, ~"")),
-			(~"gnos:weight",  float_value(0.2f64)),			// TODO: munge name into weight
+			(~"gnos:weight",  float_value(0.8f64 + get_name_weight(name))),
 			(~"gnos:open",     string_value(~"no", ~"")),
 		]);
 	}
+}
+
+// Sort eth1 after eth0 and lo0 after eth0.
+fn get_name_weight(name: ~str) -> f64
+{
+	let major = (name[0] as u8 - 'A' as u8) as f64;
+	let minor = do str::bytes(name).foldl(0.0f64) 
+	|sum, c|
+	{
+		let digit = char::to_digit(c as char, 10);
+		if digit.is_some()
+		{
+			10.0f64*sum + digit.get() as f64
+		}
+		else
+		{
+			sum
+		}
+	};
+	
+	0.001f64*major + 0.0001f64*minor
 }
 
 fn get_int_value(data: std::map::hashmap<~str, std::json::json>, label: ~str, key: ~str, units: ~str) -> ~str
