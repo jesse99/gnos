@@ -19,9 +19,8 @@ The schema is defined with the aid of a couple of different namespace prefixes:\
 
 \b \cf0 devices
 \b0  - http://network/\
-\pard\pardeftab480\pardirnatural
 
-\b \cf0 gnos
+\b gnos
 \b0  - http://www.gnos.org/2012/schema#\
 
 \b xsd
@@ -31,14 +30,16 @@ The schema is defined with the aid of a couple of different namespace prefixes:\
 \b\fs50 Map\
 
 \fs36 gnos:map\
+\pard\pardeftab480\pardirnatural
 
-\b0 gnos:poll_interval		xsd:integer		30 (seconds)\
+\b0 \cf0 gnos:poll_interval		xsd:integer		30 (seconds)\
 \
 												zero or one\
 gnos:last_update		xsd:dateTime\
 \
+\pard\pardeftab480\pardirnatural
 
-\b\fs50 Devices\
+\b\fs50 \cf0 Devices\
 
 \fs36 devices:10.1.0.1\
 
@@ -82,12 +83,17 @@ gnos:description			xsd:string			"snapshot of CPU usage"\
 \b\fs50 Details\
 
 \fs36 _:summary1\
+\pard\pardeftab480\pardirnatural
 
-\b0 gnos:title					xsd:string			"10.1.0.1 SNMP" (can be empty)\
+\b0 \cf0 gnos:title					xsd:string			"10.1.0.1 SNMP" (can be empty)\
 gnos:device				xsd:iri				devices:10.1.0.1\
-\ul gnos:detail\ulnone 				xsd:string			(html with SNMP keys and values)\
+\pard\pardeftab480\pardirnatural
+\cf0 \ul \ulc0 gnos:detail\ulnone 				xsd:string			(html with SNMP keys and values)\
 gnos:weight				xsd:float			0.1 (larger values are displayed first)\
-gnos:open				xsd:string			"always", "yes", or "no" (uses disclosure widget if not "always")\
+\pard\pardeftab480\pardirnatural
+\cf0 gnos:open				xsd:string			"always", "yes", or "no" (uses disclosure widget if not "always")\
+\pard\pardeftab480\pardirnatural
+\cf0 gnos:key					xsd:string			arbitrary text (used by the client to keep widgets open on refresh)\
 \
 Note that style objects can cascade styles by separating each style with a space. \
 Underlined predicates represent primary key sort of names.\

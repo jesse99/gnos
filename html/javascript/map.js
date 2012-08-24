@@ -11,6 +11,7 @@ GNOS.last_update = undefined;
 GNOS.poll_interval = undefined;
 GNOS.update_shape = null;
 GNOS.timer_id = undefined;
+GNOS.opened = {};
 
 // Thresholds for different meter levels.
 GNOS.good_level		= 0.0;
@@ -245,14 +246,15 @@ function register_selection_query(name)
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 														\
-	?title ?detail ?open	?weight								\
+	?title ?detail ?open	?weight ?key							\
 WHERE 														\
 {																\
 	?details gnos:title ?title .									\
 	?details gnos:target <{0}> .								\
 	?details gnos:detail ?detail .								\
 	?details gnos:weight ?weight .								\
-	?details gnos:open ?open 									\
+	?details gnos:open ?open .									\
+	?details gnos:key ?key 									\
 }  ORDER BY ASC(?weight) ASC(?title)'.format(name);
 
 	GNOS.selection_source = new EventSource('/query?name=primary&expr={0}'.
@@ -295,7 +297,7 @@ WHERE 														\
 	});
 }
 
-// details has title, detail, and open properties
+// details has title, detail, open, and key properties
 function details_to_html(details)
 {
 	if (details.open === "always")
@@ -304,12 +306,14 @@ function details_to_html(details)
 	}
 	else
 	{
-		if (details.open === "yes")
-			var html = '<details open="open">\n';
-		else if (details.open === "no")
-			var html = '<details>\n';
+		var open = GNOS.opened[details.key] || details.open === "yes";
+		GNOS.opened[details.key] = open;
+		
+		var handler = "GNOS.opened['{0}'] = !GNOS.opened['{0}']".format(details.key);
+		if (open)
+			var html = '<details open="open" onclick = "{0}">\n'.format(handler);
 		else
-			assert(false, "details.open was " + details.open);
+			var html = '<details onclick = "{0}">\n'.format(handler);
 			
 		if (details.title)
 			html += '<summary>{0}</summary>\n'.format(details.title);

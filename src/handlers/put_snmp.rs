@@ -200,6 +200,7 @@ fn add_device_notes(store: store, managed_ip: ~str, _device: std::map::hashmap<~
 		(~"gnos:detail",    string_value(html, ~"")),
 		(~"gnos:weight",  float_value(0.9f64)),
 		(~"gnos:open",     string_value(~"no", ~"")),
+		(~"gnos:key",    	 string_value(~"device notes", ~"")),
 	]);
 }
 
@@ -262,6 +263,7 @@ fn add_interfaces(store: store, managed_ip: ~str, data: std::json::json, old: so
 				(~"gnos:detail",    string_value(html, ~"")),
 				(~"gnos:weight",  float_value(0.8f64)),
 				(~"gnos:open",     string_value(~"no", ~"")),
+				(~"gnos:key",       string_value(~"interfaces", ~"")),
 			]);
 		}
 		_

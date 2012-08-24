@@ -1,7 +1,7 @@
 {
 	"poll-rate": 20,
 	"client": "10.8.0.179",
-	"server": "10.6.210.178",
+	"server": "10.6.210.179",
 	"port": 8080,
 	"path": "/snmp-modeler",
 	"devices":
