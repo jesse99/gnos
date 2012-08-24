@@ -1,6 +1,6 @@
 import std::getopts::*;
 
-export scp_files, run_remote_command, list_dir_path, imprecise_time_s, i64_to_unit_str;
+export scp_files, run_remote_command, list_dir_path, imprecise_time_s, i64_to_unit_str, f64_to_unit_str;
 
 /// Returns an error if the files cannot be copied.
 fn scp_files(files: ~[~str], user: ~str, host: ~str) -> option::option<~str>
@@ -73,6 +73,19 @@ fn imprecise_time_s() -> float
 	let secs = time.sec as float;
 	let secs = secs + (time.nsec as float)/1000_000_000.0;
 	ret secs;
+}
+
+// Takes a floating point value and returns a string like "234", "200K", "3.2M", etc.
+fn f64_to_unit_str(value: f64) -> ~str
+{
+	if value < 1.0f64
+	{
+		#fmt["%.1f", value as float]
+	}
+	else
+	{
+		i64_to_unit_str(value as i64)
+	}
 }
 
 // Takes an integer value and returns a string like "234", "200K", "3.2M", etc.

@@ -68,6 +68,7 @@ fn manage_state(port: comm::port<msg>)
 		{prefix: ~"devices", path: ~"http://network/"},
 		{prefix: ~"gnos", path: ~"http://www.gnos.org/2012/schema#"},
 		{prefix: ~"snmp", path: ~"http://snmp/"},
+		{prefix: ~"sname", path: ~"http://snmp-name/"},
 	];
 	
 	let stores = std::map::str_hash();

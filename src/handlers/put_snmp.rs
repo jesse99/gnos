@@ -64,18 +64,20 @@ fn query_old_info(state_chan: comm::chan<msg>) -> solution
 	
 	let query = ~"
 PREFIX gnos: <http://www.gnos.org/2012/schema#>
+PREFIX sname: <http://snmp-name/>
 SELECT
-	?subject ?old_timestamp ?old_ipInReceives ?old_ipForwDatagrams ?old_ipInDelivers
+	?subject ?name ?value
 WHERE
 {
-	?subject gnos:old_timestamp ?old_timestamp .
-	?subject gnos:old_ipInReceives ?old_ipInReceives .
-	?subject gnos:old_ipForwDatagrams ?old_ipForwDatagrams .
-	?subject gnos:old_ipInDelivers ?old_ipInDelivers .
+	?subject gnos:internal-info ?old .
+	?old ?predicate ?value .
+	BIND(rrdf:pname(?predicate) AS ?name) 
 }";
 	
 	comm::send(state_chan, query_msg(~"primary", query, ch));
-	comm::recv(po)
+	let solution = comm::recv(po);
+	//for solution.eachi |i, r| {#error["%?: %?", i, r]}
+	solution
 }
 
 // Format is:
@@ -108,7 +110,8 @@ fn json_to_primary(options: options, remote_addr: ~str, store: store, data: std:
 		{
 			std::json::dict(device)
 			{
-				add_device(store, options.devices, managed_ip, device, old);
+				let old_subject = get_blank_name(store, ~"old");
+				add_device(store, options.devices, managed_ip, device, old, old_subject);
 				add_device_notes(store, managed_ip, device);
 			}
 			_
@@ -138,15 +141,12 @@ fn json_to_primary(options: options, remote_addr: ~str, store: store, data: std:
 // "sysLocation": "closet", 
 // "sysName": "Router", 
 // "sysUpTime": "5080354"
-fn add_device(store: store, devices: ~[device], managed_ip: ~str, device: std::map::hashmap<~str, std::json::json>, old: solution)
+fn add_device(store: store, devices: ~[device], managed_ip: ~str, device: std::map::hashmap<~str, std::json::json>, old: solution, old_subject: ~str)
 {
 	alt devices.find(|d| {d.managed_ip == managed_ip})
 	{
 		option::some(options_device)
 		{
-			let old_subject = option::some(iri_value(~"http://network/" + managed_ip));
-			let old_row = old.find(|r| {r.search(~"subject") == old_subject});
-			
 			let entries = ~[
 				(~"gnos:center_x", float_value(options_device.center_x as f64)),
 				(~"gnos:center_y", float_value(options_device.center_y as f64)),
@@ -154,22 +154,26 @@ fn add_device(store: store, devices: ~[device], managed_ip: ~str, device: std::m
 				
 				(~"gnos:primary_label", string_value(options_device.name, ~"")),
 				(~"gnos:secondary_label", string_value(managed_ip, ~"")),
-				(~"gnos:tertiary_label", string_value(get_device_label(device, old_row).trim(), ~"")),
-				
-				// These are undocumented because they not intended to be used by clients.
-				(~"gnos:old_timestamp", float_value(utils::imprecise_time_s() as f64)),
-				(~"gnos:old_ipInReceives", int_value(get_snmp_i64(device, ~"ipInReceives", 0))),
-				(~"gnos:old_ipForwDatagrams", int_value(get_snmp_i64(device, ~"ipForwDatagrams", 0))),
-				(~"gnos:old_ipInDelivers", int_value(get_snmp_i64(device, ~"ipInDelivers", 0))),
+				(~"gnos:tertiary_label", string_value(get_device_label(device, managed_ip, old).trim(), ~"")),
 			];
-			
 			let subject = #fmt["devices:%s", managed_ip];
 			store.add(subject, entries);
+			
+			// These are undocumented because they not intended to be used by clients.
+			store.add_triple(~[], {subject: subject, predicate: ~"gnos:internal-info", object: blank_value(old_subject)});
+			
+			let entries = ~[
+				(~"gnos:timestamp", float_value(utils::imprecise_time_s() as f64)),
+				(~"sname:ipInReceives", int_value(get_snmp_i64(device, ~"ipInReceives", 0))),
+				(~"sname:ipForwDatagrams", int_value(get_snmp_i64(device, ~"ipForwDatagrams", 0))),
+				(~"sname:ipInDelivers", int_value(get_snmp_i64(device, ~"ipInDelivers", 0))),
+			];
+			store.add(old_subject, entries);
 			
 			let interfaces = device.find(~"interfaces");
 			if interfaces.is_some()
 			{
-				add_interfaces(store, managed_ip, interfaces.get());
+				add_interfaces(store, managed_ip, interfaces.get(), old, old_subject);
 			}
 		}
 		option::none
@@ -199,7 +203,19 @@ fn add_device_notes(store: store, managed_ip: ~str, _device: std::map::hashmap<~
 	]);
 }
 
-fn add_interfaces(store: store, managed_ip: ~str, data: std::json::json)
+fn get_device_label(device: std::map::hashmap<~str, std::json::json>, managed_ip: ~str, old: solution) -> ~str
+{
+	let old_url = option::some(iri_value(~"http://network/" + managed_ip));
+	
+	let old_timestamp = get_old_f64(old_url, ~"gnos:timestamp", old);
+	let delta_s = utils::imprecise_time_s() as f64 - old_timestamp;
+	
+	~"recv: " + get_per_second_value(device, ~"ipInReceives", old_url, ~"sname:ipInReceives", old, delta_s, ~"p") +
+	~"fwd: " + get_per_second_value(device, ~"ipForwDatagrams", old_url, ~"sname:ipForwDatagrams", old, delta_s, ~"p") +
+	~"del: " + get_per_second_value(device, ~"ipInDelivers", old_url, ~"sname:ipInDelivers", old, delta_s, ~"p")
+}
+
+fn add_interfaces(store: store, managed_ip: ~str, data: std::json::json, old: solution, old_subject: ~str)
 {
 	alt data
 	{
@@ -212,7 +228,7 @@ fn add_interfaces(store: store, managed_ip: ~str, data: std::json::json)
 				{
 					std::json::dict(d)
 					{
-						add_interface(store, managed_ip, d);
+						add_interface(store, managed_ip, d, old, old_subject);
 					}
 					_
 					{
@@ -228,16 +244,7 @@ fn add_interfaces(store: store, managed_ip: ~str, data: std::json::json)
 	}
 }
 
-// ifLastChange:		"1504"		uptime device entered current state 
-// 
-// in octets: 10Mb, 1Mbps
-// in unicast: 152Kp, 2Kpps
-// out octets: 9Mbp, 2Mbps
-// out unicast: 151Kp, 5Kpps
-// 
-// &uarr;
-// &darr;
-fn add_interface(store: store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::json>)
+fn add_interface(store: store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::json>, old: solution, old_subject: ~str)
 {
 	//let admin_status = lookup(interface, ~"ifAdminStatus", ~"missing");
 	let oper_status = lookup(interface, ~"ifOperStatus", ~"missing");
@@ -245,6 +252,11 @@ fn add_interface(store: store, managed_ip: ~str, interface: std::map::hashmap<~s
 	{
 		let ip = lookup(interface, ~"ipAdEntAddr", ~"?.?.?.?");
 		let name = lookup(interface, ~"ifDescr", ~"eth?");
+		let prefix = #fmt["sname:%s-", name];
+		
+		let old_url = option::some(iri_value(~"http://network/" + managed_ip));
+		let old_timestamp = get_old_f64(old_url, ~"gnos:timestamp", old);
+		let delta_s = utils::imprecise_time_s() as f64 - old_timestamp;
 		
 		let mut html = ~"";
 		html += ~"<p class='details'>\n";
@@ -252,11 +264,11 @@ fn add_interface(store: store, managed_ip: ~str, interface: std::map::hashmap<~s
 			html += get_int_value(interface, ~"mtu", ~"ifMtu", ~"B");
 			html += get_str_value(interface, ~"net mask", ~"ipAdEntNetMask");
 			html += get_str_value(interface, ~"mac addr", ~"ifPhysAddress");
-			html += get_int_value(interface, ~"in bytes", ~"ifInOctets", ~"bps");
-			html += get_int_value(interface, ~"in unicast", ~"ifInUcastPkts", ~"p");
-			html += get_int_value(interface, ~"out bytes", ~"ifOutOctets", ~"bps");
-			html += get_int_value(interface, ~"out unicast", ~"ifOutUcastPkts", ~"p");
-			html += #fmt["<a href='./subject/snmp/snmp:%s-%s'>SNMP</a>\n", ip, name];
+			html += #fmt["<strong>in:</strong> %s<br>\n", get_per_second_value(interface, ~"ifInOctets", old_url, prefix + ~"ifInOctets", old, delta_s, ~"b")];
+			html += #fmt["<strong>in unicast:</strong> %s<br>\n", get_per_second_value(interface, ~"ifInUcastPkts", old_url, prefix + ~"ifInUcastPkts", old, delta_s, ~"p")];
+			html += #fmt["<strong>out:</strong> %s<br>\n", get_per_second_value(interface, ~"ifOutOctets", old_url, prefix + ~"ifOutOctets", old, delta_s, ~"b")];
+			html += #fmt["<strong>out unicast:</strong> %s<br>\n", get_per_second_value(interface, ~"ifOutUcastPkts", old_url, prefix + ~"ifOutUcastPkts", old, delta_s, ~"p")];
+			html += #fmt["<a href='./subject/snmp/snmp:%s-%s'>SNMP</a>\n", managed_ip, name];
 		html += ~"</p>\n";
 		
 		let subject = get_blank_name(store, ~"interface");
@@ -267,6 +279,15 @@ fn add_interface(store: store, managed_ip: ~str, interface: std::map::hashmap<~s
 			(~"gnos:weight",  float_value(0.8f64 + get_name_weight(name))),
 			(~"gnos:open",     string_value(~"no", ~"")),
 		]);
+		
+		// These are undocumented because they not intended to be used by clients.
+		let entries = ~[
+			(prefix + ~"ifInOctets", int_value(get_snmp_i64(interface, ~"ifInOctets", 0))),
+			(prefix + ~"ifInUcastPkts", int_value(get_snmp_i64(interface, ~"ifInUcastPkts", 0))),
+			(prefix + ~"ifOutOctets", int_value(get_snmp_i64(interface, ~"ifOutOctets", 0))),
+			(prefix + ~"ifOutUcastPkts", int_value(get_snmp_i64(interface, ~"ifOutUcastPkts", 0))),
+		];
+		store.add(old_subject, entries);
 	}
 }
 
@@ -289,6 +310,62 @@ fn get_name_weight(name: ~str) -> f64
 	};
 	
 	0.001f64*major + 0.0001f64*minor
+}
+
+fn get_per_second_value(data: std::map::hashmap<~str, std::json::json>, key: ~str, old_url: option::option<object>, name: ~str, old: solution, delta_s: f64, unit: ~str) -> ~str
+{
+	alt lookup(data, key, ~"")
+	{
+		~""
+		{
+			~"\n"
+		}
+		value
+		{
+			let new_value = i64::from_str(value).get() as f64;
+			let new_str_value = utils::f64_to_unit_str(new_value);
+			
+			let old_value = get_old_f64(old_url, name, old);
+			if old_value > 0.0f64 && delta_s > 1.0f64
+			{
+				// Showing the absolute packet numbers is nearly useless so we'll only
+				// show packets per second if it is available.
+				let pps = (new_value - old_value)/delta_s;
+				let pps_str_value = utils::f64_to_unit_str(pps);
+				#fmt["%s%sps\n", pps_str_value, unit]
+			}
+			else
+			{
+				#fmt["%s%s\n", new_str_value, unit]
+			}
+		}
+	}
+}
+
+fn get_old_f64(old_url: option::option<object>, predicate: ~str, old: solution) -> f64
+{
+	let old_row = old.find(|r| {r.search(~"subject") == old_url && r.search(~"name") == option::some(string_value(predicate, ~""))});
+	if old_row.is_some()
+	{
+		old_row.get().get(~"value").as_f64()
+	}
+	else
+	{
+		0.0f64
+	}
+}
+
+fn get_scaled_int_value(data: std::map::hashmap<~str, std::json::json>, label: ~str, key: ~str, units: ~str, scaling: i64) -> ~str
+{
+	let value = get_snmp_i64(data, key, 0)*scaling;
+	if value > 0
+	{
+		#fmt["<strong>%s:</strong> %s%s<br>\n", label, utils::i64_to_unit_str(value), units]
+	}
+	else
+	{
+		~""
+	}
 }
 
 fn get_int_value(data: std::map::hashmap<~str, std::json::json>, label: ~str, key: ~str, units: ~str) -> ~str
@@ -316,110 +393,6 @@ fn get_str_value(data: std::map::hashmap<~str, std::json::json>, label: ~str, ke
 		~""
 	}
 }
-
-fn get_device_label(device: std::map::hashmap<~str, std::json::json>, old: option::option<solution_row>) -> ~str
-{
-	let old_timestamp = if old.is_some() {old.get().get(~"old_timestamp").as_f64()} else {0.0 as f64};
-	let delta_s = utils::imprecise_time_s() as f64 - old_timestamp;
-	
-	get_device_label_component(device, ~"ipInReceives", ~"recv", old, delta_s) +
-	get_device_label_component(device, ~"ipForwDatagrams", ~"fwd", old, delta_s) +
-	get_device_label_component(device, ~"ipInDelivers", ~"del", old, delta_s)
-}
-
-fn get_device_label_component(device: std::map::hashmap<~str, std::json::json>, key: ~str, label: ~str, old: option::option<solution_row>, delta_s: f64) -> ~str
-{
-	alt lookup(device, key, ~"")
-	{
-		~""
-		{
-			~""
-		}
-		value
-		{
-			let new_value = i64::from_str(value).get() as f64;
-			let new_str_value = utils::i64_to_unit_str(new_value as i64);
-			
-			let old_value = if old.is_some() {old.get().get(~"old_" + key).as_f64()} else {0.0 as f64};
-			if old_value > 0.0f64
-			{
-				let pps = (new_value - old_value)/delta_s;
-				let pps_str_value = utils::i64_to_unit_str(pps as i64);
-				#fmt["%s: %sp %spps\n", label, new_str_value, pps_str_value]
-			}
-			else
-			{
-				#fmt["%s: %sp\n", label, new_str_value]
-			}
-		}
-	}
-}
-
-//fn add_interfaces(store: store, managed_ip: ~str, device: std::map::hashmap<~str, std::json::json>) -> ~[(~str, object)]
-//{
-//	alt device[~"interfaces"]
-//	{
-//		std::json::list(interfaces)
-//		{
-//			do vec::map(*interfaces)
-//			|interface|
-//			{
-//				add_interface(store, managed_ip, interface)
-//			}
-//		}
-//		_
-//		{
-//			#error["Expected list for %s interfaces but found %?", managed_ip, device.get(~"interfaces")];
-//			~[]
-//		}
-//	}
-//}
-
-// "ifAdminStatus": "up(1)", 
-// "ifDescr": "eth3", 
-// "ifInDiscards": "74", 
-// "ifInOctets": "13762376", 
-// "ifInUcastPkts": "155115", 
-// "ifLastChange": "1503", 
-// "ifMtu": "1500", 
-// "ifOperStatus": "up(1)", 
-// "ifOutOctets": "12213444", 
-// "ifOutUcastPkts": "148232", 
-// "ifPhysAddress": "00:30:18:ab:0f:a1", 
-// "ifSpeed": "100000000", 
-// "ifType": "ethernetCsmacd(6)", 
-// "ipAdEntAddr": "10.101.3.2", 
-// "ipAdEntNetMask": "255.255.255.0"
-//fn add_interface(store: store, managed_ip: ~str, data: std::json::json) -> (~str, object)
-//{
-//	alt data
-//	{
-//		std::json::dict(interface)
-//		{
-//			let name = lookup(interface, ~"ifDescr", ~"");
-//			let label = #fmt["%s-%s", managed_ip, name];
-//			
-//			let entries = ~[
-//				(~"gnos:ifname", string_value(name, ~"")),
-//				(~"gnos:ip", string_value(lookup(interface, ~"ipAdEntAddr", ~""), ~"")),
-//				(~"gnos:netmask", string_value(lookup(interface, ~"ipAdEntNetMask", ~""), ~"")),
-//				(~"gnos:mac", string_value(lookup(interface, ~"ifPhysAddress", ~""), ~"")),
-//				(~"gnos:mtu", literal_to_object(lookup(interface, ~"ifMtu", ~""), ~"http://www.w3.org/2001/XMLSchema#integer", ~"")),
-//				(~"gnos:enabled", bool_value(str::contains(lookup(interface, ~"ifOperStatus", ~""), ~"(1)"))),	// TODO: verify that we want this and not ifAdminStatus
-//				(~"gnos:snmp", blank_value(add_snmp(store, label, interface))),
-//			];
-//			
-//			let subject = get_blank_name(store, label);
-//			store.add(subject, entries);
-//			(~"gnos:interface", blank_value(subject))
-//		}
-//		_
-//		{
-//			#error["Expected dict for %s interfaces but found %?", managed_ip, data];
-//			(~"gnos:missing-interface", string_value(~"", ~""))
-//		}
-//	}
-//}
 
 // We store snmp data for various objects in the raw so that views are able to use it
 // and so admins can view the complete raw data.
