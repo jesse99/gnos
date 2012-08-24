@@ -221,6 +221,7 @@ fn add_interfaces(store: store, managed_ip: ~str, data: std::json::json, old: so
 	{
 		std::json::list(interfaces)
 		{
+			let mut rows = ~[];		// [(ifname, html)]
 			for interfaces.each
 			|interface|
 			{
@@ -228,7 +229,7 @@ fn add_interfaces(store: store, managed_ip: ~str, data: std::json::json, old: so
 				{
 					std::json::dict(d)
 					{
-						add_interface(store, managed_ip, d, old, old_subject);
+						vec::push(rows, add_interface(store, managed_ip, d, old, old_subject));
 					}
 					_
 					{
@@ -236,6 +237,32 @@ fn add_interfaces(store: store, managed_ip: ~str, data: std::json::json, old: so
 					}
 				}
 			}
+			let rows = std::sort::merge_sort(|lhs, rhs| {lhs.first() <= rhs.first()}, rows);
+			let hrows = do rows.map |r| {r.second()};
+			
+			let mut html = ~"";
+			html += ~"<table border='1' class = 'details'>\n";
+				html += ~"<tr>\n";
+					html += ~"<th>Name</th>\n";
+					html += ~"<th>IP Address</th>\n";
+					html += ~"<th>In Bytes</th>\n";
+					html += ~"<th>Out Bytes</th>\n";
+					html += ~"<th>Speed</th>\n";
+					html += ~"<th>MAC Address</th>\n";
+					html += ~"<th>MTU</th>\n";
+					html += ~"<th>SNMP</th>\n";
+				html += ~"</tr>\n";
+				html += str::connect(hrows, ~"\n");
+			html += ~"</table>\n";
+			
+			let subject = get_blank_name(store, ~"interfaces");
+			store.add(subject, ~[
+				(~"gnos:title",       string_value(~"interfaces", ~"")),
+				(~"gnos:target",    iri_value(#fmt["devices:%s", managed_ip])),
+				(~"gnos:detail",    string_value(html, ~"")),
+				(~"gnos:weight",  float_value(0.8f64)),
+				(~"gnos:open",     string_value(~"no", ~"")),
+			]);
 		}
 		_
 		{
@@ -244,51 +271,132 @@ fn add_interfaces(store: store, managed_ip: ~str, data: std::json::json, old: so
 	}
 }
 
-fn add_interface(store: store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::json>, old: solution, old_subject: ~str)
+// "ifAdminStatus": "up(1)", 
+// "ifDescr": "eth3", 
+// "ifInDiscards": "74", 
+// "ifInOctets": "13762376", 
+// "ifInUcastPkts": "155115", 
+// "ifLastChange": "1503", 
+// "ifMtu": "1500", 
+// "ifOperStatus": "up(1)", 
+// "ifOutOctets": "12213444", 
+// "ifOutUcastPkts": "148232", 
+// "ifPhysAddress": "00:30:18:ab:0f:a1", 
+// "ifSpeed": "100000000", 
+// "ifType": "ethernetCsmacd(6)", 
+// "ipAdEntAddr": "10.101.3.2", 
+// "ipAdEntNetMask": "255.255.255.0"
+fn add_interface(store: store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::json>, old: solution, old_subject: ~str) -> (~str, ~str)
 {
+	let mut html = ~"";
+	let name = lookup(interface, ~"ifDescr", ~"eth?");
+	
 	//let admin_status = lookup(interface, ~"ifAdminStatus", ~"missing");
 	let oper_status = lookup(interface, ~"ifOperStatus", ~"missing");
 	if oper_status.contains(~"(1)")
 	{
-		let ip = lookup(interface, ~"ipAdEntAddr", ~"?.?.?.?");
-		let name = lookup(interface, ~"ifDescr", ~"eth?");
 		let prefix = #fmt["sname:%s-", name];
 		
 		let old_url = option::some(iri_value(~"http://network/" + managed_ip));
 		let old_timestamp = get_old_f64(old_url, ~"gnos:timestamp", old);
 		let delta_s = utils::imprecise_time_s() as f64 - old_timestamp;
 		
-		let mut html = ~"";
-		html += ~"<p class='details'>\n";
-			html += get_int_value(interface, ~"speed", ~"ifSpeed", ~"bps");
-			html += get_int_value(interface, ~"mtu", ~"ifMtu", ~"B");
-			html += get_str_value(interface, ~"net mask", ~"ipAdEntNetMask");
-			html += get_str_value(interface, ~"mac addr", ~"ifPhysAddress");
-			html += #fmt["<strong>in:</strong> %s<br>\n", get_per_second_value(interface, ~"ifInOctets", old_url, prefix + ~"ifInOctets", old, delta_s, ~"b")];
-			html += #fmt["<strong>in unicast:</strong> %s<br>\n", get_per_second_value(interface, ~"ifInUcastPkts", old_url, prefix + ~"ifInUcastPkts", old, delta_s, ~"p")];
-			html += #fmt["<strong>out:</strong> %s<br>\n", get_per_second_value(interface, ~"ifOutOctets", old_url, prefix + ~"ifOutOctets", old, delta_s, ~"b")];
-			html += #fmt["<strong>out unicast:</strong> %s<br>\n", get_per_second_value(interface, ~"ifOutUcastPkts", old_url, prefix + ~"ifOutUcastPkts", old, delta_s, ~"p")];
-			html += #fmt["<a href='./subject/snmp/snmp:%s-%s'>SNMP</a>\n", managed_ip, name];
-		html += ~"</p>\n";
-		
-		let subject = get_blank_name(store, ~"interface");
-		store.add(subject, ~[
-			(~"gnos:title",       string_value(#fmt["%s %s", ip, name], ~"")),
-			(~"gnos:target",    iri_value(#fmt["devices:%s", managed_ip])),
-			(~"gnos:detail",    string_value(html, ~"")),
-			(~"gnos:weight",  float_value(0.8f64 + get_name_weight(name))),
-			(~"gnos:open",     string_value(~"no", ~"")),
-		]);
+		// TODO: We're not showing ifInUcastPkts and ifOutUcastPkts because bandwidth seems
+		// more important, the table starts to get cluttered when we do, and multicast is at least as
+		// important (to me anyway). I think what we should do is have a link somewhere that
+		// displays a big chart allowing the client to pick which interfaces to display and which
+		// traffic types (of course we'd also have to rely on either some other MIB or something
+		// like Netflow).
+		html += ~"<tr>\n";
+			html += #fmt["<td>%s</td>", name];
+			html += #fmt["<td>%s%s</td>", get_str_cell(interface, ~"ipAdEntAddr"), get_subnet(interface)];
+			html += #fmt["<td>%s</td>", get_per_second_value(interface, ~"ifInOctets", old_url, prefix + ~"ifInOctets", old, delta_s, ~"b")];
+			html += #fmt["<td>%s</td>", get_per_second_value(interface, ~"ifOutOctets", old_url, prefix + ~"ifOutOctets", old, delta_s, ~"b")];
+			html += #fmt["<td>%s</td>", get_int_cell(interface, ~"ifSpeed", ~"bps")];
+			html += #fmt["<td>%s</td>", get_str_cell(interface, ~"ifPhysAddress").to_upper()];
+			html += #fmt["<td>%s</td>", get_int_cell(interface, ~"ifMtu", ~"B")];
+			html += #fmt["<td><a href='./subject/snmp/snmp:%s-%s'>data</a></td>", managed_ip, name];
+		html += ~"\n</tr>\n";
 		
 		// These are undocumented because they not intended to be used by clients.
 		let entries = ~[
 			(prefix + ~"ifInOctets", int_value(get_snmp_i64(interface, ~"ifInOctets", 0))),
-			(prefix + ~"ifInUcastPkts", int_value(get_snmp_i64(interface, ~"ifInUcastPkts", 0))),
 			(prefix + ~"ifOutOctets", int_value(get_snmp_i64(interface, ~"ifOutOctets", 0))),
-			(prefix + ~"ifOutUcastPkts", int_value(get_snmp_i64(interface, ~"ifOutUcastPkts", 0))),
 		];
 		store.add(old_subject, entries);
 	}
+	
+	ret (name, html);
+}
+
+fn get_subnet(interface: std::map::hashmap<~str, std::json::json>) -> ~str
+{
+	alt lookup(interface, ~"ipAdEntNetMask", ~"")
+	{
+		~""
+		{
+			~"/?"
+		}
+		s
+		{
+			let parts = s.split_char('.');
+			let bytes = do parts.map |p| {uint::from_str(p).get()};
+			let mask = do bytes.foldl(0) |sum, current| {256*sum + current};
+			let leading = count_leading_ones(mask);
+			let trailing = count_trailing_zeros(mask);
+			if leading + trailing == 32
+			{
+				#fmt["/%?", leading]
+			}
+			else
+			{
+				// Unusual netmask where 0s and 1s are mixed.
+				#fmt["/%s", s]
+			}
+		}
+	}
+}
+
+fn count_leading_ones(mask: uint) -> int
+{
+	let mut count = 0;
+	
+	let mut bit = 1u << 31;
+	while bit > 0
+	{
+		if mask & bit == bit
+		{
+			count += 1;
+			bit >>= 1;
+		}
+		else
+		{
+			break;
+		}
+	}
+	
+	ret count;
+}
+
+fn count_trailing_zeros(mask: uint) -> int
+{
+	let mut count = 0;
+	
+	let mut bit = 1u;
+	while bit < 1u << 32
+	{
+		if mask & bit == 0
+		{
+			count += 1;
+			bit <<= 1;
+		}
+		else
+		{
+			break;
+		}
+	}
+	
+	ret count;
 }
 
 // Sort eth1 after eth0 and lo0 after eth0.
@@ -368,12 +476,12 @@ fn get_scaled_int_value(data: std::map::hashmap<~str, std::json::json>, label: ~
 	}
 }
 
-fn get_int_value(data: std::map::hashmap<~str, std::json::json>, label: ~str, key: ~str, units: ~str) -> ~str
+fn get_int_cell(data: std::map::hashmap<~str, std::json::json>, key: ~str, units: ~str) -> ~str
 {
 	let value = get_snmp_i64(data, key, 0);
 	if value > 0
 	{
-		#fmt["<strong>%s:</strong> %s%s<br>\n", label, utils::i64_to_unit_str(value), units]
+		#fmt["%s%s", utils::i64_to_unit_str(value), units]
 	}
 	else
 	{
@@ -381,17 +489,9 @@ fn get_int_value(data: std::map::hashmap<~str, std::json::json>, label: ~str, ke
 	}
 }
 
-fn get_str_value(data: std::map::hashmap<~str, std::json::json>, label: ~str, key: ~str) -> ~str
+fn get_str_cell(data: std::map::hashmap<~str, std::json::json>, key: ~str) -> ~str
 {
-	let value = lookup(data, key, ~"");
-	if value.is_not_empty()
-	{
-		#fmt["<strong>%s:</strong> %s<br>\n", label, value]
-	}
-	else
-	{
-		~""
-	}
+	lookup(data, key, ~"")
 }
 
 // We store snmp data for various objects in the raw so that views are able to use it
