@@ -32,4 +32,5 @@ mod handlers
 mod tests
 {
 	mod test_model;
+	mod test_utils;
 }
