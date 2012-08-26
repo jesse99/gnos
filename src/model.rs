@@ -7,7 +7,8 @@ import rrdf::store::{base_iter, store_trait};
 import rrdf::store::to_str; 
 
 export update_fn, msg, query_msg, update_msg, updates_msg, register_msg, deregister_msg, manage_state, get_state, eval_query,
-	alert, alert_level, error_level, warning_level, info_level, debug_level, open_alert, close_alert, get_standard_store_names;
+	alert, alert_level, error_level, warning_level, info_level, debug_level, open_alert, close_alert, get_standard_store_names,
+	exit_msg, sync_msg;
 
 /// Function used to update a store within the model task.
 ///
@@ -29,6 +30,9 @@ enum msg
 	
 	register_msg(~str, ~str, ~[~str], comm::chan<~[solution]>),	// store + key + SPARQL queries + channel to send results back along
 	deregister_msg(~str, ~str),										// store + key
+	
+	sync_msg(comm::chan<bool>),								// ensure the model task has processed all messages (for unit testing)
+	exit_msg,														// exits the task (for unit testing)
 }
 
 /// Alerts are conditions that hold for a period of time (e.g. a router off line).
@@ -129,6 +133,14 @@ fn manage_state(port: comm::port<msg>)
 			{
 				registered[name].remove(key);
 			}
+			sync_msg(channel)
+			{
+				comm::send(channel, true);
+			}
+			exit_msg
+			{
+				break;
+			}
 		}
 	}
 }
@@ -165,7 +177,7 @@ fn open_alert(store: store, alert: alert) -> bool
 	{
 		result::ok(solution)
 		{
-			// Add the alert if it doesn't already exist OR it exists but is closed.
+			// Add the alert if it doesn't already exist OR it exists but is closed (i.e. if we found rows they must all be closed).
 			if solution.all(|row| {row.search(~"end").is_some()})
 			{
 				let level =
@@ -236,7 +248,7 @@ fn close_alert(store: store, device: ~str, id: ~str) -> bool
 			{
 				if row.search(~"end").is_none()
 				{
-			#error["closed alert %s/%s: %?", device, id, row];
+			#info["closed alert %s/%s: %?", device, id, row];
 					added = true;
 					level = row.get(~"level").as_str();
 					store.add_triple(~[], {subject: row.get(~"subject").to_str(), predicate: ~"gnos:end", object: dateTime_value(std::time::now())});

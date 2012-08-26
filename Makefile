@@ -21,7 +21,7 @@ run-snmp:
 	#scp scripts/sat.json scripts/snmp-modeler.py jjones@10.8.0.149: && ssh jjones@10.8.0.149 "python snmp-modeler.py -vvv --stdout  --duration=1 sat.json"
 
 check: bin/test-gnos
-	./bin/test-gnos
+	export RUST_LOG=gnos=1,rwebserve=1,socket=1,rrdf=0 && ./bin/test-gnos
 
 # You can either use this target (assuming that the libraries are in /usr/local/lib/rust)
 # or install them via cargo.
@@ -42,5 +42,5 @@ dist:
 bin/gnos: src/gnos.rc src/*.rs src/handlers/*.rs
 	rustc -L bin -o $@ $<
 
-bin/test-gnos: src/gnos.rc src/*.rs src/handlers/*.rs
+bin/test-gnos: src/gnos.rc src/*.rs src/handlers/*.rs src/tests/*.rs
 	rustc -L bin --test -o $@ $<

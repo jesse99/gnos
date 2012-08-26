@@ -27,3 +27,9 @@ mod handlers
 	mod get_subject;
 	mod put_snmp;
 }
+
+#[cfg(test)]
+mod tests
+{
+	mod test_model;
+}
