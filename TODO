@@ -44,6 +44,8 @@ javascript model/view: http://documentcloud.github.com/backbone/
 		speed
 		ip
 		mac
+* Maybe add some functional/unit tests:
+	- take one or more json snmp and check store is updated correctly
 * Would be great to have a vlan map:
 	- on a cisco can use show mac-address-table to find mac addresses on a port
 	- also snmp: http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&ved=0CFUQFjAA&url=http%3A%2F%2Fwww.cisco.com%2Fen%2FUS%2Ftech%2Ftk648%2Ftk362%2Ftechnologies_tech_note09186a00801c9199.shtml&ei=KDAdUMWsBYOGyQHmpIDQDw&usg=AFQjCNG7O3ox230HFyYMKT6966T399Z8wg&sig2=F3LAXDBFGp4L1ZdXMfWsyQ

@@ -1,12 +1,12 @@
 import to_str::to_str;
 import rrdf::{create_store, get_blank_name, store, solution, object, solution_row, solution_row_methods,
-	triple, string_value, int_value, dateTime_value, selector, compile, solution_row_methods, solution_methods,
+	triple, iri_value, string_value, int_value, dateTime_value, selector, compile, solution_row_methods, solution_methods,
 	store_methods};
 import rrdf::solution::solution_row_trait;
 import rrdf::store::{base_iter, store_trait};
 import rrdf::store::to_str; 
 
-export update_fn, msg, query_msg, update_msg, updates_msg, register_msg, deregister_msg, manage_state, get_state,
+export update_fn, msg, query_msg, update_msg, updates_msg, register_msg, deregister_msg, manage_state, get_state, eval_query,
 	alert, alert_level, error_level, warning_level, info_level, debug_level, open_alert, close_alert, get_standard_store_names;
 
 /// Function used to update a store within the model task.
@@ -33,7 +33,7 @@ enum msg
 
 /// Alerts are conditions that hold for a period of time (e.g. a router off line).
 ///
-/// * device - is either an ip address or "gnos:map".
+/// * device - devices:<ip> or gnos:map.
 /// * id - is used along with device to identify alerts.
 /// * level - is the severity of the alert.
 /// * mesg - text that describes the alert (e.g. "offline").
@@ -147,12 +147,13 @@ fn get_state(name: ~str, channel: comm::chan<msg>, query: ~str) -> solution
 fn open_alert(store: store, alert: alert) -> bool
 {
 	let expr = #fmt["
+	PREFIX devices: <http://network/>
 	PREFIX gnos: <http://www.gnos.org/2012/schema#>
 	SELECT
 		?subject ?end
 	WHERE
 	{
-		?subject gnos:device \"%s\" .
+		?subject gnos:device %s .
 		?subject gnos:id \"%s\" .
 		OPTIONAL
 		{
@@ -172,13 +173,13 @@ fn open_alert(store: store, alert: alert) -> bool
 					{
 						error_level		{~"error"}
 						warning_level	{~"warning"}
-						info_level			{~"info"}
-						debug_level		{~"debug"}
+						info_level		{~"info"}
+						debug_level	{~"debug"}
 					};
 					
 				let subject = get_blank_name(store, ~"alert");
 				store.add(subject, ~[
-					(~"gnos:device", string_value(alert.device, ~"")),
+					(~"gnos:device", iri_value(alert.device)),
 					(~"gnos:id", string_value(alert.id, ~"")),
 					(~"gnos:begin", dateTime_value(std::time::now())),
 					(~"gnos:mesg", string_value(alert.mesg, ~"")),
@@ -209,12 +210,13 @@ fn open_alert(store: store, alert: alert) -> bool
 fn close_alert(store: store, device: ~str, id: ~str) -> bool
 {
 	let expr = #fmt["
+	PREFIX devices: <http://network/>
 	PREFIX gnos: <http://www.gnos.org/2012/schema#>
 	SELECT
 		?subject ?level ?end
 	WHERE
 	{
-		?subject gnos:device \"%s\" .
+		?subject gnos:device %s .
 		?subject gnos:id \"%s\" .
 		?subject gnos:level ?level .
 		OPTIONAL
@@ -234,6 +236,7 @@ fn close_alert(store: store, device: ~str, id: ~str) -> bool
 			{
 				if row.search(~"end").is_none()
 				{
+			#error["closed alert %s/%s: %?", device, id, row];
 					added = true;
 					level = row.get(~"level").as_str();
 					store.add_triple(~[], {subject: row.get(~"subject").to_str(), predicate: ~"gnos:end", object: dateTime_value(std::time::now())});
@@ -253,6 +256,30 @@ fn close_alert(store: store, device: ~str, id: ~str) -> bool
 	}
 }
 
+fn eval_query(store: store, expr: ~str) -> result::result<solution, ~str>
+{
+	alt compile(expr)
+	{
+		result::ok(selector)
+		{
+			alt selector(store)
+			{
+				result::ok(solution)
+				{
+					result::ok(solution)
+				}
+				result::err(err)
+				{
+					result::err(#fmt["query failed to run: %s", err])
+				}
+			}
+		}
+		result::err(err)
+		{
+			result::err(#fmt["failed to compile query: expected %s", err])
+		}
+	}
+}
 // ---- Internal functions ----------------------------------------------------
 fn update_registered(stores: hashmap<~str, store>, name: ~str, queries: hashmap<~str, selector>, registered: hashmap<~str, hashmap<~str, registration>>)
 {
@@ -356,27 +383,3 @@ fn eval_queries(store: store, queries: hashmap<~str, selector>, exprs: ~[~str]) 
 	}
 }
 
-fn eval_query(store: store, expr: ~str) -> result::result<solution, ~str>
-{
-	alt compile(expr)
-	{
-		result::ok(selector)
-		{
-			alt selector(store)
-			{
-				result::ok(solution)
-				{
-					result::ok(solution)
-				}
-				result::err(err)
-				{
-					result::err(#fmt["query failed to run: %s", err])
-				}
-			}
-		}
-		result::err(err)
-		{
-			result::err(#fmt["failed to compile query: expected %s", err])
-		}
-	}
-}

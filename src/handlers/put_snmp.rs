@@ -1,7 +1,8 @@
 // This is the code that handles PUTs from the snmp-modeler script. It parses the
 // incoming json, converts it into triplets, and updates the model.
 import core::to_str::{to_str};
-import model::{msg, update_msg, updates_msg, query_msg};
+import core::dvec::*;
+import model::{msg, update_msg, updates_msg, query_msg, eval_query};
 import options::{options, device};
 import rrdf::{store, string_value, get_blank_name, object, literal_to_object, bool_value, float_value, blank_value, typed_value,
 	iri_value, int_value, dateTime_value, solution, solution_row};
@@ -22,7 +23,7 @@ fn put_snmp(options: options, state_chan: comm::chan<msg>, request: server::requ
 	let old = query_old_info(state_chan);
 	
 	let ooo = copy(options);
-	comm::send(state_chan, updates_msg(~[~"primary", ~"snmp"], |ss, d| {updates_snmp(ooo, addr, ss, d, old)}, request.body));
+	comm::send(state_chan, updates_msg(~[~"primary", ~"snmp", ~"alerts"], |ss, d| {updates_snmp(ooo, addr, ss, d, old)}, request.body));
 	
 	{body: ~"" with response}
 }
@@ -37,7 +38,7 @@ fn updates_snmp(options: options, remote_addr: ~str, stores: ~[store], body: ~st
 			{
 				std::json::dict(d)
 				{
-					json_to_primary(options, remote_addr, stores[0], d, old);
+					json_to_primary(options, remote_addr, stores[0], stores[2], d, old);
 					json_to_snmp(remote_addr, stores[1], d);
 				}
 				_
@@ -97,7 +98,7 @@ WHERE
 //    },
 //    ...
 // }
-fn json_to_primary(options: options, remote_addr: ~str, store: store, data: std::map::hashmap<~str, json::json>, old: solution)
+fn json_to_primary(options: options, remote_addr: ~str, store: store, alerts_store: store, data: std::map::hashmap<~str, json::json>, old: solution)
 {
 	store.clear();
 	store.add_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:last_update", object: dateTime_value(std::time::now())});
@@ -111,8 +112,8 @@ fn json_to_primary(options: options, remote_addr: ~str, store: store, data: std:
 			std::json::dict(device)
 			{
 				let old_subject = get_blank_name(store, ~"old");
-				add_device(store, options.devices, managed_ip, device, old, old_subject);
-				add_device_notes(store, managed_ip, device);
+				add_device(store, alerts_store, options.devices, managed_ip, device, old, old_subject);
+				add_device_notes(store, alerts_store, managed_ip, device);
 			}
 			_
 			{
@@ -141,7 +142,7 @@ fn json_to_primary(options: options, remote_addr: ~str, store: store, data: std:
 // "sysLocation": "closet", 
 // "sysName": "Router", 
 // "sysUpTime": "5080354"
-fn add_device(store: store, devices: ~[device], managed_ip: ~str, device: std::map::hashmap<~str, std::json::json>, old: solution, old_subject: ~str)
+fn add_device(store: store, alerts_store: store, devices: ~[device], managed_ip: ~str, device: std::map::hashmap<~str, std::json::json>, old: solution, old_subject: ~str)
 {
 	alt devices.find(|d| {d.managed_ip == managed_ip})
 	{
@@ -173,7 +174,7 @@ fn add_device(store: store, devices: ~[device], managed_ip: ~str, device: std::m
 			let interfaces = device.find(~"interfaces");
 			if interfaces.is_some()
 			{
-				add_interfaces(store, managed_ip, interfaces.get(), old, old_subject);
+				add_interfaces(store, alerts_store, managed_ip, interfaces.get(), old, old_subject);
 			}
 		}
 		option::none
@@ -183,8 +184,9 @@ fn add_device(store: store, devices: ~[device], managed_ip: ~str, device: std::m
 	};
 }
 
-fn add_device_notes(store: store, managed_ip: ~str, _device: std::map::hashmap<~str, std::json::json>)
+fn add_device_notes(store: store, alerts_store: store, managed_ip: ~str, _device: std::map::hashmap<~str, std::json::json>)
 {
+	// summary
 	let html = #fmt["
 <p class='summary'>
 	The name and ip address are from the network json file. All the other info is from <a href='./subject/snmp/snmp:%s'>SNMP</a>.
@@ -198,10 +200,117 @@ fn add_device_notes(store: store, managed_ip: ~str, _device: std::map::hashmap<~
 		(~"gnos:title",       string_value(~"notes", ~"")),
 		(~"gnos:target",    iri_value(#fmt["devices:%s", managed_ip])),
 		(~"gnos:detail",    string_value(html, ~"")),
-		(~"gnos:weight",  float_value(0.9f64)),
+		(~"gnos:weight",  float_value(0.1f64)),
 		(~"gnos:open",     string_value(~"no", ~"")),
-		(~"gnos:key",    	 string_value(~"device notes", ~"")),
+		(~"gnos:key",       string_value(~"device notes", ~"")),
 	]);
+	
+	// alerts
+	for get_alert_html(alerts_store, managed_ip).each
+	|level, alerts|
+	{
+		add_alerts(store, managed_ip, alerts.get(), level);
+	}
+}
+
+fn add_alerts(store: store, managed_ip: ~str, alerts: ~[(float, ~str)], level: ~str)
+{
+	if alerts.is_not_empty()
+	{
+		let alerts = std::sort::merge_sort(|x, y| {x <= y}, alerts);
+		
+		let mut html = ~"";
+		html += ~"<ul class = 'sequence'>\n";
+			let items = do alerts.map |r| {#fmt["<li>%s</li>\n", r.second()]};
+			html += str::connect(items, ~"");
+		html += ~"</ul>\n";
+		
+		let weight = 
+			alt level
+			{
+				~"error" {0.9f64}
+				~"warning" {0.8f64}
+				~"info" {0.3f64}
+				_ {0.01f64}
+			};
+		
+		let subject = get_blank_name(store, #fmt["%s %s-alert", managed_ip, level]);
+		store.add(subject, ~[
+			(~"gnos:title",       string_value(level + ~" alerts", ~"")),
+			(~"gnos:target",    iri_value(#fmt["devices:%s", managed_ip])),
+			(~"gnos:detail",    string_value(html, ~"")),
+			(~"gnos:weight",  float_value(weight)),
+			(~"gnos:open",     string_value(if level == ~"error" {~"always"} else {~"no"}, ~"")),
+			(~"gnos:key",       string_value(level + ~"alert", ~"")),
+		]);
+	}
+}
+
+fn get_alert_html(alerts_store: store, managed_ip: ~str) -> std::map::hashmap<~str, @dvec<(float, ~str)>>
+{
+	let table = std::map::str_hash();		// level => [(elapsed, html)]
+	table.insert(~"error", @dvec());
+	table.insert(~"warning", @dvec());
+	table.insert(~"info", @dvec());
+	table.insert(~"debug", @dvec());
+	table.insert(~"closed", @dvec());
+	
+	let device = #fmt["devices:%s", managed_ip];
+	let expr = #fmt["
+	PREFIX devices: <http://network/>
+	PREFIX gnos: <http://www.gnos.org/2012/schema#>
+	SELECT
+		?begin ?mesg ?level ?end
+	WHERE
+	{
+		?subject gnos:device %s .
+		?subject gnos:begin ?begin .
+		?subject gnos:mesg ?mesg .
+		?subject gnos:level ?level .
+		OPTIONAL
+		{
+			?subject gnos:end ?end
+		}
+	}", device];
+	
+	alt eval_query(alerts_store, expr)
+	{
+		result::ok(solution)
+		{
+			for solution.each
+			|row|
+			{
+				let level = row.get(~"level").as_str();
+				let level = if row.contains(~"end") {~"closed"} else {level};
+				
+				let begin = row.get(~"begin").as_tm();
+				let {elapsed, delta} = utils::tm_to_delta_str(begin);
+				
+				let mesg = row.get(~"mesg").as_str();
+				let (elapsed, mesg) =
+					if !row.contains(~"end")
+					{
+						(elapsed, if elapsed > 5.0{#fmt["%s (%s)", mesg, delta]} else {mesg})		// TODO: use 60 instead of 5?
+					}
+					else
+					{
+			#error["found closed alert for %s", managed_ip];
+						let end = row.get(~"end").as_tm();
+						let {elapsed, delta} = utils::tm_to_delta_str(end);
+						(elapsed, if elapsed > 5.0{#fmt["%s (closed %s)", mesg, delta]} else {mesg})	// TODO: use 60 instead of 5?
+					};
+				
+				let html = #fmt["<span class='%s-alert'>%s</span>", level, mesg];
+				table[level].push((elapsed, html));
+			}
+		}
+		result::err(err)
+		{
+			#error["error querying for %s alerts: %s", managed_ip, err];
+		}
+	}
+	
+	ret table;
 }
 
 fn get_device_label(device: std::map::hashmap<~str, std::json::json>, managed_ip: ~str, old: solution) -> ~str
@@ -216,7 +325,7 @@ fn get_device_label(device: std::map::hashmap<~str, std::json::json>, managed_ip
 	~"del: " + get_per_second_value(device, ~"ipInDelivers", old_url, ~"sname:ipInDelivers", old, delta_s, ~"p")
 }
 
-fn add_interfaces(store: store, managed_ip: ~str, data: std::json::json, old: solution, old_subject: ~str)
+fn add_interfaces(store: store, alerts_store: store, managed_ip: ~str, data: std::json::json, old: solution, old_subject: ~str)
 {
 	alt data
 	{
@@ -230,7 +339,7 @@ fn add_interfaces(store: store, managed_ip: ~str, data: std::json::json, old: so
 				{
 					std::json::dict(d)
 					{
-						vec::push(rows, add_interface(store, managed_ip, d, old, old_subject));
+						vec::push(rows, add_interface(store, alerts_store, managed_ip, d, old, old_subject));
 					}
 					_
 					{
@@ -288,12 +397,11 @@ fn add_interfaces(store: store, managed_ip: ~str, data: std::json::json, old: so
 // "ifType": "ethernetCsmacd(6)", 
 // "ipAdEntAddr": "10.101.3.2", 
 // "ipAdEntNetMask": "255.255.255.0"
-fn add_interface(store: store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::json>, old: solution, old_subject: ~str) -> (~str, ~str)
+fn add_interface(store: store, alerts_store: store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::json>, old: solution, old_subject: ~str) -> (~str, ~str)
 {
 	let mut html = ~"";
 	let name = lookup(interface, ~"ifDescr", ~"eth?");
 	
-	//let admin_status = lookup(interface, ~"ifAdminStatus", ~"missing");
 	let oper_status = lookup(interface, ~"ifOperStatus", ~"missing");
 	if oper_status.contains(~"(1)")
 	{
@@ -326,6 +434,32 @@ fn add_interface(store: store, managed_ip: ~str, interface: std::map::hashmap<~s
 			(prefix + ~"ifOutOctets", int_value(get_snmp_i64(interface, ~"ifOutOctets", 0))),
 		];
 		store.add(old_subject, entries);
+	}
+	
+	let admin_status = lookup(interface, ~"ifAdminStatus", ~"");
+	
+	let random = rand::rng();
+	let admin_status = if random.gen_weighted_bool(4) {admin_status + ~"-"} else {admin_status};	// TODO: remove
+	let level = 									// TODO: always use model::error_level
+		alt random.gen_int_range(0, 4)
+		{
+			0 {model::error_level}
+			1 {model::warning_level}
+			2 {model::info_level}
+			_ {model::debug_level}
+		};
+	
+	let device = #fmt["devices:%s", managed_ip];
+	let id = name + ~"-status";
+	if admin_status.is_not_empty() && oper_status != admin_status
+	{
+			#error["opened alert %s/%s", managed_ip, id];
+		let mesg = #fmt["Admin set %s to %s, but operational state is %s.", name, admin_status, oper_status];
+		model::open_alert(alerts_store, {device: device, id: id, level: level, mesg: mesg, resolution: ~""});
+	}
+	else
+	{
+		model::close_alert(alerts_store, device, id);
 	}
 	
 	ret (name, html);
@@ -399,27 +533,6 @@ fn count_trailing_zeros(mask: uint) -> int
 	}
 	
 	ret count;
-}
-
-// Sort eth1 after eth0 and lo0 after eth0.
-fn get_name_weight(name: ~str) -> f64
-{
-	let major = (name[0] as u8 - 'A' as u8) as f64;
-	let minor = do str::bytes(name).foldl(0.0f64) 
-	|sum, c|
-	{
-		let digit = char::to_digit(c as char, 10);
-		if digit.is_some()
-		{
-			10.0f64*sum + digit.get() as f64
-		}
-		else
-		{
-			sum
-		}
-	};
-	
-	0.001f64*major + 0.0001f64*minor
 }
 
 fn get_per_second_value(data: std::map::hashmap<~str, std::json::json>, key: ~str, old_url: option::option<object>, name: ~str, old: solution, delta_s: f64, unit: ~str) -> ~str

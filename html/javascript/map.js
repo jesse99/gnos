@@ -255,13 +255,12 @@ WHERE 														\
 	?details gnos:weight ?weight .								\
 	?details gnos:open ?open .									\
 	?details gnos:key ?key 									\
-}  ORDER BY ASC(?weight) ASC(?title)'.format(name);
+}  ORDER BY DESC(?weight) ASC(?title)'.format(name);
 
 	GNOS.selection_source = new EventSource('/query?name=primary&expr={0}'.
 		format(encodeURIComponent(expr)));
 	GNOS.selection_source.addEventListener('message', function(event)
 	{
-		GNOS.alert_data = {};
 		var data = JSON.parse(event.data);
 		//console.log("found {0} details for {1}".format(data.length, name));
 		

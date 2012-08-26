@@ -15,22 +15,31 @@ changes as new alerts open and existing alerts close. (In the future really old 
 will be pruned as well).\
 \
 The schema is defined with the aid of a couple of different namespace prefixes:\
+\pard\pardeftab480\pardirnatural
 
-\b gnos
+\b \cf0 gnos
 \b0  - http://www.gnos.org/2012/schema#\
+
+\b devices
+\b0  - http://network/\
 
 \b xsd
 \b0  - http://www.w3.org/2001/XMLSchema#\
 \
 
 \b\fs50 http://10.1.0.1\
+\pard\pardeftab480\pardirnatural
 
-\b0\fs36 gnos:num_errors	xsd:integer		1 (used in the map view)\
+\b0\fs36 \cf0 gnos:num_errors	xsd:integer		1 (used in the map view)\
 \
+\pard\pardeftab480\pardirnatural
 
-\b\fs50 _:alert0\
+\b\fs50 \cf0 _:alert0\
+\pard\pardeftab480\pardirnatural
 
-\b0\fs36 gnos:device			xsd:string			http://10.1.0.1 (or gnos:map)\
+\b0\fs36 \cf0 gnos:device			xsd:
+\fs32 anyURI
+\fs36 		devices:10.1.0.1 (or gnos:map)\
 gnos:id				xsd:string			"device down" (used when closing alerts)\
 gnos:begin			xsd:dateTime	Jan 1, 2012\
 gnos:end				xsd:dateTime	Jan 2, 2012 (if present the alert is closed)\

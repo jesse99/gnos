@@ -36,7 +36,7 @@ GNOS.styles =
 	'primary_label':		{fontWeight: bolder, fontSize: xlarger},
 	'secondary_label':		{},
 	'tertiary_label':			{fontSize: xsmaller},
-	'error_label':			{strokeStyle: 'red', fillStyle: 'red', fontWeight: bolder, fontSize: larger},
+	'error_label':			{strokeStyle: 'red', fillStyle: 'red', fontWeight: bolder},
 	
 	'good_level':			{strokeStyle: 'black', fillStyle: 'green'},
 	'ok_level':				{strokeStyle: 'black', fillStyle: 'deepskyblue'},

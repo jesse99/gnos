@@ -27,3 +27,9 @@ tr.even
 	background-color: azure;
 }
 
+ul.sequence, ol.sequence
+{
+	list-style: none;
+	padding: 0;
+	margin-left: 0;
+}
