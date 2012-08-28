@@ -476,7 +476,7 @@ fn get_subnet(interface: std::map::hashmap<~str, std::json::json>) -> ~str
 		s
 		{
 			let parts = s.split_char('.');
-			let bytes = do parts.map |p| {uint::from_str(p).get()};
+			let bytes = do parts.map |p| {uint::from_str(p).get()};		// TODO: probably shouldn't fail for malformed json
 			let mask = do bytes.foldl(0) |sum, current| {256*sum + current};
 			let leading = count_leading_ones(mask);
 			let trailing = count_trailing_zeros(mask);
@@ -491,6 +491,25 @@ fn get_subnet(interface: std::map::hashmap<~str, std::json::json>) -> ~str
 			}
 		}
 	}
+}
+
+#[test]
+fn test_get_subnet()
+{
+	let interface = std::map::str_hash();
+	assert get_subnet(interface) == ~"/?";
+	
+	interface.insert(~"ipAdEntNetMask", json::string(@~"255.255.255.255"));
+	assert get_subnet(interface) == ~"/32";
+	
+	interface.insert(~"ipAdEntNetMask", json::string(@~"255.0.0.0"));
+	assert get_subnet(interface) == ~"/8";
+	
+	interface.insert(~"ipAdEntNetMask", json::string(@~"0.0.0.0"));
+	assert get_subnet(interface) == ~"/0";
+	
+	interface.insert(~"ipAdEntNetMask", json::string(@~"255.0.1.0"));
+	assert get_subnet(interface) == ~"/255.0.1.0";
 }
 
 fn count_leading_ones(mask: uint) -> int
