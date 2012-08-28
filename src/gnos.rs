@@ -108,6 +108,7 @@ fn main(args: ~[~str])
 	let subject_v: server::response_handler = |_settings, request, response| {get_subject::get_subject(request, response)};
 	let map_v: server::response_handler = |_settings, _request, response| {get_map::get_map(options2, response)};
 	let modeler_p: server::response_handler = |_settings, request, response| {put_snmp::put_snmp(options4, state_chan, request, response)};
+	let query_store_v: server::response_handler = |_settings, request, response| {get_query_store::get_query_store(request, response)};
 	let query_s: server::open_sse = |_settings, request, push| {get_query::get_query(state_chan, request, push)};
 	let bail_v: server::response_handler = |_settings, _request, _response| {get_shutdown(options3)};
 	
@@ -123,14 +124,18 @@ fn main(args: ~[~str])
 			(~"GET", ~"/", ~"map"),
 			(~"GET", ~"/shutdown", ~"shutdown"),		// TODO: enable this via debug cfg (or maybe via a command line option)
 			(~"GET", ~"/models", ~"models"),
+			(~"GET", ~"/query-store", ~"query_store"),
 			(~"GET", ~"/subject/{name}/{subject}", ~"subject"),
-			(~"PUT", ~"/snmp-modeler", ~"modeler")],
+			(~"PUT", ~"/snmp-modeler", ~"modeler"),
+		],
 		views: ~[
 			(~"map",  map_v),
 			(~"shutdown",  bail_v),
 			(~"models",  models_v),
+			(~"query_store",  query_store_v),
 			(~"subject",  subject_v),
-			(~"modeler",  modeler_p)],
+			(~"modeler",  modeler_p),
+		],
 		sse: ~[(~"/query", query_s)],
 		settings: ~[(~"debug",  ~"true")]		// TODO: make this a command-line option
 		with server::initialize_config()};

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+
+<!-- This view allows admins to evaluate arbitrary SPARQL queries against a store. -->
+<html lang="en">
+	<head>
+		<script defer="true" src="/javascript/common.js"></script>
+		<script defer="true" src="/javascript/query-store.js"></script>
+		<title>SPARQL Query</title>
+		<link rel="stylesheet" type="text/css" href="query-store.css"/>
+	</head>
+	
+	<body>
+		<!-- This isn't actually a form because the submission is processed client side. -->
+		<label for='name'>Store:</label>
+		<input type="text" id='name' spellcheck='false' value="primary"/>
+		<br/>
+		
+		<label for='query'><a href="http://www.w3.org/TR/sparql11-query/">Query:</a></label>
+		<br/>
+		<textarea cols='80' rows='20' id='query' wrap='soft' spellcheck='false' autofocus='autofocus'>
+PREFIX devices: &lt;http://network/&gt;
+PREFIX gnos: &lt;http://www.gnos.org/2012/schema#&gt;
+PREFIX snmp: &lt;http://snmp//&gt;
+PREFIX sname: &lt;http://snmp-name/&gt;
+SELECT
+	?subject ?predicate ?value
+WHERE
+{
+	?subject ?predicate ?value
+}
+		</textarea>
+		<br/>
+		
+		<button onclick="submit_query()">Submit</button>
+		
+		<section id='results'>No results.</section>
+	</body>
+<html>
