@@ -222,17 +222,17 @@ WHERE
 	comm::send(state_chan, register_msg(~"primary", ~"fwd-query", ~[fwd_query], fwd_chan));
 	
 	// get solutions on registration,
-	let solutions = ttl_chan.recv();
+	let solutions = ttl_chan.recv().get();
 	assert check_solutions(solutions[0], ~[
 	]);
 	
-	let solutions = fwd_chan.recv();
+	let solutions = fwd_chan.recv().get();
 	assert check_solutions(solutions[0], ~[
 	]);
 	
 	// and when the query results change
 	update(state_chan, ~[(~"ttl", ~"50")]);
-	let solutions = ttl_chan.recv();
+	let solutions = ttl_chan.recv().get();
 	assert solutions.len() == 1;
 	assert check_solutions(solutions[0], ~[
 		~[(~"ttl", string_value(~"50", ~""))],
@@ -279,13 +279,13 @@ WHERE
 	comm::send(state_chan, register_msg(~"primary", ~"ttl-query", ~[ttl_query], ttl_chan));
 	
 	// get solutions on registration,
-	let solutions = ttl_chan.recv();
+	let solutions = ttl_chan.recv().get();
 	assert check_solutions(solutions[0], ~[
 	]);
 	
 	// and when the query results change
 	update(state_chan, ~[(~"ttl", ~"50")]);
-	let solutions = ttl_chan.recv();
+	let solutions = ttl_chan.recv().get();
 	assert solutions.len() == 1;
 	assert check_solutions(solutions[0], ~[
 		~[(~"ttl", string_value(~"50", ~""))],

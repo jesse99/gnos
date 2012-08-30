@@ -13,12 +13,16 @@ function submit_query()
 	
 	GNOS.query_store = new EventSource('/query?name={0}&expr={1}'.format(
 		encodeURIComponent(name.value), encodeURIComponent(query.value)));
+	GNOS.query_value = query.value;
 	GNOS.query_store.addEventListener('message', function(event)
 	{
 		var data = JSON.parse(event.data);
 		
 		var element = document.getElementById('results');
-		animated_draw(element, function() {populate_results(element, data);});
+		if (event.data[0] != '"')
+			animated_draw(element, function() {save_solution(element, data);});
+		else
+			animated_draw(element, function() {save_err(element, data);});
 	});
 	
 	GNOS.query_store.addEventListener('open', function(event)
@@ -35,11 +39,20 @@ function submit_query()
 	});
 }
 
-function populate_results(root, data)
+function save_err(root, err)
+{
+	var html = "";
+	html += "<section class='error'>";
+	html += escapeHtml(err);
+	html += "</section>";
+	root.innerHTML = html;
+}
+
+function save_solution(root, solution)
 {
 	var headers = [];		// [header name]
 	var rows = [];			// [[cell value (may be empty)]]
-	analyze_solution(headers, rows, data);
+	analyze_solution(headers, rows, solution);
 	
 	var html = "";
 	html += "<table border='1'>\n";
@@ -55,7 +68,6 @@ function populate_results(root, data)
 		html += "	</tr>\n";
 	}
 	html += "</table>\n";
-	console.log("html: {0}".format(html));
 	root.innerHTML = html;
 }
 
@@ -66,24 +78,30 @@ function populate_results(root, data)
 // ]
 function analyze_solution(headers, rows, solution)
 {
-	for (var i = 0; i < solution.length; ++i)
+	var re = /SELECT((\s+\?\w+)+)/i;
+	var matches = GNOS.query_value.match(re);
+	if (matches)
 	{
-		var srow = solution[i];
-		var row = [];
+		// The json that we get back from the server uses a dict for each row so the results
+		// are in some weird order based on hash values. To report the results in some sensible
+		// order we grep the query string for the variables in the order the user wanted them.
+		var selection = matches[1].trim();
+		var variables = selection.split(/\s+/);
+		var names = variables.map(function (v) {return v.slice(1)});
+		names.forEach(function (n) {headers.push(n)});
 		
-		// This is a little tricky because solution rows may have optional entries.
-		for (var key in srow)
+		for (var i = 0; i < solution.length; ++i)
 		{
-			var index = headers.indexOf(key);
-			if (index < 0)
+			var srow = solution[i];
+			var row = [];
+			
+			for (var key in srow)
 			{
-				index = headers.length;
-				headers.push(key);			// unfortunately the order will be whacko because the rows are dicts
+				var index = headers.indexOf(key);
+				row[index] = srow[key];
 			}
 			
-			row[index] = srow[key];
+			rows.push(row);
 		}
-		
-		rows.push(row);
 	}
 }

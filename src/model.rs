@@ -18,21 +18,27 @@ type update_fn = fn~ (store: store, data: ~str) -> bool;
 /// Like update_fn except that it takes multiple stores.
 type updates_fn = fn~ (store: ~[store], data: ~str) -> bool;
 
+/// The channel used by register_msg to communicate the initial result and
+/// subsequent results back to the original task.
+///
+/// In the case of an error only the initial result is sent.
+type register_chan = comm::chan<result::result<~[solution], ~str>>;
+
 /// Enum used to communicate with the model task.
 ///
 /// Used to query a model, to update a model, and to (un)register
 /// server-sent events. Store should be "model" or "alerts".
 enum msg
 {
-	query_msg(~str, ~str, comm::chan<solution>),				// store + SPARQL query + channel to send results back along
-	update_msg(~str, update_fn, ~str),							// store + function to use to update the store + data to use
-	updates_msg(~[~str], updates_fn, ~str),						// stores + function to use to update the stores + data to use
+	query_msg(~str, ~str, comm::chan<solution>),		// store + SPARQL query + channel to send results back along
+	update_msg(~str, update_fn, ~str),					// store + function to use to update the store + data to use
+	updates_msg(~[~str], updates_fn, ~str),				// stores + function to use to update the stores + data to use
 	
-	register_msg(~str, ~str, ~[~str], comm::chan<~[solution]>),	// store + key + SPARQL queries + channel to send results back along
-	deregister_msg(~str, ~str),										// store + key
+	register_msg(~str, ~str, ~[~str], register_chan),		// store + key + SPARQL queries + channel to send results back along
+	deregister_msg(~str, ~str),								// store + key
 	
-	sync_msg(comm::chan<bool>),								// ensure the model task has processed all messages (for unit testing)
-	exit_msg,														// exits the task (for unit testing)
+	sync_msg(comm::chan<bool>),						// ensure the model task has processed all messages (for unit testing)
+	exit_msg,												// exits the task (for unit testing)
 }
 
 /// Alerts are conditions that hold for a period of time (e.g. a router off line).
@@ -56,7 +62,7 @@ enum alert_level
 	debug_level,
 }
 
-type registration = {queries: ~[~str], channel: comm::chan<~[solution]>, solutions: @mut ~[solution]};
+type registration = {queries: ~[~str], channel: register_chan, solutions: @mut ~[solution]};
 
 fn get_standard_store_names() -> ~[~str]
 {
@@ -92,7 +98,7 @@ fn manage_state(port: comm::port<msg>)
 		{
 			query_msg(name, expr, channel)
 			{
-				let solutions = eval_queries(stores.get(name), queries, ~[expr]);
+				let solutions = eval_queries(stores.get(name), queries, ~[expr]).get();		// always a canned query so we want to fail fast on error
 				assert solutions.len() == 1;
 				comm::send(channel, copy solutions[0]);
 			}
@@ -123,11 +129,20 @@ fn manage_state(port: comm::port<msg>)
 			}
 			register_msg(name, key, exprs, channel)
 			{
-				let solutions = eval_queries(stores.get(name), queries, exprs);
-				comm::send(channel, copy(solutions));
-				
-				let added = registered[name].insert(key, {queries: exprs, channel: channel, solutions: @mut solutions});
-				assert added;
+				alt eval_queries(stores.get(name), queries, exprs)
+				{
+					result::ok(solutions)
+					{
+						comm::send(channel, result::ok(copy(solutions)));
+						
+						let added = registered[name].insert(key, {queries: exprs, channel: channel, solutions: @mut solutions});
+						assert added;
+					}
+					result::err(err)
+					{
+						comm::send(channel, result::err(err));
+					}
+				}
 			}
 			deregister_msg(name, key)
 			{
@@ -304,10 +319,10 @@ fn update_registered(stores: hashmap<~str, store>, name: ~str, queries: hashmap<
 			for map.get().each_value
 			|r|
 			{
-				let solutions = eval_queries(store.get(), queries, r.queries);
+				let solutions = eval_queries(store.get(), queries, r.queries).get();	// query that worked once so should be OK to fail fast
 				if solutions != *r.solutions
 				{
-					comm::send(r.channel, copy(solutions));
+					comm::send(r.channel, result::ok(copy(solutions)));
 					*r.solutions = solutions;
 				}
 			}
@@ -340,13 +355,13 @@ fn update_err_count(store: store, device: ~str, delta: i64)
 
 // In general the same queries will be used over and over again so it will be
 // much more efficient to cache the selectors.
-fn get_selector(queries: hashmap<~str, selector>, query: ~str) -> option::option<selector>
+fn get_selector(queries: hashmap<~str, selector>, query: ~str) -> result::result<selector, ~str>
 {
 	alt queries.find(query)
 	{
 		option::some(s)
 		{
-			option::some(s)
+			result::ok(s)
 		}
 		option::none
 		{
@@ -355,42 +370,44 @@ fn get_selector(queries: hashmap<~str, selector>, query: ~str) -> option::option
 				result::ok(s)
 				{
 					queries.insert(query, s);
-					option::some(s)
+					result::ok(s)
 				}
 				result::err(err)
 				{
 					#error["Failed to compile: expected %s", err];
-					option::none
+					result::err(err)
 				}
 			}
 		}
 	}
 }
 
-fn eval_queries(store: store, queries: hashmap<~str, selector>, exprs: ~[~str]) -> ~[solution]
+fn eval_queries(store: store, queries: hashmap<~str, selector>, exprs: ~[~str]) -> result::result<~[solution], ~str>
 {
-	do exprs.map
+	do result::map_vec(exprs)
 	|expr|
 	{
-		let selector = get_selector(queries, expr);
-		if option::is_some(selector)
+		alt get_selector(queries, expr)
 		{
-			alt option::get(selector)(store)
+			result::ok(selector)
 			{
-				result::ok(solution)
+				alt selector(store)
 				{
-					solution
-				}
-				result::err(err)
-				{
-					#error["'%s' failed with %s", expr, err];
-					~[]
+					result::ok(solution)
+					{
+						result::ok(solution)
+					}
+					result::err(err)
+					{
+						#error["'%s' failed with %s", expr, err];
+						result::err(err)
+					}
 				}
 			}
-		}
-		else
-		{
-			~[]
+			result::err(err)
+			{
+				result::err(err)
+			}
 		}
 	}
 }

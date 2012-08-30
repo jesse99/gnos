@@ -22,6 +22,8 @@ export get_query;
 /// * **name=foo&expr=blah&expr2=blah&...** Like the above except
 /// multiple queries can be run against the store. Result will be a list
 /// of JSON encoded solutions.
+///
+/// If a query fails to compile the result will be a string with an error message.
 fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server::push_chan) -> server::control_chan
 {
 	let name = request.params.get(~"name");
@@ -42,7 +44,7 @@ fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server
 		{
 			alt comm::select2(notify_port, control_port)
 			{
-				either::left(new_solutions)
+				either::left(result::ok(new_solutions))
 				{
 					if new_solutions != solutions
 					{
@@ -52,6 +54,10 @@ fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server
 					else
 					{
 					}
+				}
+				either::left(result::err(err))
+				{
+					comm::send(push, #fmt["retry: 5000\ndata: %s\n\n", (~"Expected " + err).to_json().to_str()]);
 				}
 				either::right(server::refresh_event)
 				{

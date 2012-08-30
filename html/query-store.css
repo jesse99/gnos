@@ -1,2 +1,7 @@
 @import "common.css";
 
+section.error
+{
+	font-weight: bold;
+	color: crimson;
+}

@@ -28,7 +28,8 @@ SELECT
 WHERE
 {
 	?subject ?predicate ?value
-}
+} 
+ORDER BY ASC(?subject) ASC(?predicate) LIMIT 16
 		</textarea>
 		<br/>
 		
