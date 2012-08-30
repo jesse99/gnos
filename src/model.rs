@@ -256,24 +256,27 @@ fn close_alert(store: store, device: ~str, id: ~str) -> bool
 	{
 		result::ok(solution)
 		{
-			let mut added = false;
-			let mut level = ~"";
+			let mut changed = false;
+			let mut added = 0;
 			for solution.each
 			|row|
 			{
 				if row.search(~"end").is_none()
 				{
-			#info["closed alert %s/%s: %?", device, id, row];
-					added = true;
-					level = row.get(~"level").as_str();
+					if row.get(~"level").as_str() == ~"error"
+					{
+						added += 1;
+					}
 					store.add_triple(~[], {subject: row.get(~"subject").to_str(), predicate: ~"gnos:end", object: dateTime_value(std::time::now())});
+					changed = true;
 				}
 			}
-			if added && level == ~"error"
+			if added > 0
 			{
+				assert added == 1;
 				update_err_count(store, device, -1);
 			}
-			added
+			changed
 		}
 		result::err(err)
 		{

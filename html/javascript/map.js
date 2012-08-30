@@ -380,12 +380,7 @@ function add_alert_label_shapes(context)
 {
 	if ('http://www.gnos.org/2012/schema#map' in GNOS.alert_data)
 	{
-		var count = GNOS.alert_data['http://www.gnos.org/2012/schema#map'];
-		if (count)
-			var label = "1 error alert";
-		else
-			var label = "{0} error alerts".format(count);
-		
+		var label = get_error_alert_label('http://www.gnos.org/2012/schema#map');
 		var shape = new TextLinesShape(context,
 			function (self)
 			{
@@ -510,10 +505,7 @@ function add_device_shapes(devices, meters)
 		// Then error alerts.
 		if (GNOS.alert_data && device.name in GNOS.alert_data)
 		{
-			if (GNOS.alert_data[device.name] === 1)
-				var label = "1 error alert";
-			else
-				var label = "{0} error alerts".format(GNOS.alert_data[device.name]);
+			var label = get_error_alert_label(device.name);
 			shapes.push(new TextLinesShape(context, Point.zero, [label], label_styles, ['error_label']));
 		}
 		
@@ -523,6 +515,17 @@ function add_device_shapes(devices, meters)
 		GNOS.scene.append(shape);
 		//console.log("added {0} = {1}".format(device.name, shape));
 	}
+}
+
+function get_error_alert_label(name)
+{
+	var count = GNOS.alert_data[name];
+	if (count === "1")
+		return "1 error alert";
+	else if (count !== "0")
+		return "{0} error alerts".format(count);
+	else
+		return "";
 }
 
 //	shapes.push(new TextLinesShape(context, Point.zero, [device.primary_label], label_styles, ['primary_label']));

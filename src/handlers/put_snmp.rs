@@ -294,7 +294,6 @@ fn get_alert_html(alerts_store: store, managed_ip: ~str) -> std::map::hashmap<~s
 					}
 					else
 					{
-			#error["found closed alert for %s", managed_ip];
 						let end = row.get(~"end").as_tm();
 						let {elapsed, delta} = utils::tm_to_delta_str(end);
 						(elapsed, if elapsed > 5.0{#fmt["%s (closed %s)", mesg, delta]} else {mesg})	// TODO: use 60 instead of 5?
@@ -453,7 +452,6 @@ fn add_interface(store: store, alerts_store: store, managed_ip: ~str, interface:
 	let id = name + ~"-status";
 	if admin_status.is_not_empty() && oper_status != admin_status
 	{
-			#error["opened alert %s/%s", managed_ip, id];
 		let mesg = #fmt["Admin set %s to %s, but operational state is %s.", name, admin_status, oper_status];
 		model::open_alert(alerts_store, {device: device, id: id, level: level, mesg: mesg, resolution: ~""});
 	}
