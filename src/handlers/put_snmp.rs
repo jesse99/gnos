@@ -297,13 +297,13 @@ fn get_alert_html(alerts_store: store, managed_ip: ~str) -> std::map::hashmap<~s
 				let (elapsed, mesg) =
 					if !row.contains(~"end")
 					{
-						(elapsed, if elapsed > 5.0{#fmt["%s (%s)", mesg, delta]} else {mesg})		// TODO: use 60 instead of 5?
+						(elapsed, if elapsed > 60.0{#fmt["%s (%s)", mesg, delta]} else {mesg})
 					}
 					else
 					{
 						let end = row.get(~"end").as_tm();
 						let {elapsed, delta} = utils::tm_to_delta_str(end);
-						(elapsed, if elapsed > 5.0{#fmt["%s (closed %s)", mesg, delta]} else {mesg})	// TODO: use 60 instead of 5?
+						(elapsed, if elapsed > 60.0{#fmt["%s (closed %s)", mesg, delta]} else {mesg})
 					};
 				
 				let klass = level + ~"-alert";
@@ -454,23 +454,12 @@ fn add_interface(store: store, alerts_store: store, managed_ip: ~str, interface:
 	
 	let admin_status = lookup(interface, ~"ifAdminStatus", ~"");
 	
-	let random = rand::rng();
-	let admin_status = if random.gen_weighted_bool(4) {admin_status + ~"-"} else {admin_status};	// TODO: remove
-	let level = 									// TODO: always use model::error_level
-		alt random.gen_int_range(0, 4)
-		{
-			0 {model::error_level}
-			1 {model::warning_level}
-			2 {model::info_level}
-			_ {model::debug_level}
-		};
-	
 	let device = #fmt["devices:%s", managed_ip];
 	let id = name + ~"-status";
 	if admin_status.is_not_empty() && oper_status != admin_status
 	{
 		let mesg = #fmt["Admin set %s to %s, but operational state is %s.", name, admin_status, oper_status];
-		model::open_alert(alerts_store, {device: device, id: id, level: level, mesg: mesg, resolution: ~""});
+		model::open_alert(alerts_store, {device: device, id: id, level: model::error_level, mesg: mesg, resolution: ~""});
 	}
 	else
 	{
