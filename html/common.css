@@ -33,3 +33,11 @@ ul.sequence, ol.sequence
 	padding: 0;
 	margin-left: 0;
 }
+
+.tooltip:hover:after
+{
+	content: attr(data-tooltip);
+	font-weight: normal;
+	font-style: italic;
+	color: black;
+}

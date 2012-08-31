@@ -255,23 +255,30 @@ fn get_alert_html(alerts_store: store, managed_ip: ~str) -> std::map::hashmap<~s
 	table.insert(~"debug", @dvec());
 	table.insert(~"closed", @dvec());
 	
+	// Show all open alerts and all alerts closed within the last seven days.
+	let now = std::time::get_time();
+	let then = {sec: now.sec - 60*60*24*7 with now};
+	
 	let device = #fmt["devices:%s", managed_ip];
 	let expr = #fmt["
 	PREFIX devices: <http://network/>
 	PREFIX gnos: <http://www.gnos.org/2012/schema#>
+	PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 	SELECT
-		?begin ?mesg ?level ?end
+		?begin ?mesg ?level ?end ?resolution
 	WHERE
 	{
 		?subject gnos:device %s .
 		?subject gnos:begin ?begin .
 		?subject gnos:mesg ?mesg .
 		?subject gnos:level ?level .
+		?subject gnos:resolution ?resolution .
 		OPTIONAL
 		{
 			?subject gnos:end ?end
 		}
-	}", device];
+		FILTER (!bound(?end) || ?end >= \"%s\"^^xsd:dateTime)
+	}", device, std::time::at_utc(then).rfc3339()];
 	
 	alt eval_query(alerts_store, expr)
 	{
@@ -299,7 +306,17 @@ fn get_alert_html(alerts_store: store, managed_ip: ~str) -> std::map::hashmap<~s
 						(elapsed, if elapsed > 5.0{#fmt["%s (closed %s)", mesg, delta]} else {mesg})	// TODO: use 60 instead of 5?
 					};
 				
-				let html = #fmt["<span class='%s-alert'>%s</span>", level, mesg];
+				let klass = level + ~"-alert";
+				let resolution = row.get(~"resolution").as_str();
+				let html =
+					if resolution.is_not_empty()
+					{
+						#fmt["<p class='%s tooltip' data-tooltip=' %s'>%s</p>", klass, resolution, mesg]
+					}
+					else
+					{
+						#fmt["<span class='%s'>%s</span>", klass, mesg]
+					};
 				table[level].push((elapsed, html));
 			}
 		}

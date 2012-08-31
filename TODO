@@ -189,6 +189,9 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- either automatically or manually restart the script
 * Probably want a second script to do a (possibly partial) snmpwalk
 	- reuse config?
+* Might want to allows admins to create custom alerts:
+	- data comes from a custom query
+	- html comes from a template
 * Dashboard should show network health:
 	- list devices
 	- sort by health and then by name
