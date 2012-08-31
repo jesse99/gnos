@@ -171,10 +171,17 @@ fn add_device(store: store, alerts_store: store, devices: ~[device], managed_ip:
 			];
 			store.add(old_subject, entries);
 			
+			toggle_device_uptime_alert(alerts_store, managed_ip, device);
+			
 			let interfaces = device.find(~"interfaces");
 			if interfaces.is_some()
 			{
-				add_interfaces(store, alerts_store, managed_ip, interfaces.get(), old, old_subject);
+				let has_interfaces = add_interfaces(store, alerts_store, managed_ip, interfaces.get(), old, old_subject);
+				toggle_device_down_alert(alerts_store, managed_ip, has_interfaces);
+			}
+			else
+			{
+				toggle_device_down_alert(alerts_store, managed_ip, false);
 			}
 		}
 		option::none
@@ -182,6 +189,41 @@ fn add_device(store: store, alerts_store: store, devices: ~[device], managed_ip:
 			#error["Couldn't find %s in the network json file", managed_ip];
 		}
 	};
+}
+
+fn toggle_device_uptime_alert(alerts_store: store, managed_ip: ~str, device: std::map::hashmap<~str, std::json::json>)
+{
+	let time = (get_snmp_i64(device, ~"sysUpTime", -1) as float)/100.0;
+	let device = #fmt["devices:%s", managed_ip];
+	let id = ~"uptime";
+	
+	if time >= 0.0 && time < 60.0		// only reboot if we actually got an up time
+	{
+		// TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
+		let mesg = ~"Device rebooted.";		// we can't add the time here because alerts aren't changed when re-opened (and the mesg doesn't change when they are closed)
+		model::open_alert(alerts_store, {device: device, id: id, level: model::warning_level, mesg: mesg, resolution: ~""});
+	}
+	else
+	{
+		model::close_alert(alerts_store, device, id);
+	}
+}
+
+fn toggle_device_down_alert(alerts_store: store, managed_ip: ~str, up: bool)
+{
+	let device = #fmt["devices:%s", managed_ip];
+	let id = ~"down";
+	
+	if up
+	{
+		model::close_alert(alerts_store, device, id);
+	}
+	else
+	{
+		let mesg = ~"Device is down.";
+		let resolution = ~"Check the power cable, power it on if it is off, check the IP address, verify routing.";
+		model::open_alert(alerts_store, {device: device, id: id, level: model::error_level, mesg: mesg, resolution: resolution});
+	}
 }
 
 fn add_device_notes(store: store, alerts_store: store, managed_ip: ~str, _device: std::map::hashmap<~str, std::json::json>)
@@ -341,7 +383,7 @@ fn get_device_label(device: std::map::hashmap<~str, std::json::json>, managed_ip
 	~"del: " + get_per_second_value(device, ~"ipInDelivers", old_url, ~"sname:ipInDelivers", old, delta_s, ~"p")
 }
 
-fn add_interfaces(store: store, alerts_store: store, managed_ip: ~str, data: std::json::json, old: solution, old_subject: ~str)
+fn add_interfaces(store: store, alerts_store: store, managed_ip: ~str, data: std::json::json, old: solution, old_subject: ~str) -> bool
 {
 	alt data
 	{
@@ -390,10 +432,13 @@ fn add_interfaces(store: store, alerts_store: store, managed_ip: ~str, data: std
 				(~"gnos:open",     string_value(~"no", ~"")),
 				(~"gnos:key",       string_value(~"interfaces", ~"")),
 			]);
+			
+			interfaces.is_not_empty()
 		}
 		_
 		{
 			#error["interfaces from device %s was expected to be a list but is %?", managed_ip, data];
+			false
 		}
 	}
 }
@@ -403,7 +448,7 @@ fn add_interfaces(store: store, alerts_store: store, managed_ip: ~str, data: std
 // "ifInDiscards": "74", 
 // "ifInOctets": "13762376", 
 // "ifInUcastPkts": "155115", 
-// "ifLastChange": "1503", 
+// "ifLastChange": "1503", 			didn't always see this one
 // "ifMtu": "1500", 
 // "ifOperStatus": "up(1)", 
 // "ifOutOctets": "12213444", 
