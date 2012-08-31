@@ -444,7 +444,7 @@ fn add_interface(store: store, alerts_store: store, managed_ip: ~str, interface:
 			html += #fmt["<td><a href='./subject/snmp/snmp:%s-%s'>data</a></td>", managed_ip, name];
 		html += ~"\n</tr>\n";
 		
-		// These are undocumented because they not intended to be used by clients.
+		// These are undocumented because they are not intended to be used by clients.
 		let entries = ~[
 			(prefix + ~"ifInOctets", int_value(get_snmp_i64(interface, ~"ifInOctets", 0))),
 			(prefix + ~"ifOutOctets", int_value(get_snmp_i64(interface, ~"ifOutOctets", 0))),
@@ -452,6 +452,14 @@ fn add_interface(store: store, alerts_store: store, managed_ip: ~str, interface:
 		store.add(old_subject, entries);
 	}
 	
+	toggle_admin_vs_oper_interface_alert(alerts_store, managed_ip, interface, name, oper_status);
+	toggle_weird_interface_state_alert(alerts_store, managed_ip, name, oper_status);
+	
+	ret (name, html);
+}
+
+fn toggle_admin_vs_oper_interface_alert(alerts_store: store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::json>, name: ~str, oper_status: ~str)
+{
 	let admin_status = lookup(interface, ~"ifAdminStatus", ~"");
 	
 	let device = #fmt["devices:%s", managed_ip];
@@ -465,8 +473,27 @@ fn add_interface(store: store, alerts_store: store, managed_ip: ~str, interface:
 	{
 		model::close_alert(alerts_store, device, id);
 	}
-	
-	ret (name, html);
+}
+
+// Add a warning if an interface state is not up and not down, i.e. one of:
+// 3 : testing
+// 4 : unknown
+// 5 : dormant			the interface is waiting for external actions (such as a serial line waiting for an incoming connection)
+// 6 : notPresent
+// 7 : lowerLayerDown
+fn toggle_weird_interface_state_alert(alerts_store: store, managed_ip: ~str, name: ~str, oper_status: ~str)
+{
+	let device = #fmt["devices:%s", managed_ip];
+	let id = name + ~"-weird";
+	if oper_status.contains(~"(1)") || oper_status.contains(~"(2)")
+	{
+		model::close_alert(alerts_store, device, id);
+	}
+	else
+	{
+		let mesg = #fmt["%s operational state is %s.", name, oper_status];
+		model::open_alert(alerts_store, {device: device, id: id, level: model::warning_level, mesg: mesg, resolution: ~""});
+	}
 }
 
 fn get_subnet(interface: std::map::hashmap<~str, std::json::json>) -> ~str
