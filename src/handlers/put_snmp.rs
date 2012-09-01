@@ -171,12 +171,13 @@ fn add_device(store: store, alerts_store: store, devices: ~[device], managed_ip:
 			];
 			store.add(old_subject, entries);
 			
-			toggle_device_uptime_alert(alerts_store, managed_ip, device);
+			let time = (get_snmp_i64(device, ~"sysUpTime", -1) as float)/100.0;
+			toggle_device_uptime_alert(alerts_store, managed_ip, time);
 			
 			let interfaces = device.find(~"interfaces");
 			if interfaces.is_some()
 			{
-				let has_interfaces = add_interfaces(store, alerts_store, managed_ip, interfaces.get(), old, old_subject);
+				let has_interfaces = add_interfaces(store, alerts_store, managed_ip, interfaces.get(), old, old_subject, time);
 				toggle_device_down_alert(alerts_store, managed_ip, has_interfaces);
 			}
 			else
@@ -191,9 +192,8 @@ fn add_device(store: store, alerts_store: store, devices: ~[device], managed_ip:
 	};
 }
 
-fn toggle_device_uptime_alert(alerts_store: store, managed_ip: ~str, device: std::map::hashmap<~str, std::json::json>)
+fn toggle_device_uptime_alert(alerts_store: store, managed_ip: ~str, time: float)
 {
-	let time = (get_snmp_i64(device, ~"sysUpTime", -1) as float)/100.0;
 	let device = #fmt["devices:%s", managed_ip];
 	let id = ~"uptime";
 	
@@ -383,7 +383,7 @@ fn get_device_label(device: std::map::hashmap<~str, std::json::json>, managed_ip
 	~"del: " + get_per_second_value(device, ~"ipInDelivers", old_url, ~"sname:ipInDelivers", old, delta_s, ~"p")
 }
 
-fn add_interfaces(store: store, alerts_store: store, managed_ip: ~str, data: std::json::json, old: solution, old_subject: ~str) -> bool
+fn add_interfaces(store: store, alerts_store: store, managed_ip: ~str, data: std::json::json, old: solution, old_subject: ~str, uptime: float) -> bool
 {
 	alt data
 	{
@@ -397,7 +397,7 @@ fn add_interfaces(store: store, alerts_store: store, managed_ip: ~str, data: std
 				{
 					std::json::dict(d)
 					{
-						vec::push(rows, add_interface(store, alerts_store, managed_ip, d, old, old_subject));
+						vec::push(rows, add_interface(store, alerts_store, managed_ip, d, old, old_subject, uptime));
 					}
 					_
 					{
@@ -458,7 +458,7 @@ fn add_interfaces(store: store, alerts_store: store, managed_ip: ~str, data: std
 // "ifType": "ethernetCsmacd(6)", 
 // "ipAdEntAddr": "10.101.3.2", 
 // "ipAdEntNetMask": "255.255.255.0"
-fn add_interface(store: store, alerts_store: store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::json>, old: solution, old_subject: ~str) -> (~str, ~str)
+fn add_interface(store: store, alerts_store: store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::json>, old: solution, old_subject: ~str, uptime: float) -> (~str, ~str)
 {
 	let mut html = ~"";
 	let name = lookup(interface, ~"ifDescr", ~"eth?");
@@ -497,10 +497,30 @@ fn add_interface(store: store, alerts_store: store, managed_ip: ~str, interface:
 		store.add(old_subject, entries);
 	}
 	
+	toggle_interface_uptime_alert(alerts_store, managed_ip, interface, name, uptime);
 	toggle_admin_vs_oper_interface_alert(alerts_store, managed_ip, interface, name, oper_status);
 	toggle_weird_interface_state_alert(alerts_store, managed_ip, name, oper_status);
 	
 	ret (name, html);
+}
+
+fn toggle_interface_uptime_alert(alerts_store: store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::json>, name: ~str, sys_uptime: float)
+{
+	let device = #fmt["devices:%s", managed_ip];
+	let id = name + ~"-uptime";
+	let if_time = (get_snmp_i64(interface, ~"ifLastChange", -1) as float)/100.0;
+	let time = sys_uptime - if_time;
+	
+	if if_time >= 0.0 && time < 60.0		// only signal changed if we actually got an up time
+	{
+		// TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
+		let mesg = #fmt["%s status changed.", name];		// we can't add the time here because alerts aren't changed when re-opened (and the mesg doesn't change when they are closed)
+		model::open_alert(alerts_store, {device: device, id: id, level: model::warning_level, mesg: mesg, resolution: ~""});
+	}
+	else
+	{
+		model::close_alert(alerts_store, device, id);
+	}
 }
 
 fn toggle_admin_vs_oper_interface_alert(alerts_store: store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::json>, name: ~str, oper_status: ~str)
