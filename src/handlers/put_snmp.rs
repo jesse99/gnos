@@ -148,6 +148,7 @@ fn add_device(store: store, alerts_store: store, devices: ~[device], managed_ip:
 	{
 		option::some(options_device)
 		{
+			let time = (get_snmp_i64(device, ~"sysUpTime", -1) as float)/100.0;
 			let entries = ~[
 				(~"gnos:center_x", float_value(options_device.center_x as f64)),
 				(~"gnos:center_y", float_value(options_device.center_y as f64)),
@@ -155,7 +156,7 @@ fn add_device(store: store, alerts_store: store, devices: ~[device], managed_ip:
 				
 				(~"gnos:primary_label", string_value(options_device.name, ~"")),
 				(~"gnos:secondary_label", string_value(managed_ip, ~"")),
-				(~"gnos:tertiary_label", string_value(get_device_label(device, managed_ip, old).trim(), ~"")),
+				(~"gnos:tertiary_label", string_value(get_device_label(device, managed_ip, old, time).trim(), ~"")),
 			];
 			let subject = #fmt["devices:%s", managed_ip];
 			store.add(subject, entries);
@@ -164,14 +165,13 @@ fn add_device(store: store, alerts_store: store, devices: ~[device], managed_ip:
 			store.add_triple(~[], {subject: subject, predicate: ~"gnos:internal-info", object: blank_value(old_subject)});
 			
 			let entries = ~[
-				(~"gnos:timestamp", float_value(utils::imprecise_time_s() as f64)),
+				(~"gnos:timestamp", float_value(time as f64)),
 				(~"sname:ipInReceives", int_value(get_snmp_i64(device, ~"ipInReceives", 0))),
 				(~"sname:ipForwDatagrams", int_value(get_snmp_i64(device, ~"ipForwDatagrams", 0))),
 				(~"sname:ipInDelivers", int_value(get_snmp_i64(device, ~"ipInDelivers", 0))),
 			];
 			store.add(old_subject, entries);
 			
-			let time = (get_snmp_i64(device, ~"sysUpTime", -1) as float)/100.0;
 			toggle_device_uptime_alert(alerts_store, managed_ip, time);
 			
 			let interfaces = device.find(~"interfaces");
@@ -371,16 +371,16 @@ fn get_alert_html(alerts_store: store, managed_ip: ~str) -> std::map::hashmap<~s
 	ret table;
 }
 
-fn get_device_label(device: std::map::hashmap<~str, std::json::json>, managed_ip: ~str, old: solution) -> ~str
+fn get_device_label(device: std::map::hashmap<~str, std::json::json>, managed_ip: ~str, old: solution, uptime: float) -> ~str
 {
 	let old_url = option::some(iri_value(~"http://network/" + managed_ip));
 	
 	let old_timestamp = get_old_f64(old_url, ~"gnos:timestamp", old);
-	let delta_s = utils::imprecise_time_s() as f64 - old_timestamp;
+	let delta_s = uptime as f64 - old_timestamp;
 	
-	~"recv: " + get_per_second_value(device, ~"ipInReceives", old_url, ~"sname:ipInReceives", old, delta_s, ~"p") +
-	~"fwd: " + get_per_second_value(device, ~"ipForwDatagrams", old_url, ~"sname:ipForwDatagrams", old, delta_s, ~"p") +
-	~"del: " + get_per_second_value(device, ~"ipInDelivers", old_url, ~"sname:ipInDelivers", old, delta_s, ~"p")
+	~"recv: " + get_per_second_str(device, ~"ipInReceives", old_url, ~"sname:ipInReceives", old, delta_s, ~"p") +
+	~"fwd: " + get_per_second_str(device, ~"ipForwDatagrams", old_url, ~"sname:ipForwDatagrams", old, delta_s, ~"p") +
+	~"del: " + get_per_second_str(device, ~"ipInDelivers", old_url, ~"sname:ipInDelivers", old, delta_s, ~"p")
 }
 
 fn add_interfaces(store: store, alerts_store: store, managed_ip: ~str, data: std::json::json, old: solution, old_subject: ~str, uptime: float) -> bool
@@ -470,7 +470,28 @@ fn add_interface(store: store, alerts_store: store, managed_ip: ~str, interface:
 		
 		let old_url = option::some(iri_value(~"http://network/" + managed_ip));
 		let old_timestamp = get_old_f64(old_url, ~"gnos:timestamp", old);
-		let delta_s = utils::imprecise_time_s() as f64 - old_timestamp;
+		let delta_s = uptime as f64 - old_timestamp;
+		
+		let (out_bps, out_bps_str) = get_per_second_value_str(interface, ~"ifOutOctets", old_url, prefix + ~"ifOutOctets", old, delta_s, ~"b");
+		if  !float::is_NaN(out_bps)
+		{
+if name == ~"lo" && managed_ip == ~"10.103.0.2"
+{
+	alt lookup(interface, ~"ifOutOctets", ~"")
+	{
+		~""
+		{
+		}
+		value
+		{
+let new_value = 8.0*(i64::from_str(value).get() as float);
+let old_value = 8.0*(get_old_f64(old_url, prefix + ~"ifOutOctets", old) as float);
+io::println(#fmt["secs: %.1f, delta: %.1f, bps: %.1f", delta_s as float, new_value - old_value, (new_value - old_value)/(delta_s as float)]);
+		}
+	}
+}
+			add_interface_out_meter(store, managed_ip, name, interface, out_bps);
+		}
 		
 		// TODO: We're not showing ifInUcastPkts and ifOutUcastPkts because bandwidth seems
 		// more important, the table starts to get cluttered when we do, and multicast is at least as
@@ -481,8 +502,8 @@ fn add_interface(store: store, alerts_store: store, managed_ip: ~str, interface:
 		html += ~"<tr>\n";
 			html += #fmt["<td>%s</td>", name];
 			html += #fmt["<td>%s%s</td>", get_str_cell(interface, ~"ipAdEntAddr"), get_subnet(interface)];
-			html += #fmt["<td>%s</td>", get_per_second_value(interface, ~"ifInOctets", old_url, prefix + ~"ifInOctets", old, delta_s, ~"b")];
-			html += #fmt["<td>%s</td>", get_per_second_value(interface, ~"ifOutOctets", old_url, prefix + ~"ifOutOctets", old, delta_s, ~"b")];
+			html += #fmt["<td>%s</td>", get_per_second_str(interface, ~"ifInOctets", old_url, prefix + ~"ifInOctets", old, delta_s, ~"b")];
+			html += #fmt["<td>%s</td>", out_bps_str];
 			html += #fmt["<td>%s</td>", get_int_cell(interface, ~"ifSpeed", ~"bps")];
 			html += #fmt["<td>%s</td>", get_str_cell(interface, ~"ifPhysAddress").to_upper()];
 			html += #fmt["<td>%s</td>", get_int_cell(interface, ~"ifMtu", ~"B")];
@@ -502,6 +523,22 @@ fn add_interface(store: store, alerts_store: store, managed_ip: ~str, interface:
 	toggle_weird_interface_state_alert(alerts_store, managed_ip, name, oper_status);
 	
 	ret (name, html);
+}
+
+fn add_interface_out_meter(store: store, managed_ip: ~str, name: ~str, interface: std::map::hashmap<~str, std::json::json>, out_bps: float)
+{
+	let if_speed = get_snmp_i64(interface, ~"ifSpeed", 0) as float;
+	let level = out_bps/if_speed;
+	if if_speed > 0.0 && level > 0.1
+	{
+		let subject = get_blank_name(store, #fmt["%s-meter", managed_ip]);
+		store.add(subject, ~[
+			(~"gnos:meter",          string_value(name, ~"")),
+			(~"gnos:target",          iri_value(#fmt["devices:%s", managed_ip])),
+			(~"gnos:level",           float_value(level as f64)),
+			(~"gnos:description",  string_value(~"Percentage of interface bandwidth used by output packets.", ~"")),
+		]);
+	}
 }
 
 fn toggle_interface_uptime_alert(alerts_store: store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::json>, name: ~str, sys_uptime: float)
@@ -665,7 +702,7 @@ fn count_trailing_zeros(mask: uint) -> int
 	ret count;
 }
 
-fn get_per_second_value(data: std::map::hashmap<~str, std::json::json>, key: ~str, old_url: option::option<object>, name: ~str, old: solution, delta_s: f64, unit: ~str) -> ~str
+fn get_per_second_str(data: std::map::hashmap<~str, std::json::json>, key: ~str, old_url: option::option<object>, name: ~str, old: solution, delta_s: f64, unit: ~str) -> ~str
 {
 	alt lookup(data, key, ~"")
 	{
@@ -690,6 +727,36 @@ fn get_per_second_value(data: std::map::hashmap<~str, std::json::json>, key: ~st
 			else
 			{
 				#fmt["%s%s\n", new_str_value, unit]
+			}
+		}
+	}
+}
+
+fn get_per_second_value_str(data: std::map::hashmap<~str, std::json::json>, key: ~str, old_url: option::option<object>, name: ~str, old: solution, delta_s: f64, unit: ~str) -> (float, ~str)
+{
+	alt lookup(data, key, ~"")
+	{
+		~""
+		{
+			(float::NaN, ~"\n")
+		}
+		value
+		{
+			let new_value = 8.0f64*(i64::from_str(value).get() as f64);
+			let new_str_value = utils::f64_to_unit_str(new_value);
+			
+			let old_value = 8.0f64*get_old_f64(old_url, name, old);
+			if old_value > 0.0f64 && delta_s > 1.0f64
+			{
+				// Showing the absolute packet numbers is nearly useless so we'll only
+				// show packets per second if it is available.
+				let pps = (new_value - old_value)/delta_s;
+				let pps_str_value = utils::f64_to_unit_str(pps);
+				(pps as float, #fmt["%s%sps\n", pps_str_value, unit])
+			}
+			else
+			{
+				(float::NaN, #fmt["%s%s\n", new_str_value, unit])
 			}
 		}
 	}
