@@ -531,7 +531,7 @@ fn toggle_admin_vs_oper_interface_alert(alerts_store: store, managed_ip: ~str, i
 	let id = name + ~"-status";
 	if admin_status.is_not_empty() && oper_status != admin_status
 	{
-		let mesg = #fmt["Admin set %s to %s, but operational state is %s.", name, admin_status, oper_status];
+		let mesg = #fmt["Admin set %s to %s, but operational state is %s.", name, trim_interface_status(admin_status), trim_interface_status(oper_status)];
 		model::open_alert(alerts_store, {device: device, id: id, level: model::error_level, mesg: mesg, resolution: ~""});
 	}
 	else
@@ -556,9 +556,24 @@ fn toggle_weird_interface_state_alert(alerts_store: store, managed_ip: ~str, nam
 	}
 	else
 	{
-		let mesg = #fmt["%s operational state is %s.", name, oper_status];
+		let mesg = #fmt["%s operational state is %s.", name, trim_interface_status(oper_status)];
 		model::open_alert(alerts_store, {device: device, id: id, level: model::warning_level, mesg: mesg, resolution: ~""});
 	}
+}
+
+// Remove "\(\d+\)" from an interface status string.
+// TODO: Should use a regex once rust supports them.
+fn trim_interface_status(status: ~str) -> ~str
+{
+	let mut result = status;
+	
+	for uint::range(1, 7)
+	|i|
+	{
+		result = str::replace(result, #fmt["(%?)", i], ~"");
+	}
+	
+	ret result;
 }
 
 fn get_subnet(interface: std::map::hashmap<~str, std::json::json>) -> ~str
