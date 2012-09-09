@@ -39,8 +39,8 @@ dist:
 
 # ------------------
 # Binary targets 
-bin/gnos: src/gnos.rc src/*.rs src/handlers/*.rs
+bin/gnos: src/crate.rc src/*.rs src/handlers/*.rs
 	rustc -L bin -o $@ $<
 
-bin/test-gnos: src/gnos.rc src/*.rs src/handlers/*.rs src/tests/*.rs
+bin/test-gnos: src/crate.rc src/*.rs src/handlers/*.rs src/tests/*.rs
 	rustc -L bin --test -o $@ $<
