@@ -1,7 +1,9 @@
 // This is the entry point into gnos web sites. 
+use  mustache::*;
+use server = rwebserve::rwebserve;
 
-fn get_map(options: options::options, response: server::response) -> server::response
+fn get_map(options: options::options, response: &server::Response) -> server::Response
 {
-	response.context.insert(~"admin", mustache::bool(options.admin));
-	{template: ~"map.html" with response}
+	response.context.insert(@~"admin", mustache::Bool(options.admin));
+	server::Response {template: ~"map.html", ..*response}
 }

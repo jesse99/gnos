@@ -1,15 +1,15 @@
-import io;
-import io::writer_util;
-import std::json;
-import std::map::hashmap;
-import core::option::extensions;
-import server = rwebserve;
-import model;
-import options;
-import handlers::*;
-import rrdf::store::{store_methods, store_trait};
+use io;
+use io::WriterUtil;
+use std::json;
+use std::map::hashmap;
+use core::option::extensions;
+use server = rwebserve;
+use model;
+use options;
+use handlers::*;
+use rrdf::store::{store_methods, store_trait};
 
-fn copy_scripts(root: ~str, user: ~str, host: ~str) -> option::option<~str>
+fn copy_scripts(root: ~str, user: ~str, host: ~str) -> option::Option<~str>
 {
 	let dir = core::path::dirname(root);							// gnos/html => /gnos
 	let dir = core::path::connect(dir, ~"scripts");				// /gnos => /gnos/scripts
@@ -18,31 +18,31 @@ fn copy_scripts(root: ~str, user: ~str, host: ~str) -> option::option<~str>
 	utils::scp_files(files, user, host)
 }
 
-fn run_snmp(user: ~str, host: ~str, script: ~str) -> option::option<~str>
+fn run_snmp(user: ~str, host: ~str, script: ~str) -> option::Option<~str>
 {
 	utils::run_remote_command(user, host, ~"python snmp-modeler.py -vv " + script)
 }
 
-fn snmp_exited(err: option::option<~str>, state_chan: comm::chan<model::msg>)
+fn snmp_exited(err: option::Option<~str>, state_chan: comm::Chan<model::msg>)
 {
-	let mesg = #fmt["snmp-modeler.py exited%s", if err.is_some() {~" with error: " + err.get()} else {~""}];
-	#error["%s", mesg];
+	let mesg = fmt!("snmp-modeler.py exited%s", if err.is_some() {~" with error: " + err.get()} else {~""});
+	error!("%s", mesg);
 	
 	let alert = {device: ~"gnos:map", id: ~"snmp-modeler.py exited", level: model::error_level, mesg: mesg, resolution: ~"Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
 	comm::send(state_chan, model::update_msg(~"alerts", |store, _err| {model::open_alert(store, alert)}, ~""));
 }
 
-fn setup(options: options::options, state_chan: comm::chan<model::msg>) 
+fn setup(options: options::options, state_chan: comm::Chan<model::msg>) 
 {
 	let root = options.root;
 	let client = options.client;
 	let cleanup = copy options.cleanup;
 	
-	let action: task_runner::job_fn = || copy_scripts(root, #env["GNOS_USER"], client);
+	let action: task_runner::job_fn = || copy_scripts(root, env!("GNOS_USER"), client);
 	let cp = {action: action, policy: task_runner::shutdown_on_failure};
 	
 	let ccc = copy(options.script);
-	let action: task_runner::job_fn = || run_snmp(#env["GNOS_USER"], client, ccc);
+	let action: task_runner::job_fn = || run_snmp(env!("GNOS_USER"), client, ccc);
 	let run = {action: action, policy: task_runner::notify_on_exit(|err| {snmp_exited(err, state_chan)})};
 	
 	task_runner::sequence(~[cp, run], cleanup);
@@ -50,7 +50,7 @@ fn setup(options: options::options, state_chan: comm::chan<model::msg>)
 
 fn get_shutdown(options: options::options) -> !
 {
-	#info["received shutdown request"];
+	info!("received shutdown request");
 	for options.cleanup.each |f| {f()};
 	libc::exit(0)
 }
@@ -58,15 +58,15 @@ fn get_shutdown(options: options::options) -> !
 fn update_globals(store: rrdf::store, options: options::options) -> bool
 {
 	store.add(~"gnos:globals", ~[
-		(~"gnos:admin", rrdf::bool_value(true)),		// TODO: get this from a setting
-		(~"gnos:debug", rrdf::bool_value(true)),		// TODO: get this from command line
+		(~"gnos:admin", rrdf::BoolValue(true)),		// TODO: get this from a setting
+		(~"gnos:debug", rrdf::BoolValue(true)),		// TODO: get this from command line
 	]);
 	
-	let devices = vec::zip(vec::from_elem(options.devices.len(), ~"gnos:device"), do options.devices.map |n| {rrdf::string_value(n.managed_ip, ~"")});
+	let devices = vec::zip(vec::from_elem(options.devices.len(), ~"gnos:device"), do options.devices.map |n| {rrdf::StringValue(n.managed_ip, ~"")});
 	store.add(~"gnos:globals", devices);
 	
 	let names = model::get_standard_store_names();
-	let stores = vec::zip(vec::from_elem(names.len(), ~"gnos:store"), do names.map |n| {rrdf::string_value(n, ~"")});
+	let stores = vec::zip(vec::from_elem(names.len(), ~"gnos:store"), do names.map |n| {rrdf::StringValue(n, ~"")});
 	store.add(~"gnos:globals", stores);
 	
 	true
@@ -74,10 +74,10 @@ fn update_globals(store: rrdf::store, options: options::options) -> bool
 
 fn main(args: ~[~str])
 {
-	#info["starting up gnos"];
-	if #env["GNOS_USER"].is_empty()
+	info!("starting up gnos");
+	if env!("GNOS_USER").is_empty()
 	{
-		#error["GNOS_USER must be set to the name of a user able to ssh into the network json client."];
+		error!("GNOS_USER must be set to the name of a user able to ssh into the network json client.");
 		libc::exit(1)
 	}
 	
@@ -88,7 +88,7 @@ fn main(args: ~[~str])
 	if !options.db
 	{
 		let client = options.client;
-		let c1: task_runner::exit_fn = || {utils::run_remote_command(#env["GNOS_USER"], client, ~"pgrep -f snmp-modeler.py | xargs --no-run-if-empty kill -9");};
+		let c1: task_runner::exit_fn = || {utils::run_remote_command(env!("GNOS_USER"), client, ~"pgrep -f snmp-modeler.py | xargs --no-run-if-empty kill -9");};
 		options.cleanup = ~[c1];
 		
 		setup(options, state_chan);
@@ -138,8 +138,8 @@ fn main(args: ~[~str])
 		],
 		sse: ~[(~"/query", query_s)],
 		settings: ~[(~"debug",  ~"true")]		// TODO: make this a command-line option
-		with server::initialize_config()};
+		, .. server::initialize_config()};
 	server::start(config);
 	
-	#info["exiting gnos"];						// won't normally land here
+	info!("exiting gnos");						// won't normally land here
 }

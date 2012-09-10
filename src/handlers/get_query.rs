@@ -1,10 +1,10 @@
 // Uses Server Sent Events to send solutions for a query after the model is updated.
-import std::json::to_json;
-import std::json::to_str;
-import model::{msg, deregister_msg, register_msg};
-import rrdf::{object, iri_value, blank_value, unbound_value, invalid_value, error_value, string_value,
-	solution_row, solution};
-import rwebserve::imap::{imap_methods, immutable_map};
+use std::json::ToJson;
+use std::json::to_str;
+use model::{msg, deregister_msg, register_msg};
+use rrdf::rrdf::*;
+use server = rwebserve::rwebserve;
+use rwebserve::imap::ImmutableMap;
 
 export get_query;
 
@@ -24,48 +24,48 @@ export get_query;
 /// of JSON encoded solutions.
 ///
 /// If a query fails to compile the result will be a string with an error message.
-fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server::push_chan) -> server::control_chan
+fn get_query(state_chan: comm::Chan<msg>, request: &server::Request, push: server::PushChan) -> server::ControlChan
 {
-	let name = request.params.get(~"name");
+	let name = *request.params.get(@~"name");
 	let queries = get_queries(request);
 	
 	do task::spawn_listener
-	|control_port: server::control_port|
+	|control_port: server::ControlPort|
 	{
-		#info["starting %s query stream", name];
-		let notify_port = comm::port();
-		let notify_chan = comm::chan(notify_port);
+		info!("starting %s query stream", name);
+		let notify_port = comm::Port();
+		let notify_chan = comm::Chan(notify_port);
 		
-		let key = #fmt["query %?", ptr::addr_of(notify_port)];
+		let key = fmt!("query %?", ptr::addr_of(notify_port));
 		comm::send(state_chan, register_msg(name, key, queries, notify_chan));
 		
 		let mut solutions = ~[];
 		loop
 		{
-			alt comm::select2(notify_port, control_port)
+			match comm::select2(notify_port, control_port)
 			{
-				either::left(result::ok(new_solutions))
+				either::Left(result::Ok(new_solutions)) =>
 				{
 					if new_solutions != solutions
 					{
 						solutions = new_solutions;	// TODO: need to escape the json?
-						comm::send(push, #fmt["retry: 5000\ndata: %s\n\n", solutions_to_json(solutions).to_str()]);
+						comm::send(push, fmt!("retry: 5000\ndata: %s\n\n", solutions_to_json(solutions).to_str()));
 					}
 					else
 					{
 					}
 				}
-				either::left(result::err(err))
+				either::Left(result::Err(err)) =>
 				{
-					comm::send(push, #fmt["retry: 5000\ndata: %s\n\n", (~"Expected " + err).to_json().to_str()]);
+					comm::send(push, fmt!("retry: 5000\ndata: %s\n\n", (~"Expected " + err).to_json().to_str()));
 				}
-				either::right(server::refresh_event)
+				either::Right(server::RefreshEvent) =>
 				{
-					comm::send(push, #fmt["retry: 5000\ndata: %s\n\n", solutions_to_json(solutions).to_str()]);
+					comm::send(push, fmt!("retry: 5000\ndata: %s\n\n", solutions_to_json(solutions).to_str()));
 				}
-				either::right(server::close_event)
+				either::Right(server::CloseEvent) =>
 				{
-					#info["shutting down query stream"];
+					info!("shutting down query stream");
 					comm::send(state_chan, deregister_msg(name, key));
 					break;
 				}
@@ -74,65 +74,65 @@ fn get_query(state_chan: comm::chan<msg>, request: server::request, push: server
 	}
 }
 
-fn get_queries(request: server::request) -> ~[~str]
+fn get_queries(request: &server::Request) -> ~[~str]
 {
 	let mut queries = ~[];
-	vec::push(queries, request.params.get(~"expr"));
+	vec::push(queries, *request.params.get(@~"expr"));
 	
 	for uint::iterate(2, 10)
 	|i|
 	{
-		alt request.params.find(#fmt["expr%?", i])
+		match request.params.find(@fmt!("expr%?", i))
 		{
-			option::some(expr)
+			option::Some(expr) =>
 			{
-				vec::push(queries, expr);
+				vec::push(queries, *expr);
 			}
-			option::none
+			option::None =>
 			{
 			}
 		}
 	};
 	
-	ret queries;
+	return queries;
 }
 
-fn solutions_to_json(solutions: ~[solution]) -> std::json::json
+fn solutions_to_json(solutions: &[Solution]) -> std::json::Json
 {
 	if solutions.len() == 1
 	{
-		solution_to_json(solutions[0])
+		solution_to_json(&solutions[0])
 	}
 	else
 	{
-		std::json::list(@
+		std::json::List(@
 			do vec::map(solutions)
 			|solution|
 			{
-				solution_to_json(solution)
+				solution_to_json(&solution)
 			}
 		)
 	}
 }
 
-fn solution_to_json(solution: solution) -> std::json::json
+fn solution_to_json(solution: &Solution) -> std::json::Json
 {
-	//#info[" "];
-	std::json::list(@
-		do vec::map(solution)
+	//info!(" ");
+	std::json::List(@
+		do vec::map(solution.rows)
 		|row|
 		{
-			//#info["row: %?", row];
-			solution_row_to_json(row)
+			//info!("row: %?", row);
+			solution_row_to_json(&row)
 		}
 	)
 }
 
-fn solution_row_to_json(row: solution_row) -> std::json::json
+fn solution_row_to_json(row: &SolutionRow) -> std::json::Json
 {
-	std::json::dict(
+	std::json::Dict(
 		std::map::hash_from_strs(
-			do vec::map(row)
+			do vec::map(*row)
 			|entry|
 			{
 				let (key, value) = entry;
@@ -143,24 +143,24 @@ fn solution_row_to_json(row: solution_row) -> std::json::json
 }
 
 // TODO: need to escape as html?
-fn object_to_json(obj: object) -> std::json::json
+fn object_to_json(obj: Object) -> std::json::Json
 {
-	alt obj
+	match obj
 	{
-		iri_value(value) | blank_value(value)
+		IriValue(value) | BlankValue(value) =>
 		{
 			value.to_json()
 		}
-		unbound_value(*) | invalid_value(*) | error_value(*)
+		UnboundValue(*) | InvalidValue(*) | ErrorValue(*) =>
 		{
 			// TODO: use custom css and render these in red
 			obj.to_str().to_json()
 		}
-		string_value(value, ~"")
+		StringValue(value, ~"") =>
 		{
 			value.to_json()
 		}
-		_
+		_ =>
 		{
 			obj.to_str().to_json()
 		}

@@ -1,10 +1,6 @@
-import to_str::to_str;
-import rrdf::{create_store, get_blank_name, store, solution, object, solution_row, solution_row_methods,
-	triple, iri_value, string_value, int_value, dateTime_value, selector, compile, solution_row_methods, solution_methods,
-	store_methods};
-import rrdf::solution::solution_row_trait;
-import rrdf::store::{base_iter, store_trait};
-import rrdf::store::to_str; 
+//use to_str::to_str;
+use std::map::*;
+use rrdf::rrdf::*;
 
 export update_fn, msg, query_msg, update_msg, updates_msg, register_msg, deregister_msg, manage_state, get_state, eval_query,
 	alert, alert_level, error_level, warning_level, info_level, debug_level, open_alert, close_alert, get_standard_store_names,
@@ -13,16 +9,16 @@ export update_fn, msg, query_msg, update_msg, updates_msg, register_msg, deregis
 /// Function used to update a store within the model task.
 ///
 /// Data can be anything, but is typically json. Return true if the store was updated.
-type update_fn = fn~ (store: store, data: ~str) -> bool;
+type update_fn = fn~ (store: Store, data: ~str) -> bool;
 
 /// Like update_fn except that it takes multiple stores.
-type updates_fn = fn~ (store: ~[store], data: ~str) -> bool;
+type updates_fn = fn~ (store: ~[Store], data: ~str) -> bool;
 
 /// The channel used by register_msg to communicate the initial result and
 /// subsequent results back to the original task.
 ///
 /// In the case of an error only the initial result is sent.
-type register_chan = comm::chan<result::result<~[solution], ~str>>;
+type register_chan = comm::Chan<result::Result<~[Solution], ~str>>;
 
 /// Enum used to communicate with the model task.
 ///
@@ -30,14 +26,14 @@ type register_chan = comm::chan<result::result<~[solution], ~str>>;
 /// server-sent events. Store should be "model" or "alerts".
 enum msg
 {
-	query_msg(~str, ~str, comm::chan<solution>),		// store + SPARQL query + channel to send results back along
+	query_msg(~str, ~str, comm::Chan<Solution>),		// store + SPARQL query + channel to send results back along
 	update_msg(~str, update_fn, ~str),					// store + function to use to update the store + data to use
 	updates_msg(~[~str], updates_fn, ~str),				// stores + function to use to update the stores + data to use
 	
 	register_msg(~str, ~str, ~[~str], register_chan),		// store + key + SPARQL queries + channel to send results back along
 	deregister_msg(~str, ~str),								// store + key
 	
-	sync_msg(comm::chan<bool>),						// ensure the model task has processed all messages (for unit testing)
+	sync_msg(comm::Chan<bool>),						// ensure the model task has processed all messages (for unit testing)
 	exit_msg,												// exits the task (for unit testing)
 }
 
@@ -62,17 +58,17 @@ enum alert_level
 	debug_level,
 }
 
-type registration = {queries: ~[~str], channel: register_chan, solutions: @mut ~[solution]};
+type registration = {queries: ~[~str], channel: register_chan, solutions: @mut ~[Solution]};
 
 fn get_standard_store_names() -> ~[~str]
 {
-	ret ~[~"globals", ~"primary", ~"alerts", ~"snmp"];
+	return ~[~"globals", ~"primary", ~"alerts", ~"snmp"];
 }
 
 /// Runs within a task and manages triple stores holding gnos state.
 ///
 /// Other tasks (e.g. views) can query or update the state this function manages.
-fn manage_state(port: comm::port<msg>)
+fn manage_state(port: comm::Port<msg>)
 {
 	let namespaces = ~[
 		{prefix: ~"devices", path: ~"http://network/"},
@@ -83,34 +79,34 @@ fn manage_state(port: comm::port<msg>)
 	
 	let stores = std::map::str_hash();
 	let queries = std::map::str_hash();			// query string => compiled query (cache)
-	let registered = std::map::str_hash();		// store name => {registrar key => (query string, channel<solution>)}
+	let registered = std::map::str_hash();		// store name => {registrar key => (query string, channel<Solution>)}
 	
 	for get_standard_store_names().each
 	|name|
 	{
-		stores.insert(name,  create_store(namespaces, @std::map::str_hash()));
+		stores.insert(name,  Store(namespaces, &std::map::box_str_hash()));
 		registered.insert(name, std::map::str_hash());
 	}
 	
 	loop
 	{
-		alt comm::recv(port)
+		match comm::recv(port)
 		{
-			query_msg(name, expr, channel)
+			query_msg(name, expr, channel) =>
 			{
-				let solutions = eval_queries(stores.get(name), queries, ~[expr]).get();		// always a canned query so we want to fail fast on error
+				let solutions = eval_queries(&stores.get(name), queries, ~[expr]).get();		// always a canned query so we want to fail fast on error
 				assert solutions.len() == 1;
 				comm::send(channel, copy solutions[0]);
 			}
-			update_msg(name, f, data)
+			update_msg(name, f, data) =>
 			{
 				if f(stores.get(name), data)
 				{
-					#info["Updated %s store", name];
+					info!("Updated %s store", name);
 					update_registered(stores, name, queries, registered);
 				}
 			}
-			updates_msg(names, f, data)
+			updates_msg(names, f, data) =>
 			{
 				// This is a bit of a lame special case, but there are some advantages:
 				// 1) It allows multiple stores to be updated atomically.
@@ -119,7 +115,7 @@ fn manage_state(port: comm::port<msg>)
 				let ss = do names.map |name| {stores.get(name)};
 				if f(ss, data)
 				{
-					#info["Updated %s stores", str::connect(names, ~", ")];
+					info!("Updated %s stores", str::connect(names, ~", "));
 					for names.each
 					|name|
 					{
@@ -127,32 +123,32 @@ fn manage_state(port: comm::port<msg>)
 					}
 				}
 			}
-			register_msg(name, key, exprs, channel)
+			register_msg(name, key, exprs, channel) =>
 			{
-				alt eval_queries(stores.get(name), queries, exprs)
+				match eval_queries(&stores.get(name), queries, exprs)
 				{
-					result::ok(solutions)
+					result::Ok(solutions) =>
 					{
-						comm::send(channel, result::ok(copy(solutions)));
+						comm::send(channel, result::Ok(copy(solutions)));
 						
 						let added = registered[name].insert(key, {queries: exprs, channel: channel, solutions: @mut solutions});
 						assert added;
 					}
-					result::err(err)
+					result::Err(err) =>
 					{
-						comm::send(channel, result::err(err));
+						comm::send(channel, result::Err(err));
 					}
 				}
 			}
-			deregister_msg(name, key)
+			deregister_msg(name, key) =>
 			{
 				registered[name].remove(key);
 			}
-			sync_msg(channel)
+			sync_msg(channel) =>
 			{
 				comm::send(channel, true);
 			}
-			exit_msg
+			exit_msg =>
 			{
 				break;
 			}
@@ -161,17 +157,17 @@ fn manage_state(port: comm::port<msg>)
 }
 
 /// Helper used to query model state.
-fn get_state(name: ~str, channel: comm::chan<msg>, query: ~str) -> solution
+fn get_state(name: ~str, channel: comm::Chan<msg>, query: ~str) -> Solution
 {
-	let port = comm::port::<solution>();
-	let chan = comm::chan::<solution>(port);
+	let port = comm::Port::<Solution>();
+	let chan = comm::Chan::<Solution>(port);
 	comm::send(channel, query_msg(name, query, chan));
 	let result = comm::recv(port);
-	ret result;
+	return result;
 }
 
 /// Helper used to add a new alert to the "alerts" store (if there is not already one open).
-fn open_alert(store: store, alert: alert) -> bool
+fn open_alert(store: &Store, alert: alert) -> bool
 {
 	let expr = #fmt["
 	PREFIX devices: <http://network/>
@@ -188,30 +184,30 @@ fn open_alert(store: store, alert: alert) -> bool
 		}
 	}", alert.device, alert.id];
 	
-	alt eval_query(store, expr)
+	match eval_query(store, expr)
 	{
-		result::ok(solution)
+		result::Ok(solution) =>
 		{
 			// Add the alert if it doesn't already exist OR it exists but is closed (i.e. if we found rows they must all be closed).
-			if solution.all(|row| {row.search(~"end").is_some()})
+			if solution.rows.all(|row| {row.search(~"end").is_some()})
 			{
 				let level =
-					alt alert.level
+					match alert.level
 					{
-						error_level		{~"error"}
-						warning_level	{~"warning"}
-						info_level		{~"info"}
-						debug_level	{~"debug"}
+						error_level =>		{~"error"}
+						warning_level =>	{~"warning"}
+						info_level =>		{~"info"}
+						debug_level =>	{~"debug"}
 					};
 					
 				let subject = get_blank_name(store, ~"alert");
 				store.add(subject, ~[
-					(~"gnos:device", iri_value(alert.device)),
-					(~"gnos:id", string_value(alert.id, ~"")),
-					(~"gnos:begin", dateTime_value(std::time::now())),
-					(~"gnos:mesg", string_value(alert.mesg, ~"")),
-					(~"gnos:resolution", string_value(alert.resolution, ~"")),
-					(~"gnos:level", string_value(level, ~"")),
+					(~"gnos:device", IriValue(alert.device)),
+					(~"gnos:id", StringValue(alert.id, ~"")),
+					(~"gnos:begin", DateTimeValue(std::time::now())),
+					(~"gnos:mesg", StringValue(alert.mesg, ~"")),
+					(~"gnos:resolution", StringValue(alert.resolution, ~"")),
+					(~"gnos:level", StringValue(level, ~"")),
 				]);
 				
 				if alert.level == error_level
@@ -225,16 +221,16 @@ fn open_alert(store: store, alert: alert) -> bool
 				false
 			}
 		}
-		result::err(err)
+		result::Err(err) =>
 		{
-			#error["open_alert> %s", err];
+			error!("open_alert> %s", err);
 			false
 		}
 	}
 }
 
 /// Helper used to close any open alerts from the "alerts" store.
-fn close_alert(store: store, device: ~str, id: ~str) -> bool
+fn close_alert(store: &Store, device: ~str, id: ~str) -> bool
 {
 	let expr = #fmt["
 	PREFIX devices: <http://network/>
@@ -252,13 +248,13 @@ fn close_alert(store: store, device: ~str, id: ~str) -> bool
 		}
 	}", device, id];
 	
-	alt eval_query(store, expr)
+	match eval_query(store, expr)
 	{
-		result::ok(solution)
+		result::Ok(solution) =>
 		{
 			let mut changed = false;
 			let mut added = 0;
-			for solution.each
+			for solution.rows.each
 			|row|
 			{
 				if row.search(~"end").is_none()
@@ -267,7 +263,7 @@ fn close_alert(store: store, device: ~str, id: ~str) -> bool
 					{
 						added += 1;
 					}
-					store.add_triple(~[], {subject: row.get(~"subject").to_str(), predicate: ~"gnos:end", object: dateTime_value(std::time::now())});
+					store.add_triple(~[], {subject: row.get(~"subject").to_str(), predicate: ~"gnos:end", object: DateTimeValue(std::time::now())});
 					changed = true;
 				}
 			}
@@ -278,40 +274,40 @@ fn close_alert(store: store, device: ~str, id: ~str) -> bool
 			}
 			changed
 		}
-		result::err(err)
+		result::Err(err) =>
 		{
-			#error["close_alert> %s", err];
+			error!("close_alert> %s", err);
 			false
 		}
 	}
 }
 
-fn eval_query(store: store, expr: ~str) -> result::result<solution, ~str>
+fn eval_query(store: &Store, expr: ~str) -> result::Result<Solution, ~str>
 {
-	alt compile(expr)
+	match compile(expr)
 	{
-		result::ok(selector)
+		result::Ok(selector) =>
 		{
-			alt selector(store)
+			match selector(store)
 			{
-				result::ok(solution)
+				result::Ok(solution) =>
 				{
-					result::ok(solution)
+					result::Ok(solution)
 				}
-				result::err(err)
+				result::Err(err) =>
 				{
-					result::err(#fmt["query failed to run: %s", err])
+					result::Err(fmt!("query failed to run: %s", err))
 				}
 			}
 		}
-		result::err(err)
+		result::Err(err) =>
 		{
-			result::err(#fmt["failed to compile query: expected %s", err])
+			result::Err(fmt!("failed to compile query: expected %s", err))
 		}
 	}
 }
 // ---- Internal functions ----------------------------------------------------
-fn update_registered(stores: hashmap<~str, store>, name: ~str, queries: hashmap<~str, selector>, registered: hashmap<~str, hashmap<~str, registration>>)
+fn update_registered(stores: hashmap<~str, Store>, name: ~str, queries: hashmap<~str, Selector>, registered: hashmap<~str, hashmap<~str, registration>>)
 {
 	let store = stores.find(name);
 	if store.is_some()
@@ -322,10 +318,10 @@ fn update_registered(stores: hashmap<~str, store>, name: ~str, queries: hashmap<
 			for map.get().each_value
 			|r|
 			{
-				let solutions = eval_queries(store.get(), queries, r.queries).get();	// query that worked once so should be OK to fail fast
+				let solutions = eval_queries(&store.get(), queries, r.queries).get();	// query that worked once so should be OK to fail fast
 				if solutions != *r.solutions
 				{
-					comm::send(r.channel, result::ok(copy(solutions)));
+					comm::send(r.channel, result::Ok(copy(solutions)));
 					*r.solutions = solutions;
 				}
 			}
@@ -333,83 +329,83 @@ fn update_registered(stores: hashmap<~str, store>, name: ~str, queries: hashmap<
 	}
 }
 
-fn update_err_count(store: store, device: ~str, delta: i64)
+fn update_err_count(store: &Store, device: ~str, delta: i64)
 {
-	alt store.find_object(device, ~"gnos:num_errors")
+	match store.find_object(device, ~"gnos:num_errors")
 	{
-		option::some(int_value(value))
+		option::Some(IntValue(value)) =>
 		{
 			// TODO: This is a rather inefficient pattern (though it doesn't matter here because
 			// subject has only one predicate). But maybe replace_triple should have a variant 
 			// or something that passes the original value to a closure.
-			store.replace_triple(~[], {subject: device, predicate: ~"gnos:num_errors", object: int_value(value + delta)});
+			store.replace_triple(~[], {subject: device, predicate: ~"gnos:num_errors", object: IntValue(value + delta)});
 		}
-		option::some(x)
+		option::Some(x) =>
 		{
-			fail #fmt["Expected an int value for gnos:num_errors in the alerts store, but found %?", x];
+			fail fmt!("Expected an int value for gnos:num_errors in the alerts store, but found %?", x);
 		}
-		option::none
+		option::None =>
 		{
 			assert delta == 1;		// if we're closing an alert we should have found the err_count for the open alert
-			store.add_triple(~[], {subject: device, predicate: ~"gnos:num_errors", object: int_value(1)});
+			store.add_triple(~[], {subject: device, predicate: ~"gnos:num_errors", object: IntValue(1)});
 		}
 	}
 }
 
 // In general the same queries will be used over and over again so it will be
 // much more efficient to cache the selectors.
-fn get_selector(queries: hashmap<~str, selector>, query: ~str) -> result::result<selector, ~str>
+fn get_selector(queries: hashmap<~str, Selector>, query: ~str) -> result::Result<Selector, ~str>
 {
-	alt queries.find(query)
+	match queries.find(query)
 	{
-		option::some(s)
+		option::Some(s) =>
 		{
-			result::ok(s)
+			result::Ok(s)
 		}
-		option::none
+		option::None =>
 		{
-			alt compile(query)
+			match compile(query)
 			{
-				result::ok(s)
+				result::Ok(s) =>
 				{
 					queries.insert(query, s);
-					result::ok(s)
+					result::Ok(s)
 				}
-				result::err(err)
+				result::Err(err) =>
 				{
-					#error["Failed to compile: expected %s", err];
-					result::err(err)
+					error!("Failed to compile: expected %s", err);
+					result::Err(err)
 				}
 			}
 		}
 	}
 }
 
-fn eval_queries(store: store, queries: hashmap<~str, selector>, exprs: ~[~str]) -> result::result<~[solution], ~str>
+fn eval_queries(store: &Store, queries: hashmap<~str, Selector>, exprs: ~[~str]) -> result::Result<~[Solution], ~str>
 {
 	do result::map_vec(exprs)
 	|expr|
 	{
-		alt get_selector(queries, expr)
+		match get_selector(queries, expr)
 		{
-			result::ok(selector)
+			result::Ok(selector) =>
 			{
-				alt selector(store)
+				match selector(store)
 				{
-					result::ok(solution)
+					result::Ok(solution) =>
 					{
-						result::ok(solution)
+						result::Ok(solution)
 					}
-					result::err(err)
+					result::Err(err) =>
 					{
-						#error["'%s' failed with %s", expr, err];
-						result::err(err)
+						error!("'%s' failed with %s", expr, err);
+						result::Err(err)
 					}
 				}
 			}
-			result::err(err)
+			result::Err(err) =>
 			{
-				result::err(err)
+				result::Err(err)
 			}
 		}
 	}

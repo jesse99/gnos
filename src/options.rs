@@ -1,5 +1,8 @@
 //! Command line options processing.
-import std::getopts::*;
+use io::WriterUtil;
+use Path = path::Path;
+use std::getopts::*;
+//use std::json::*;
 
 export options, device, get_version, validate, parse_command_line;
 
@@ -9,7 +12,7 @@ type device = {name: ~str, managed_ip: ~str, community: ~str, center_x: float, c
 type options =
 {
 	// these are from the command line
-	root: ~str,
+	root: Path,
 	admin: bool,
 	script: ~str,
 	db: bool,
@@ -44,33 +47,35 @@ fn parse_command_line(args: ~[~str]) -> options
 		optopt(~"port"),
 		optflag(~"version")
 	];
-	let match = alt getopts(vec::tail(args), opts)
+	let matched = match getopts(vec::tail(args), opts)
 	{
-		result::ok(m) {m}
-		result::err(f) {io::stderr().write_line(fail_str(f)); libc::exit(1_i32)}
+		result::Ok(m) => {m}
+		result::Err(f) => {io::stderr().write_line(fail_str(f)); libc::exit(1_i32)}
 	};
-	if opt_present(match, ~"h") || opt_present(match, ~"help")
+	if opt_present(matched, ~"h") || opt_present(matched, ~"help")
 	{
 		print_usage();
 		libc::exit(0);
 	}
-	else if opt_present(match, ~"version")
+	else if opt_present(matched, ~"version")
 	{
-		io::println(#fmt["gnos %s", get_version()]);
+		io::println(fmt!("gnos %s", get_version()));
 		libc::exit(0);
 	}
-	else if match.free.len() != 1
+	else if matched.free.len() != 1
 	{
 		io::stderr().write_line("Expected one positional argument: a network json file.");
 		libc::exit(1);
 	}
-	let network = load_network_file(match.free[0]);
+	
+	let path: path::Path = path::from_str(matched.free[0]);
+	let network = load_network_file(path);
 	
 	{
-		root: opt_str(match, ~"root"),
-		admin: opt_present(match, ~"admin"),
-		script: path::basename(match.free[0]),
-		db: opt_present(match, ~"db"),
+		root: path::from_str(opt_str(matched, ~"root")),
+		admin: opt_present(matched, ~"admin"),
+		script: path.filename().get(),
+		db: opt_present(matched, ~"db"),
 		
 		client: network.client,
 		server: network.server,
@@ -84,9 +89,9 @@ fn parse_command_line(args: ~[~str]) -> options
 
 fn validate(options: options)
 {
-	if !os::path_is_dir(options.root)
+	if !os::path_is_dir(&options.root)
 	{
-		io::stderr().write_line(#fmt["'%s' does not point to a directory.", options.root]);
+		io::stderr().write_line(fmt!("'%s' does not point to a directory.", options.root.to_str()));
 		libc::exit(1_i32);
 	}
 }
@@ -94,7 +99,7 @@ fn validate(options: options)
 // ---- Internal Functions ----------------------------------------------------
 fn print_usage()
 {
-	io::println(#fmt["gnos %s - a web based network management system", get_version()]);
+	io::println(fmt!("gnos %s - a web based network management system", get_version()));
 	io::println(~"");
 	io::println(~"./gnos [options] --root=DIR network.json");
 	io::println(~"--admin     allows web clients to shut the server down");
@@ -104,15 +109,15 @@ fn print_usage()
 	io::println(~"--version   prints the gnos version number and exits");
 }
 
-fn load_network_file(path: ~str) -> {client: ~str, server: ~str, port: u16, poll_rate: u16, devices: ~[device]}
+fn load_network_file(path: Path) -> {client: ~str, server: ~str, port: u16, poll_rate: u16, devices: ~[device]}
 {
-	alt io::file_reader(path)
+	match io::file_reader(&path)
 	{
-		result::ok(reader)
+		result::Ok(reader) =>
 		{
-			alt json::from_reader(reader)
+			match std::json::from_reader(reader)
 			{
-				result::ok(json::dict(data))
+				result::Ok(std::json::Dict(data)) =>
 				{
 					{
 						client: get_network_str(path, data, ~"client"),
@@ -122,31 +127,31 @@ fn load_network_file(path: ~str) -> {client: ~str, server: ~str, port: u16, poll
 						devices: get_network_devices(path, data, ~"devices"),
 					}
 				}
-				result::ok(x)
+				result::Ok(x) =>
 				{
-					io::stderr().write_line(#fmt["Error parsing '%s': expected json::dict but found %?.", path, x]);
+					io::stderr().write_line(fmt!("Error parsing '%s': expected json::dict but found %?.", path.to_str(), x));
 					libc::exit(1)
 				}
-				result::err(err)
+				result::Err(err) =>
 				{
-					io::stderr().write_line(#fmt["Error parsing '%s' on line %?: %s.", path, err.line, *err.msg]);
+					io::stderr().write_line(fmt!("Error parsing '%s' on line %?: %s.", path.to_str(), err.line, *err.msg));
 					libc::exit(1)
 				}
 			}
 		}
-		result::err(err)
+		result::Err(err) =>
 		{
-			io::stderr().write_line(#fmt["Error reading '%s': %s.", path, err]);
+			io::stderr().write_line(fmt!("Error reading '%s': %s.", path.to_str(), err));
 			libc::exit(1)
 		}
 	}
 }
 
-fn get_network_devices(path: ~str, data: std::map::hashmap<~str, json::json>, key: ~str) -> ~[device]
+fn get_network_devices(path: Path, data: std::map::hashmap<~str, std::json::Json>, key: ~str) -> ~[device]
 {
-	alt data.find(key)
+	match data.find(key)
 	{
-		option::some(json::dict(value))
+		option::Some(std::json::Dict(value)) =>
 		{
 			let mut devices = ~[];
 			for value.each
@@ -156,24 +161,24 @@ fn get_network_devices(path: ~str, data: std::map::hashmap<~str, json::json>, ke
 			}
 			devices
 		}
-		option::some(x)
+		option::Some(x) =>
 		{
-			io::stderr().write_line(#fmt["In '%s' %s was expected to be a json::dict but was %?.", path, key, x]);
+			io::stderr().write_line(fmt!("In '%s' %s was expected to be a json::dict but was %?.", path.to_str(), key, x));
 			libc::exit(1)
 		}
-		option::none
+		option::None =>
 		{
-			io::stderr().write_line(#fmt["Expected to find %s in '%s'.", key, path]);
+			io::stderr().write_line(fmt!("Expected to find %s in '%s'.", key, path.to_str()));
 			libc::exit(1)
 		}
 	}
 }
 
-fn get_network_device(path: ~str, name: ~str, value: json::json) -> device
+fn get_network_device(path: Path, name: ~str, value: std::json::Json) -> device
 {
-	alt value
+	match value
 	{
-		json::dict(value)
+		std::json::Dict(value) =>
 		{
 			{
 				name: name,
@@ -184,82 +189,82 @@ fn get_network_device(path: ~str, name: ~str, value: json::json) -> device
 				style: get_network_str(path, value, ~"type"),
 			}
 		}
-		x
+		x =>
 		{
-			io::stderr().write_line(#fmt["In '%s' %s was expected to be a json::dict but was %?.", path, name, x]);
+			io::stderr().write_line(fmt!("In '%s' %s was expected to be a json::dict but was %?.", path.to_str(), name, x));
 			libc::exit(1)
 		}
 	}
 }
 
-fn get_network_str(path: ~str, data: std::map::hashmap<~str, json::json>, key: ~str) -> ~str
+fn get_network_str(path: Path, data: std::map::hashmap<~str, std::json::Json>, key: ~str) -> ~str
 {
-	alt data.find(key)
+	match data.find(key)
 	{
-		option::some(json::string(value))
+		option::Some(std::json::String(value)) =>
 		{
 			*value
 		}
-		option::some(x)
+		option::Some(x) =>
 		{
-			io::stderr().write_line(#fmt["In '%s' %s was expected to be a json::string but was %?.", path, key, x]);
+			io::stderr().write_line(fmt!("In '%s' %s was expected to be a json::string but was %?.", path.to_str(), key, x));
 			libc::exit(1)
 		}
-		option::none
+		option::None =>
 		{
-			io::stderr().write_line(#fmt["Expected to find %s in '%s'.", key, path]);
+			io::stderr().write_line(fmt!("Expected to find %s in '%s'.", key, path.to_str()));
 			libc::exit(1)
 		}
 	}
 }
 
-fn get_network_u16(path: ~str, data: std::map::hashmap<~str, json::json>, key: ~str) -> u16
+fn get_network_u16(path: Path, data: std::map::hashmap<~str, std::json::Json>, key: ~str) -> u16
 {
-	alt data.find(key)
+	match data.find(key)
 	{
-		option::some(json::num(value))
+		option::Some(std::json::Num(value)) =>
 		{
 			if value > u16::max_value as float
 			{
-				io::stderr().write_line(#fmt["In '%s' %s was too large for a u16.", path, key]);
+				io::stderr().write_line(fmt!("In '%s' %s was too large for a u16.", path.to_str(), key));
 				libc::exit(1);
 			}
 			if value < 0.0
 			{
-				io::stderr().write_line(#fmt["In '%s' %s was negative.", path, key]);
+				io::stderr().write_line(fmt!("In '%s' %s was negative.", path.to_str(), key));
 				libc::exit(1);
 			}
 			value as u16
 		}
-		option::some(x)
+		option::Some(x) =>
 		{
-			io::stderr().write_line(#fmt["In '%s' %s was expected to be a json::num but was %?.", path, key, x]);
+			io::stderr().write_line(fmt!("In '%s' %s was expected to be a json::num but was %?.", path.to_str(), key, x));
 			libc::exit(1)
 		}
-		option::none
+		option::None =>
 		{
-			io::stderr().write_line(#fmt["Expected to find %s in '%s'.", key, path]);
+			io::stderr().write_line(fmt!("Expected to find %s in '%s'.", key, path.to_str()));
 			libc::exit(1)
 		}
 	}
 }
 
-fn get_network_float(path: ~str, data: std::map::hashmap<~str, json::json>, key: ~str) -> float
+fn get_network_float(path: Path, data: std::map::hashmap<~str, std::json::Json>, key: ~str) -> float
 {
-	alt data.find(key)
+	match data.find(key)
 	{
-		option::some(json::num(value))
+		option::Some(std::json::Num(value)) =>
 		{
 			value
 		}
-		option::some(x)
+		option::Some(x) =>
 		{
-			io::stderr().write_line(#fmt["In '%s' %s was expected to be a json::num but was %?.", path, key, x]);
+			io::stderr().write_line(fmt!("In '%s' %s was expected to be a json::num but was %?.", path.to_str(), key, x));
 			libc::exit(1)
 		}
-		option::none
+		option::None =>
 		{
-			io::stderr().write_line(#fmt["Expected to find %s in '%s'.", key, path]);
+			io::stderr().write_line(fmt!("Expected to find %s in '%s'.", key, path.to_str()));
 			libc::exit(1)
 		}
 	}

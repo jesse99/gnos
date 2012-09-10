@@ -11,7 +11,7 @@ enum failure_policy
 {
 	ignore_failures,
 	notify_on_failure(fn~ (~str)),
-	notify_on_exit(fn~ (option::option<~str>)),
+	notify_on_exit(fn~ (option::Option<~str>)),
 	shutdown_on_failure,
 }
 
@@ -21,7 +21,7 @@ type exit_fn = fn~ () -> ();
 /// A pointer to a function to execute within a task.
 ///
 /// Returns a message on errors.
-type job_fn = fn~ () -> option::option<~str>;
+type job_fn = fn~ () -> option::Option<~str>;
 
 type job = {action: job_fn, policy: failure_policy};
 
@@ -49,17 +49,17 @@ fn sequence(+jobs: ~[job], +cleanup: ~[exit_fn])
 
 fn do_run(job: job, cleanup: ~[exit_fn])
 {
-	alt job.policy
+	match job.policy
 	{
-		ignore_failures
+		ignore_failures =>
 		{
 			let err = job.action();
 			if err.is_some()
 			{
-				#info["%s", err.get()];
+				info!("%s", err.get());
 			}
 		}
-		notify_on_failure(notify)
+		notify_on_failure(notify) =>
 		{
 			let err = job.action();
 			if err.is_some()
@@ -67,16 +67,16 @@ fn do_run(job: job, cleanup: ~[exit_fn])
 				notify(err.get());
 			}
 		}
-		notify_on_exit(notify)
+		notify_on_exit(notify) =>
 		{
 			notify(job.action())
 		}
-		shutdown_on_failure
+		shutdown_on_failure =>
 		{
 			let err = job.action();
 			if err.is_some()
 			{
-				#error["%s", err.get()];
+				error!("%s", err.get());
 				for cleanup.each |f| {f()};
 				libc::exit(3);
 			}

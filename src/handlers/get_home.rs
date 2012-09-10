@@ -1,7 +1,10 @@
 // This is the entry point into gnos web sites. It's designed to provide a quick visual
 // indication of the health of the network as well as convenient navigation to other
 // parts of the web site.
-import model::msg;
+use std::map::*;
+use mustache::*;
+use model::msg;
+use server = rwebserve::rwebserve;
 
 // TODO:
 // Home	Issues		Model	Admin Shutdown
@@ -29,8 +32,8 @@ import model::msg;
 // need a query like
 //    select name and managed_ip
 //    where subject.starts_with("gnos:device")
-fn get_home(options: options::options, _state_chan: comm::chan<msg>, _settings: hashmap<~str, ~str>, 
-	_request: server::request, response: server::response) -> server::response
+fn get_home(options: options::options, _state_chan: comm::Chan<msg>, _settings: hashmap<~str, ~str>, 
+	_request: &server::Request, response: &server::Response) -> server::Response
 {
 //	let rows = get_state(state_chan, "
 //		PREFIX gnos: <http://www.gnos.org/2012/schema#>
@@ -55,6 +58,6 @@ fn get_home(options: options::options, _state_chan: comm::chan<msg>, _settings: 
 //	};
 //	
 //	response.context.insert("store", mustache::vec(triples));
-	response.context.insert(~"admin", mustache::bool(options.admin));
-	{template: ~"home.html" with response}
+	response.context.insert(@~"admin", mustache::Bool(options.admin));
+	server::Response {template: ~"home.html", ..*response}
 }

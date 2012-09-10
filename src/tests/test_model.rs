@@ -1,22 +1,22 @@
-import json::to_json;
-import rrdf::{create_store, store, solution, get_blank_name, string_value, bool_value};
-import rrdf::solution::{solution_row_trait};
-import model::*;
+use std::json::ToJson;
+use io::WriterUtil;
+use rrdf::rrdf::*;
+use model::*;
 
-fn check_solutions(actual: solution, expected: solution) -> bool
+fn check_solutions(actual: Solution, expected: Solution) -> bool
 {
-	fn print_result(value: solution)
+	fn print_result(value: Solution)
 	{
-		for vec::eachi(value)
+		for vec::eachi(value.rows)
 		|i, row|
 		{
 			let mut entries = ~[];
-			for row.each |e| {vec::push(entries, #fmt["%s = %s", e.first(), e.second().to_str()])};
-			io::stderr().write_line(#fmt["   %?: %s", i, str::connect(entries, ~", ")]);
+			for row.each |e| {vec::push(entries, fmt!("%s = %s", e.first(), e.second().to_str()))};
+			io::stderr().write_line(fmt!("   %?: %s", i, str::connect(entries, ~", ")));
 		};
 	}
 	
-	fn print_failure(mesg: ~str, actual: solution, expected: solution)
+	fn print_failure(mesg: ~str, actual: Solution, expected: Solution)
 	{
 		io::stderr().write_line(mesg);
 		io::stderr().write_line("Actual:");
@@ -26,29 +26,29 @@ fn check_solutions(actual: solution, expected: solution) -> bool
 	}
 	
 	// OK if they are both empty.
-	if vec::is_empty(actual) && vec::is_empty(expected)
+	if vec::is_empty(actual.rows) && vec::is_empty(expected.rows)
 	{
-		ret true;
+		return true;
 	}
 	
 	// Both sides should have the same number of rows.
-	if vec::len(actual) != vec::len(expected)
+	if vec::len(actual.rows) != vec::len(expected.rows)
 	{
 		print_failure(#fmt["Actual result had %? rows but expected %? rows.", 
-			vec::len(actual), vec::len(expected)], actual, expected);
-		ret false;
+			vec::len(actual.rows), vec::len(expected.rows)], actual, expected);
+		return false;
 	}
 	
 	// Actual should have only the expected values.
-	for vec::eachi(actual)
+	for vec::eachi(actual.rows)
 	|i, row1|
 	{
-		let row2 = expected[i];
+		let row2 = expected.rows[i];
 		if vec::len(row1) != vec::len(row2)
 		{
 			print_failure(#fmt["Row %? had size %? but expected %?.",
 				i, vec::len(row1), vec::len(row2)], actual, expected);
-			ret false;
+			return false;
 		}
 		
 		for row1.each
@@ -56,80 +56,80 @@ fn check_solutions(actual: solution, expected: solution) -> bool
 		{
 			let name1 = entry1.first();
 			let value1 = entry1.second();
-			alt row2.search(name1)
+			match row2.search(name1)
 			{
-				option::some(value2)
+				option::Some(value2) =>
 				{
 					if value1 != value2
 					{
 						print_failure(#fmt["Row %? actual %s was %s but expected %s.",
 							i, name1, value1.to_str(), value2.to_str()], actual, expected);
-						ret false;
+						return false;
 					}
 				}
-				option::none
+				option::None =>
 				{
 					print_failure(#fmt["Row %? had unexpected ?%s.",
 						i, name1], actual, expected);
-					ret false;
+					return false;
 				}
 			}
 		};
 	};
 	
-	ret true;
+	return true;
 }
 
-fn update(state_chan: comm::chan<msg>, data: ~[(~str, ~str)])
+fn update(state_chan: comm::Chan<msg>, data: ~[(~str, ~str)])
 {
-	fn get_str(entry: @~[json::json], index: uint) -> ~str
+	fn get_str(entry: @~[std::json::Json], index: uint) -> ~str
 	{
-		alt entry[index]
+		match entry[index]
 		{
-			json::string(value)
+			std::json::String(value) =>
 			{
 				*value
 			}
-			x
+			x =>
 			{
-				fail #fmt["Expected ~[str] but found %?", x]
+				fail fmt!("Expected ~[str] but found %?", x)
 			}
 		}
 	}
 	
-	fn do_update(store: store, data: ~str) -> bool
+	fn do_update(store: Store, data: ~str) -> bool
 	{
-		alt json::from_str(data)
+		match std::json::from_str(data)
 		{
-			result::ok(json::list(items))
+			result::Ok(std::json::List(items)) =>
 			{
 				let subject = ~"http://blah";
 				for items.each
 				|item|
 				{
-					alt item
+					match item
 					{
-						json::list(entry)
+						std::json::List(entry) =>
 						{
 							let key = get_str(entry, 0);
 							let value = get_str(entry, 1);
-							store.replace_triple(~[], {subject: subject, predicate: ~"sname:" + key, object: string_value(value, ~"")});
+							store.replace_triple(~[], {subject: subject, predicate: ~"sname:" + key, object: StringValue(value, ~"")});
 						}
-						y
+						y =>
 						{
-							fail #fmt["Expected ~[key, value] but found %?", y];
+							fail fmt!("Expected ~[key, value] but found %?", y);
 						}
 					}
 				}
 				true
 			}
-			result::ok(x)
+			result::Ok(x) =>
 			{
-				fail #fmt["Expected list but found %?", x]
+				fail fmt!("Expected list but found %?", x)
 			}
-			x
+			x =>
 			{
-				fail #fmt["Expected list but found %?", x]
+				fail fmt!("Expected list but found %?", x)
 			}
 		}
 	}
@@ -142,8 +142,8 @@ fn update(state_chan: comm::chan<msg>, data: ~[(~str, ~str)])
 fn test_query()
 {
 	let state_chan = do task::spawn_listener |port| {model::manage_state(port)};
-	let sync_port = comm::port();
-	let sync_chan = comm::chan(sync_port);
+	let sync_port = comm::Port();
+	let sync_chan = comm::Chan(sync_port);
 	
 	let query = ~"
 PREFIX gnos: <http://www.gnos.org/2012/schema#>
@@ -154,30 +154,30 @@ WHERE
 {
 	?subject sname:ttl ?ttl
 }";
-	let query_port = comm::port();
-	let query_chan = comm::chan(query_port);
+	let query_port = comm::Port();
+	let query_chan = comm::Chan(query_port);
 	comm::send(state_chan, query_msg(~"primary", query, query_chan));
 	
 	// store starts out empty
 	let solution = query_chan.recv();
-	assert check_solutions(solution, ~[
-	]);
+	assert check_solutions(solution, Solution {namespaces: ~[], rows: ~[
+	]});
 	
 	// after adding ttl can query for it
 	update(state_chan, ~[(~"ttl", ~"50")]);
 	comm::send(state_chan, query_msg(~"primary", query, query_chan));
 	let solution = query_chan.recv();
-	assert check_solutions(solution, ~[
-		~[(~"ttl", string_value(~"50", ~""))],
-	]);
+	assert check_solutions(solution, Solution {namespaces: ~[], rows: ~[
+		~[(~"ttl", StringValue(~"50", ~""))],
+	]});
 	
 	// after changing ttl can query for it
 	update(state_chan, ~[(~"ttl", ~"75")]);
 	comm::send(state_chan, query_msg(~"primary", query, query_chan));
 	let solution = query_chan.recv();
-	assert check_solutions(solution, ~[
-		~[(~"ttl", string_value(~"75", ~""))],
-	]);
+	assert check_solutions(solution, Solution {namespaces: ~[], rows: ~[
+		~[(~"ttl", StringValue(~"75", ~""))],
+	]});
 	
 	// only get a solution after a change if we request it
 	update(state_chan, ~[(~"ttl", ~"80")]);
@@ -191,8 +191,8 @@ WHERE
 fn test_registration()
 {
 	let state_chan = do task::spawn_listener |port| {model::manage_state(port)};
-	let sync_port = comm::port();
-	let sync_chan = comm::chan(sync_port);
+	let sync_port = comm::Port();
+	let sync_chan = comm::Chan(sync_port);
 	
 	// register queries
 	let ttl_query = ~"
@@ -204,8 +204,8 @@ WHERE
 {
 	?subject sname:ttl ?ttl
 }";
-	let ttl_port = comm::port();
-	let ttl_chan = comm::chan(ttl_port);
+	let ttl_port = comm::Port();
+	let ttl_chan = comm::Chan(ttl_port);
 	comm::send(state_chan, register_msg(~"primary", ~"ttl-query", ~[ttl_query], ttl_chan));
 	
 	let fwd_query = ~"
@@ -217,26 +217,26 @@ WHERE
 {
 	?subject sname:fwd ?fwd
 }";
-	let fwd_port = comm::port();
-	let fwd_chan = comm::chan(fwd_port);
+	let fwd_port = comm::Port();
+	let fwd_chan = comm::Chan(fwd_port);
 	comm::send(state_chan, register_msg(~"primary", ~"fwd-query", ~[fwd_query], fwd_chan));
 	
 	// get solutions on registration,
 	let solutions = ttl_chan.recv().get();
-	assert check_solutions(solutions[0], ~[
-	]);
+	assert check_solutions(solutions[0], Solution {namespaces: ~[], rows: ~[
+	]});
 	
 	let solutions = fwd_chan.recv().get();
-	assert check_solutions(solutions[0], ~[
-	]);
+	assert check_solutions(solutions[0], Solution {namespaces: ~[], rows: ~[
+	]});
 	
 	// and when the query results change
 	update(state_chan, ~[(~"ttl", ~"50")]);
 	let solutions = ttl_chan.recv().get();
 	assert solutions.len() == 1;
-	assert check_solutions(solutions[0], ~[
-		~[(~"ttl", string_value(~"50", ~""))],
-	]);
+	assert check_solutions(solutions[0], Solution {namespaces: ~[], rows: ~[
+		~[(~"ttl", StringValue(~"50", ~""))],
+	]});
 	
 	comm::send(state_chan, sync_msg(sync_chan)); sync_chan.recv();
 	assert !fwd_chan.peek();
@@ -261,8 +261,8 @@ WHERE
 fn test_deregistration()
 {
 	let state_chan = do task::spawn_listener |port| {model::manage_state(port)};
-	let sync_port = comm::port();
-	let sync_chan = comm::chan(sync_port);
+	let sync_port = comm::Port();
+	let sync_chan = comm::Chan(sync_port);
 	
 	// register queries
 	let ttl_query = ~"
@@ -274,22 +274,22 @@ WHERE
 {
 	?subject sname:ttl ?ttl
 }";
-	let ttl_port = comm::port();
-	let ttl_chan = comm::chan(ttl_port);
+	let ttl_port = comm::Port();
+	let ttl_chan = comm::Chan(ttl_port);
 	comm::send(state_chan, register_msg(~"primary", ~"ttl-query", ~[ttl_query], ttl_chan));
 	
 	// get solutions on registration,
 	let solutions = ttl_chan.recv().get();
-	assert check_solutions(solutions[0], ~[
-	]);
+	assert check_solutions(solutions[0], Solution {namespaces: ~[], rows: ~[
+	]});
 	
 	// and when the query results change
 	update(state_chan, ~[(~"ttl", ~"50")]);
 	let solutions = ttl_chan.recv().get();
 	assert solutions.len() == 1;
-	assert check_solutions(solutions[0], ~[
-		~[(~"ttl", string_value(~"50", ~""))],
-	]);
+	assert check_solutions(solutions[0], Solution {namespaces: ~[], rows: ~[
+		~[(~"ttl", StringValue(~"50", ~""))],
+	]});
 	
 	// but once we deregister we don't get solutions
 	comm::send(state_chan, deregister_msg(~"primary", ~"ttl-query"));
@@ -306,7 +306,7 @@ WHERE
 #[test]
 fn test_alerts()
 {
-	fn check_alerts(store: store, expected: solution) -> bool 
+	fn check_alerts(store: Store, expected: Solution) -> bool 
 	{
 		let query = ~"PREFIX devices: <http://network/>
 			PREFIX gnos: <http://www.gnos.org/2012/schema#>
@@ -321,13 +321,13 @@ fn test_alerts()
 				}
 				BIND(BOUND(?end) AS ?closed) 
 			}";
-		alt eval_query(store, query)
+		match eval_query(&store, query)
 		{
-			result::ok(actual)
+			result::Ok(actual) =>
 			{
 				check_solutions(actual, expected)
 			}
-			result::err(err)
+			result::Err(err) =>
 			{
 				fail err;
 			}
@@ -340,53 +340,53 @@ fn test_alerts()
 		{prefix: ~"snmp", path: ~"http://snmp/"},
 		{prefix: ~"sname", path: ~"http://snmp-name/"},
 	];
-	let store = create_store(namespaces, @std::map::str_hash());
+	let store = Store(namespaces, &std::map::box_str_hash());
 	
 	// open foo/bar => adds the alert
-	open_alert(store, {device: ~"gnos:foo", id: ~"bar", level: error_level, mesg: ~"fie", resolution: ~""});
-	assert check_alerts(store, ~[
-		~[(~"mesg", string_value(~"fie", ~"")), (~"closed", bool_value(false))],
-	]);
+	open_alert(&store, {device: ~"gnos:foo", id: ~"bar", level: error_level, mesg: ~"fie", resolution: ~""});
+	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
+		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
+	]});
 	
 	// open foo/bar => does nothing
-	open_alert(store, {device: ~"gnos:foo", id: ~"bar", level: error_level, mesg: ~"no-op fie", resolution: ~""});
-	assert check_alerts(store, ~[
-		~[(~"mesg", string_value(~"fie", ~"")), (~"closed", bool_value(false))],
-	]);
+	open_alert(&store, {device: ~"gnos:foo", id: ~"bar", level: error_level, mesg: ~"no-op fie", resolution: ~""});
+	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
+		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
+	]});
 	
 	// open foo/cat => adds alert
-	open_alert(store, {device: ~"gnos:foo", id: ~"cat", level: error_level, mesg: ~"meow", resolution: ~""});
-	assert check_alerts(store, ~[
-		~[(~"mesg", string_value(~"fie", ~"")), (~"closed", bool_value(false))],
-		~[(~"mesg", string_value(~"meow", ~"")), (~"closed", bool_value(false))],
-	]);
+	open_alert(&store, {device: ~"gnos:foo", id: ~"cat", level: error_level, mesg: ~"meow", resolution: ~""});
+	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
+		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
+		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
+	]});
 	
 	// close foo/bar => closes it
-	close_alert(store, ~"gnos:foo", ~"bar");
-	assert check_alerts(store, ~[
-		~[(~"mesg", string_value(~"fie", ~"")), (~"closed", bool_value(true))],
-		~[(~"mesg", string_value(~"meow", ~"")), (~"closed", bool_value(false))],
-	]);
+	close_alert(&store, ~"gnos:foo", ~"bar");
+	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
+		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
+		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
+	]});
 	
 	// close foo/dog => does nothing
-	close_alert(store, ~"gnos:foo", ~"dog");
-	assert check_alerts(store, ~[
-		~[(~"mesg", string_value(~"fie", ~"")), (~"closed", bool_value(true))],
-		~[(~"mesg", string_value(~"meow", ~"")), (~"closed", bool_value(false))],
-	]);
+	close_alert(&store, ~"gnos:foo", ~"dog");
+	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
+		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
+		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
+	]});
 	
 	// close foo/bar => does nothing
-	close_alert(store, ~"gnos:foo", ~"bar");
-	assert check_alerts(store, ~[
-		~[(~"mesg", string_value(~"fie", ~"")), (~"closed", bool_value(true))],
-		~[(~"mesg", string_value(~"meow", ~"")), (~"closed", bool_value(false))],
-	]);
+	close_alert(&store, ~"gnos:foo", ~"bar");
+	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
+		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
+		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
+	]});
 	
 	// open foo/bar => adds a new alert
-	open_alert(store, {device: ~"gnos:foo", id: ~"bar", level: error_level, mesg: ~"fum", resolution: ~""});
-	assert check_alerts(store, ~[
-		~[(~"mesg", string_value(~"fie", ~"")), (~"closed", bool_value(true))],
-		~[(~"mesg", string_value(~"meow", ~"")), (~"closed", bool_value(false))],
-		~[(~"mesg", string_value(~"fum", ~"")), (~"closed", bool_value(false))],
-	]);
+	open_alert(&store, {device: ~"gnos:foo", id: ~"bar", level: error_level, mesg: ~"fum", resolution: ~""});
+	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
+		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
+		~[(~"mesg", StringValue(~"fum", ~"")), (~"closed", BoolValue(false))],
+		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
+	]});
 }

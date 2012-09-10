@@ -1,4 +1,4 @@
-import utils::*;
+use utils::*;
 
 #[test]
 fn test_alerts()
