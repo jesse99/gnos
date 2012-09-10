@@ -1,3 +1,4 @@
+use Path = path::Path;
 use std::getopts::*;
 use std::time::*;
 
@@ -17,14 +18,14 @@ fn title_case(s: ~str) -> ~str
 }
 
 /// Returns an error if the files cannot be copied.
-fn scp_files(files: ~[~str], user: ~str, host: ~str) -> option::Option<~str>
+fn scp_files(files: ~[~Path], user: ~str, host: ~str) -> option::Option<~str>
 {
 	if vec::is_empty(files)
 	{
 		return option::Some(~"No files were found to copy");
 	}
 	
-	let args = files + ~[fmt!("%s@%s:", user, host)];
+	let args = do files.map |f| {f.to_str()} + ~[fmt!("%s@%s:", user, host)];
 	
 	info!("scp %s", str::connect(args, ~" "));
 	run_command(~"scp", args)

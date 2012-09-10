@@ -1,19 +1,20 @@
-use io;
+//use io;
+use Path = path::Path;
 use io::WriterUtil;
 use std::json;
-use std::map::hashmap;
-use core::option::extensions;
-use server = rwebserve;
-use model;
-use options;
+use std::map::*;
+//use core::option::extensions;
+use server = rwebserve::rwebserve;
+//use model;
+//use options;
 use handlers::*;
-use rrdf::store::{store_methods, store_trait};
+use rrdf::rrdf::*;
 
-fn copy_scripts(root: ~str, user: ~str, host: ~str) -> option::Option<~str>
+fn copy_scripts(root: Path, user: ~str, host: ~str) -> option::Option<~str>
 {
-	let dir = core::path::dirname(root);							// gnos/html => /gnos
-	let dir = core::path::connect(dir, ~"scripts");				// /gnos => /gnos/scripts
-	let files = utils::list_dir_path(dir, ~[~".json", ~".py"]);
+	let dir = root.pop();						// gnos/html => /gnos
+	let dir = dir.with_dirname(~"scripts");		// /gnos => /gnos/scripts
+	let files = utils::list_dir_path(&dir, ~[~".json", ~".py"]);
 	
 	utils::scp_files(files, user, host)
 }
@@ -29,20 +30,21 @@ fn snmp_exited(err: option::Option<~str>, state_chan: comm::Chan<model::msg>)
 	error!("%s", mesg);
 	
 	let alert = {device: ~"gnos:map", id: ~"snmp-modeler.py exited", level: model::error_level, mesg: mesg, resolution: ~"Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
-	comm::send(state_chan, model::update_msg(~"alerts", |store, _err| {model::open_alert(store, alert)}, ~""));
+	comm::send(state_chan, model::update_msg(~"alerts", |store, _err| {model::open_alert(&store, alert)}, ~""));
 }
 
 fn setup(options: options::options, state_chan: comm::Chan<model::msg>) 
 {
 	let root = options.root;
-	let client = options.client;
+	let client2 = copy options.client;
 	let cleanup = copy options.cleanup;
 	
-	let action: task_runner::job_fn = || copy_scripts(root, env!("GNOS_USER"), client);
+	let action: task_runner::job_fn = || copy_scripts(root, env!("GNOS_USER"), client2);
 	let cp = {action: action, policy: task_runner::shutdown_on_failure};
 	
+	let client3 = copy options.client;
 	let ccc = copy(options.script);
-	let action: task_runner::job_fn = || run_snmp(env!("GNOS_USER"), client, ccc);
+	let action: task_runner::job_fn = || run_snmp(env!("GNOS_USER"), client3, ccc);
 	let run = {action: action, policy: task_runner::notify_on_exit(|err| {snmp_exited(err, state_chan)})};
 	
 	task_runner::sequence(~[cp, run], cleanup);
@@ -55,18 +57,18 @@ fn get_shutdown(options: options::options) -> !
 	libc::exit(0)
 }
 
-fn update_globals(store: rrdf::store, options: options::options) -> bool
+fn update_globals(store: Store, options: options::options) -> bool
 {
 	store.add(~"gnos:globals", ~[
-		(~"gnos:admin", rrdf::BoolValue(true)),		// TODO: get this from a setting
-		(~"gnos:debug", rrdf::BoolValue(true)),		// TODO: get this from command line
+		(~"gnos:admin", BoolValue(true)),		// TODO: get this from a setting
+		(~"gnos:debug", BoolValue(true)),		// TODO: get this from command line
 	]);
 	
-	let devices = vec::zip(vec::from_elem(options.devices.len(), ~"gnos:device"), do options.devices.map |n| {rrdf::StringValue(n.managed_ip, ~"")});
+	let devices = vec::zip(vec::from_elem(options.devices.len(), ~"gnos:device"), do options.devices.map |n| {StringValue(n.managed_ip, ~"")});
 	store.add(~"gnos:globals", devices);
 	
 	let names = model::get_standard_store_names();
-	let stores = vec::zip(vec::from_elem(names.len(), ~"gnos:store"), do names.map |n| {rrdf::StringValue(n, ~"")});
+	let stores = vec::zip(vec::from_elem(names.len(), ~"gnos:store"), do names.map |n| {StringValue(n, ~"")});
 	store.add(~"gnos:globals", stores);
 	
 	true
@@ -104,15 +106,16 @@ fn main(args: ~[~str])
 	let options2 = copy options;
 	let options3 = copy options;
 	let options4 = copy options;
-	let models_v: server::response_handler = |_settings, _request, response| {get_models::get_models(response, state_chan)};
-	let subject_v: server::response_handler = |_settings, request, response| {get_subject::get_subject(request, response)};
-	let map_v: server::response_handler = |_settings, _request, response| {get_map::get_map(options2, response)};
-	let modeler_p: server::response_handler = |_settings, request, response| {put_snmp::put_snmp(options4, state_chan, request, response)};
-	let query_store_v: server::response_handler = |_settings, request, response| {get_query_store::get_query_store(request, response)};
-	let query_s: server::open_sse = |_settings, request, push| {get_query::get_query(state_chan, request, push)};
-	let bail_v: server::response_handler = |_settings, _request, _response| {get_shutdown(options3)};
+	let models_v: server::ResponseHandler = |_settings, _request: &server::Request, response: &server::Response| {get_models::get_models(response, state_chan)};
+	let subject_v: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {get_subject::get_subject(request, response)};
+	let map_v: server::ResponseHandler = |_settings, _request: &server::Request, response: &server::Response| {get_map::get_map(options2, response)};
+	let modeler_p: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {put_snmp::put_snmp(options4, state_chan, request, response)};
+	let query_store_v: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {get_query_store::get_query_store(request, response)};
+	let query_s: server::OpenSse = |_settings, request: &server::Request, push| {get_query::get_query(state_chan, request, push)};
+	let bail_v: server::ResponseHandler = |_settings, _request: &server::Request, _response: &server::Response| {get_shutdown(options3)};
 	
-	let config = {
+	let config = server::Config
+	{
 		// We need to bind to the server addresses so that we receive modeler PUTs.
 		// We bind to localhost to ensure that we can hit the web server using a local
 		// browser.
@@ -137,9 +140,10 @@ fn main(args: ~[~str])
 			(~"modeler",  modeler_p),
 		],
 		sse: ~[(~"/query", query_s)],
-		settings: ~[(~"debug",  ~"true")]		// TODO: make this a command-line option
-		, .. server::initialize_config()};
-	server::start(config);
+		settings: ~[(~"debug",  ~"true")],		// TODO: make this a command-line option
+		..server::initialize_config()
+	};
+	server::start(&config);
 	
 	info!("exiting gnos");						// won't normally land here
 }
