@@ -9,7 +9,7 @@ all: bin/gnos
 # gnos doesn't return so we start the client before the browser.
 run: bin/gnos
 	git web--browse 'http://localhost:8080'
-	export RUST_LOG=gnos=3,rwebserve=2,socket=1 && export GNOS_USER && ./bin/gnos --admin --root=html scripts/fat.json
+	export RUST_LOG=gnos=2,rwebserve=2,socket=1 && export GNOS_USER && ./bin/gnos --admin --root=html scripts/fat.json
 	#export RUST_LOG=gnos=2,rwebserve=2,socket=1 && export GNOS_USER && ./bin/gnos --admin --root=html scripts/sat.json
 
 run-db: bin/gnos

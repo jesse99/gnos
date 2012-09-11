@@ -28,7 +28,7 @@ type job = {action: job_fn, policy: failure_policy};
 /// Run the job within a task.
 fn run(+job: job, +cleanup: ~[exit_fn])
 {
-	do task::spawn
+	do task::spawn_sched(task::SingleThreaded)
 	{
 		do_run(job, cleanup);
 	}
@@ -37,7 +37,7 @@ fn run(+job: job, +cleanup: ~[exit_fn])
 /// Run the jobs within a task: one after another.
 fn sequence(+jobs: ~[job], +cleanup: ~[exit_fn])
 {
-	do task::spawn
+	do task::spawn_sched(task::SingleThreaded)
 	{
 		for jobs.each
 		|job|

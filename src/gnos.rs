@@ -1,19 +1,15 @@
-//use io;
 use Path = path::Path;
 use io::WriterUtil;
 use std::json;
 use std::map::*;
-//use core::option::extensions;
 use server = rwebserve::rwebserve;
-//use model;
-//use options;
 use handlers::*;
 use rrdf::rrdf::*;
 
 fn copy_scripts(root: Path, user: ~str, host: ~str) -> option::Option<~str>
 {
-	let dir = root.pop();						// gnos/html => /gnos
-	let dir = dir.with_dirname(~"scripts");		// /gnos => /gnos/scripts
+	let dir = core::os::make_absolute(&root).pop();	// gnos/html => /gnos
+	let dir = dir.push(~"scripts");						// /gnos => /gnos/scripts
 	let files = utils::list_dir_path(&dir, ~[~".json", ~".py"]);
 	
 	utils::scp_files(files, user, host)
@@ -86,7 +82,7 @@ fn main(args: ~[~str])
 	let mut options = options::parse_command_line(args);
 	options::validate(options);
 	
-	let state_chan = do task::spawn_listener |port| {model::manage_state(port)};
+	let state_chan = do utils::spawn_moded_listener(task::ManualThreads(2)) |port| {model::manage_state(port)};
 	if !options.db
 	{
 		let client = options.client;

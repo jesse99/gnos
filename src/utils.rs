@@ -3,9 +3,28 @@ use std::getopts::*;
 use std::time::*;
 
 export scp_files, run_remote_command, list_dir_path, imprecise_time_s, i64_to_unit_str, f64_to_unit_str,
-	tm_to_delta_str, title_case;
+	tm_to_delta_str, title_case, spawn_moded_listener;
 	
-fn title_case(s: ~str) -> ~str 
+// Like spawn_listener except the new task (and whatever tasks it spawns) are distributed
+// among a fixed number of OS threads. See https://github.com/mozilla/rust/issues/3435
+fn spawn_moded_listener<A:send>(mode: task::SchedMode, +block: fn~ (comm::Port<A>)) -> comm::Chan<A>
+{
+    let channel_port: comm::Port<comm::Chan<A>> = comm::Port();
+    let channel_channel = comm::Chan(channel_port);
+    
+    do task::spawn_sched(mode)
+    {
+        let task_port: comm::Port<A> = comm::Port();
+        let task_channel = comm::Chan(task_port);
+        comm::send(channel_channel, task_channel);
+        
+        block(task_port);
+    };
+    
+    comm::recv(channel_port)
+}
+
+fn title_case(s: ~str) -> ~str
 {
 	if s.is_not_empty() && char::is_lowercase(s[0] as char)
 	{
@@ -25,7 +44,7 @@ fn scp_files(files: ~[~Path], user: ~str, host: ~str) -> option::Option<~str>
 		return option::Some(~"No files were found to copy");
 	}
 	
-	let args = do files.map |f| {f.to_str()} + ~[fmt!("%s@%s:", user, host)];
+	let args = do files.map |f| {(*f).to_str()} + ~[fmt!("%s@%s:", user, host)];	// need to de-reference f or we get a ~ in front of the string
 	
 	info!("scp %s", str::connect(args, ~" "));
 	run_command(~"scp", args)

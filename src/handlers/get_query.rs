@@ -29,7 +29,7 @@ fn get_query(state_chan: comm::Chan<msg>, request: &server::Request, push: serve
 	let name = *request.params.get(@~"name");
 	let queries = get_queries(request);
 	
-	do task::spawn_listener
+	do utils::spawn_moded_listener(task::ManualThreads(2))
 	|control_port: server::ControlPort|
 	{
 		info!("starting %s query stream", name);

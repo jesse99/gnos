@@ -173,8 +173,7 @@ fn add_got(store: Store, state_chan: comm::Chan<model::msg>, poll_rate: u16)
 		(~"gnos:open",     StringValue(~"no", ~"")),
 	]);
 	
-	//do task::spawn_sched(task::manual_threads(2))
-	do task::spawn {update_got(state_chan, winterfell_loyalty, 0.6f64, kings_landing_loyalty, 0.9f64, poll_rate);}
+	do task::spawn_sched(task::SingleThreaded) {update_got(state_chan, winterfell_loyalty, 0.6f64, kings_landing_loyalty, 0.9f64, poll_rate);}
 }
 
 fn add_alerts(state_chan: comm::Chan<model::msg>) -> bool
