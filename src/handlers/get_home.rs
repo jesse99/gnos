@@ -3,7 +3,7 @@
 // parts of the web site.
 use std::map::*;
 use mustache::*;
-use model::msg;
+use model::Msg;
 use server = rwebserve::rwebserve;
 
 // TODO:
@@ -32,7 +32,7 @@ use server = rwebserve::rwebserve;
 // need a query like
 //    select name and managed_ip
 //    where subject.starts_with("gnos:device")
-fn get_home(options: options::options, _state_chan: comm::Chan<msg>, _settings: hashmap<~str, ~str>, 
+fn get_home(options: options::Options, _state_chan: comm::Chan<Msg>, _settings: hashmap<~str, ~str>, 
 	_request: &server::Request, response: &server::Response) -> server::Response
 {
 //	let rows = get_state(state_chan, "

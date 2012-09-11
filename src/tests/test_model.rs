@@ -135,7 +135,7 @@ fn update(state_chan: comm::Chan<msg>, data: ~[(~str, ~str)])
 	}
 	
 	let json = data.to_json();
-	comm::send(state_chan, update_msg(~"primary", do_update, json.to_str()));
+	comm::send(state_chan, UpdateMsg(~"primary", do_update, json.to_str()));
 }
 
 #[test]
@@ -156,7 +156,7 @@ WHERE
 }";
 	let query_port = comm::Port();
 	let query_chan = comm::Chan(query_port);
-	comm::send(state_chan, query_msg(~"primary", query, query_chan));
+	comm::send(state_chan, QueryMsg(~"primary", query, query_chan));
 	
 	// store starts out empty
 	let solution = query_chan.recv();
@@ -165,7 +165,7 @@ WHERE
 	
 	// after adding ttl can query for it
 	update(state_chan, ~[(~"ttl", ~"50")]);
-	comm::send(state_chan, query_msg(~"primary", query, query_chan));
+	comm::send(state_chan, QueryMsg(~"primary", query, query_chan));
 	let solution = query_chan.recv();
 	assert check_solutions(solution, Solution {namespaces: ~[], rows: ~[
 		~[(~"ttl", StringValue(~"50", ~""))],
@@ -173,7 +173,7 @@ WHERE
 	
 	// after changing ttl can query for it
 	update(state_chan, ~[(~"ttl", ~"75")]);
-	comm::send(state_chan, query_msg(~"primary", query, query_chan));
+	comm::send(state_chan, QueryMsg(~"primary", query, query_chan));
 	let solution = query_chan.recv();
 	assert check_solutions(solution, Solution {namespaces: ~[], rows: ~[
 		~[(~"ttl", StringValue(~"75", ~""))],
@@ -181,10 +181,10 @@ WHERE
 	
 	// only get a solution after a change if we request it
 	update(state_chan, ~[(~"ttl", ~"80")]);
-	comm::send(state_chan, sync_msg(sync_chan)); sync_chan.recv();
+	comm::send(state_chan, SyncMsg(sync_chan)); sync_chan.recv();
 	assert !query_chan.peek();
 	
-	comm::send(state_chan, exit_msg);
+	comm::send(state_chan, ExitMsg);
 }
 
 #[test]
@@ -206,7 +206,7 @@ WHERE
 }";
 	let ttl_port = comm::Port();
 	let ttl_chan = comm::Chan(ttl_port);
-	comm::send(state_chan, register_msg(~"primary", ~"ttl-query", ~[ttl_query], ttl_chan));
+	comm::send(state_chan, RegisterMsg(~"primary", ~"ttl-query", ~[ttl_query], ttl_chan));
 	
 	let fwd_query = ~"
 PREFIX gnos: <http://www.gnos.org/2012/schema#>
@@ -219,7 +219,7 @@ WHERE
 }";
 	let fwd_port = comm::Port();
 	let fwd_chan = comm::Chan(fwd_port);
-	comm::send(state_chan, register_msg(~"primary", ~"fwd-query", ~[fwd_query], fwd_chan));
+	comm::send(state_chan, RegisterMsg(~"primary", ~"fwd-query", ~[fwd_query], fwd_chan));
 	
 	// get solutions on registration,
 	let solutions = ttl_chan.recv().get();
@@ -238,12 +238,12 @@ WHERE
 		~[(~"ttl", StringValue(~"50", ~""))],
 	]});
 	
-	comm::send(state_chan, sync_msg(sync_chan)); sync_chan.recv();
+	comm::send(state_chan, SyncMsg(sync_chan)); sync_chan.recv();
 	assert !fwd_chan.peek();
 	
 	// no solutions when replacing a triplet with the same triplet
 	update(state_chan, ~[(~"ttl", ~"50")]);
-	comm::send(state_chan, sync_msg(sync_chan)); sync_chan.recv();
+	comm::send(state_chan, SyncMsg(sync_chan)); sync_chan.recv();
 	assert !ttl_chan.peek();
 	assert !fwd_chan.peek();
 	
@@ -254,7 +254,7 @@ WHERE
 	assert !fwd_chan.peek();
 	
 	// bail
-	comm::send(state_chan, exit_msg);
+	comm::send(state_chan, ExitMsg);
 }
 
 #[test]
@@ -276,7 +276,7 @@ WHERE
 }";
 	let ttl_port = comm::Port();
 	let ttl_chan = comm::Chan(ttl_port);
-	comm::send(state_chan, register_msg(~"primary", ~"ttl-query", ~[ttl_query], ttl_chan));
+	comm::send(state_chan, RegisterMsg(~"primary", ~"ttl-query", ~[ttl_query], ttl_chan));
 	
 	// get solutions on registration,
 	let solutions = ttl_chan.recv().get();
@@ -292,14 +292,14 @@ WHERE
 	]});
 	
 	// but once we deregister we don't get solutions
-	comm::send(state_chan, deregister_msg(~"primary", ~"ttl-query"));
+	comm::send(state_chan, DeregisterMsg(~"primary", ~"ttl-query"));
 	update(state_chan, ~[(~"ttl", ~"75")]);
 	
-	comm::send(state_chan, sync_msg(sync_chan)); sync_chan.recv();
+	comm::send(state_chan, SyncMsg(sync_chan)); sync_chan.recv();
 	assert !ttl_chan.peek();
 	
 	// bail
-	comm::send(state_chan, exit_msg);
+	comm::send(state_chan, ExitMsg);
 	assert !ttl_chan.peek();
 }
 
@@ -343,19 +343,19 @@ fn test_alerts()
 	let store = Store(namespaces, &std::map::box_str_hash());
 	
 	// open foo/bar => adds the alert
-	open_alert(&store, {device: ~"gnos:foo", id: ~"bar", level: error_level, mesg: ~"fie", resolution: ~""});
+	open_alert(&store, {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"fie", resolution: ~""});
 	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
 	]});
 	
 	// open foo/bar => does nothing
-	open_alert(&store, {device: ~"gnos:foo", id: ~"bar", level: error_level, mesg: ~"no-op fie", resolution: ~""});
+	open_alert(&store, {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"no-op fie", resolution: ~""});
 	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
 	]});
 	
 	// open foo/cat => adds alert
-	open_alert(&store, {device: ~"gnos:foo", id: ~"cat", level: error_level, mesg: ~"meow", resolution: ~""});
+	open_alert(&store, {device: ~"gnos:foo", id: ~"cat", level: ErrorLevel, mesg: ~"meow", resolution: ~""});
 	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
 		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
@@ -383,7 +383,7 @@ fn test_alerts()
 	]});
 	
 	// open foo/bar => adds a new alert
-	open_alert(&store, {device: ~"gnos:foo", id: ~"bar", level: error_level, mesg: ~"fum", resolution: ~""});
+	open_alert(&store, {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"fum", resolution: ~""});
 	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
 		~[(~"mesg", StringValue(~"fum", ~"")), (~"closed", BoolValue(false))],

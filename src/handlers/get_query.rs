@@ -1,7 +1,7 @@
 // Uses Server Sent Events to send solutions for a query after the model is updated.
 use std::json::ToJson;
 use std::json::to_str;
-use model::{msg, deregister_msg, register_msg};
+use model::{Msg, DeregisterMsg, RegisterMsg};
 use rrdf::rrdf::*;
 use server = rwebserve::rwebserve;
 use rwebserve::imap::ImmutableMap;
@@ -24,7 +24,7 @@ export get_query;
 /// of JSON encoded solutions.
 ///
 /// If a query fails to compile the result will be a string with an error message.
-fn get_query(state_chan: comm::Chan<msg>, request: &server::Request, push: server::PushChan) -> server::ControlChan
+fn get_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: server::PushChan) -> server::ControlChan
 {
 	let name = *request.params.get(@~"name");
 	let queries = get_queries(request);
@@ -37,7 +37,7 @@ fn get_query(state_chan: comm::Chan<msg>, request: &server::Request, push: serve
 		let notify_chan = comm::Chan(notify_port);
 		
 		let key = fmt!("query %?", ptr::addr_of(notify_port));
-		comm::send(state_chan, register_msg(name, key, queries, notify_chan));
+		comm::send(state_chan, RegisterMsg(name, key, queries, notify_chan));
 		
 		let mut solutions = ~[];
 		loop
@@ -66,7 +66,7 @@ fn get_query(state_chan: comm::Chan<msg>, request: &server::Request, push: serve
 				either::Right(server::CloseEvent) =>
 				{
 					info!("shutting down query stream");
-					comm::send(state_chan, deregister_msg(name, key));
+					comm::send(state_chan, DeregisterMsg(name, key));
 					break;
 				}
 			}

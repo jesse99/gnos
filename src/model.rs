@@ -2,39 +2,39 @@
 use std::map::*;
 use rrdf::rrdf::*;
 
-export update_fn, msg, query_msg, update_msg, updates_msg, register_msg, deregister_msg, manage_state, get_state, eval_query,
-	alert, alert_level, error_level, warning_level, info_level, debug_level, open_alert, close_alert, get_standard_store_names,
-	exit_msg, sync_msg;
+export UpdateFn, Msg, QueryMsg, UpdateMsg, UpdatesMsg, RegisterMsg, DeregisterMsg, manage_state, get_state, eval_query,
+	Alert, AlertLevel, ErrorLevel, WarningLevel, InfoLevel, DebugLevel, open_alert, close_alert, get_standard_store_names,
+	ExitMsg, SyncMsg;
 
 /// Function used to update a store within the model task.
 ///
 /// Data can be anything, but is typically json. Return true if the store was updated.
-type update_fn = fn~ (store: Store, data: ~str) -> bool;
+type UpdateFn = fn~ (store: Store, data: ~str) -> bool;
 
-/// Like update_fn except that it takes multiple stores.
-type updates_fn = fn~ (store: ~[Store], data: ~str) -> bool;
+/// Like UpdateFn except that it takes multiple stores.
+type UpdatesFn = fn~ (store: ~[Store], data: ~str) -> bool;
 
-/// The channel used by register_msg to communicate the initial result and
+/// The channel used by RegisterMsg to communicate the initial result and
 /// subsequent results back to the original task.
 ///
 /// In the case of an error only the initial result is sent.
-type register_chan = comm::Chan<result::Result<~[Solution], ~str>>;
+type RegisterChan = comm::Chan<result::Result<~[Solution], ~str>>;
 
 /// Enum used to communicate with the model task.
 ///
 /// Used to query a model, to update a model, and to (un)register
 /// server-sent events. Store should be "model" or "alerts".
-enum msg
+enum Msg
 {
-	query_msg(~str, ~str, comm::Chan<Solution>),		// store + SPARQL query + channel to send results back along
-	update_msg(~str, update_fn, ~str),					// store + function to use to update the store + data to use
-	updates_msg(~[~str], updates_fn, ~str),				// stores + function to use to update the stores + data to use
+	QueryMsg(~str, ~str, comm::Chan<Solution>),		// store + SPARQL query + channel to send results back along
+	UpdateMsg(~str, UpdateFn, ~str),					// store + function to use to update the store + data to use
+	UpdatesMsg(~[~str], UpdatesFn, ~str),				// stores + function to use to update the stores + data to use
 	
-	register_msg(~str, ~str, ~[~str], register_chan),		// store + key + SPARQL queries + channel to send results back along
-	deregister_msg(~str, ~str),								// store + key
+	RegisterMsg(~str, ~str, ~[~str], RegisterChan),		// store + key + SPARQL queries + channel to send results back along
+	DeregisterMsg(~str, ~str),								// store + key
 	
-	sync_msg(comm::Chan<bool>),						// ensure the model task has processed all messages (for unit testing)
-	exit_msg,												// exits the task (for unit testing)
+	SyncMsg(comm::Chan<bool>),						// ensure the model task has processed all messages (for unit testing)
+	ExitMsg,												// exits the task (for unit testing)
 }
 
 /// Alerts are conditions that hold for a period of time (e.g. a router off line).
@@ -48,17 +48,17 @@ enum msg
 /// When an alert is added to the "alerts" store a gnos:begin dateTime is
 /// included. When the alert becomes inactive (i.e. the condition no longer
 /// holds) a gnos:end timestamp is added.
-type alert = {device: ~str, id: ~str, level: alert_level, mesg: ~str, resolution: ~str};
+type Alert = {device: ~str, id: ~str, level: AlertLevel, mesg: ~str, resolution: ~str};
 
-enum alert_level
+enum AlertLevel
 {
-	error_level,
-	warning_level,
-	info_level,
-	debug_level,
+	ErrorLevel,
+	WarningLevel,
+	InfoLevel,
+	DebugLevel,
 }
 
-type registration = {queries: ~[~str], channel: register_chan, solutions: @mut ~[Solution]};
+type Registration = {queries: ~[~str], channel: RegisterChan, solutions: @mut ~[Solution]};
 
 fn get_standard_store_names() -> ~[~str]
 {
@@ -68,7 +68,7 @@ fn get_standard_store_names() -> ~[~str]
 /// Runs within a task and manages triple stores holding gnos state.
 ///
 /// Other tasks (e.g. views) can query or update the state this function manages.
-fn manage_state(port: comm::Port<msg>)
+fn manage_state(port: comm::Port<Msg>)
 {
 	let namespaces = ~[
 		{prefix: ~"devices", path: ~"http://network/"},
@@ -92,13 +92,13 @@ fn manage_state(port: comm::Port<msg>)
 	{
 		match comm::recv(port)
 		{
-			query_msg(name, expr, channel) =>
+			QueryMsg(name, expr, channel) =>
 			{
 				let solutions = eval_queries(&stores.get(name), queries, ~[expr]).get();		// always a canned query so we want to fail fast on error
 				assert solutions.len() == 1;
 				comm::send(channel, copy solutions[0]);
 			}
-			update_msg(name, f, data) =>
+			UpdateMsg(name, f, data) =>
 			{
 				if f(stores.get(name), data)
 				{
@@ -106,7 +106,7 @@ fn manage_state(port: comm::Port<msg>)
 					update_registered(stores, name, queries, registered);
 				}
 			}
-			updates_msg(names, f, data) =>
+			UpdatesMsg(names, f, data) =>
 			{
 				// This is a bit of a lame special case, but there are some advantages:
 				// 1) It allows multiple stores to be updated atomically.
@@ -123,7 +123,7 @@ fn manage_state(port: comm::Port<msg>)
 					}
 				}
 			}
-			register_msg(name, key, exprs, channel) =>
+			RegisterMsg(name, key, exprs, channel) =>
 			{
 				match eval_queries(&stores.get(name), queries, exprs)
 				{
@@ -140,15 +140,15 @@ fn manage_state(port: comm::Port<msg>)
 					}
 				}
 			}
-			deregister_msg(name, key) =>
+			DeregisterMsg(name, key) =>
 			{
 				registered[name].remove(key);
 			}
-			sync_msg(channel) =>
+			SyncMsg(channel) =>
 			{
 				comm::send(channel, true);
 			}
-			exit_msg =>
+			ExitMsg =>
 			{
 				break;
 			}
@@ -157,17 +157,17 @@ fn manage_state(port: comm::Port<msg>)
 }
 
 /// Helper used to query model state.
-fn get_state(name: ~str, channel: comm::Chan<msg>, query: ~str) -> Solution
+fn get_state(name: ~str, channel: comm::Chan<Msg>, query: ~str) -> Solution
 {
 	let port = comm::Port::<Solution>();
 	let chan = comm::Chan::<Solution>(port);
-	comm::send(channel, query_msg(name, query, chan));
+	comm::send(channel, QueryMsg(name, query, chan));
 	let result = comm::recv(port);
 	return result;
 }
 
 /// Helper used to add a new alert to the "alerts" store (if there is not already one open).
-fn open_alert(store: &Store, alert: alert) -> bool
+fn open_alert(store: &Store, alert: Alert) -> bool
 {
 	let expr = #fmt["
 	PREFIX devices: <http://network/>
@@ -194,10 +194,10 @@ fn open_alert(store: &Store, alert: alert) -> bool
 				let level =
 					match alert.level
 					{
-						error_level =>		{~"error"}
-						warning_level =>	{~"warning"}
-						info_level =>		{~"info"}
-						debug_level =>	{~"debug"}
+						ErrorLevel =>		{~"error"}
+						WarningLevel =>	{~"warning"}
+						InfoLevel =>		{~"info"}
+						DebugLevel =>	{~"debug"}
 					};
 					
 				let subject = get_blank_name(store, ~"alert");
@@ -210,7 +210,7 @@ fn open_alert(store: &Store, alert: alert) -> bool
 					(~"gnos:level", StringValue(level, ~"")),
 				]);
 				
-				if alert.level == error_level
+				if alert.level == ErrorLevel
 				{
 					update_err_count(store, alert.device, 1);
 				}
@@ -307,7 +307,7 @@ fn eval_query(store: &Store, expr: ~str) -> result::Result<Solution, ~str>
 	}
 }
 // ---- Internal functions ----------------------------------------------------
-fn update_registered(stores: hashmap<~str, Store>, name: ~str, queries: hashmap<~str, Selector>, registered: hashmap<~str, hashmap<~str, registration>>)
+fn update_registered(stores: hashmap<~str, Store>, name: ~str, queries: hashmap<~str, Selector>, registered: hashmap<~str, hashmap<~str, Registration>>)
 {
 	let store = stores.find(name);
 	if store.is_some()

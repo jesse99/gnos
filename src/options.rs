@@ -2,14 +2,13 @@
 use io::WriterUtil;
 use Path = path::Path;
 use std::getopts::*;
-//use std::json::*;
 
-export options, device, get_version, validate, parse_command_line;
+export Options, Device, get_version, validate, parse_command_line;
 
-type device = {name: ~str, managed_ip: ~str, community: ~str, center_x: float, center_y: float, style: ~str};
+type Device = {name: ~str, managed_ip: ~str, community: ~str, center_x: float, center_y: float, style: ~str};
 
 /// Various options derived from the command line and the network.json file.
-type options =
+type Options =
 {
 	// these are from the command line
 	root: Path,
@@ -22,10 +21,10 @@ type options =
 	server: ~str,
 	port: u16,
 	poll_rate: u16,
-	devices: ~[device],
+	devices: ~[Device],
 	
 	// this is from main
-	cleanup: ~[task_runner::exit_fn],
+	cleanup: ~[task_runner::ExitFn],
 };
 
 // str constants aren't supported yet.
@@ -36,7 +35,7 @@ fn get_version() -> ~str
 	~"0.1"
 }
 
-fn parse_command_line(args: ~[~str]) -> options
+fn parse_command_line(args: ~[~str]) -> Options
 {
 	let opts = ~[
 		optflag(~"admin"),
@@ -87,7 +86,7 @@ fn parse_command_line(args: ~[~str]) -> options
 	}
 }
 
-fn validate(options: options)
+fn validate(options: Options)
 {
 	if !os::path_is_dir(&options.root)
 	{
@@ -109,7 +108,7 @@ fn print_usage()
 	io::println(~"--version   prints the gnos version number and exits");
 }
 
-fn load_network_file(path: Path) -> {client: ~str, server: ~str, port: u16, poll_rate: u16, devices: ~[device]}
+fn load_network_file(path: Path) -> {client: ~str, server: ~str, port: u16, poll_rate: u16, devices: ~[Device]}
 {
 	match io::file_reader(&path)
 	{
@@ -147,7 +146,7 @@ fn load_network_file(path: Path) -> {client: ~str, server: ~str, port: u16, poll
 	}
 }
 
-fn get_network_devices(path: Path, data: std::map::hashmap<~str, std::json::Json>, key: ~str) -> ~[device]
+fn get_network_devices(path: Path, data: std::map::hashmap<~str, std::json::Json>, key: ~str) -> ~[Device]
 {
 	match data.find(key)
 	{
@@ -174,7 +173,7 @@ fn get_network_devices(path: Path, data: std::map::hashmap<~str, std::json::Json
 	}
 }
 
-fn get_network_device(path: Path, name: ~str, value: std::json::Json) -> device
+fn get_network_device(path: Path, name: ~str, value: std::json::Json) -> Device
 {
 	match value
 	{

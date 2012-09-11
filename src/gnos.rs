@@ -20,40 +20,40 @@ fn run_snmp(user: ~str, host: ~str, script: ~str) -> option::Option<~str>
 	utils::run_remote_command(user, host, ~"python snmp-modeler.py -vv " + script)
 }
 
-fn snmp_exited(err: option::Option<~str>, state_chan: comm::Chan<model::msg>)
+fn snmp_exited(err: option::Option<~str>, state_chan: comm::Chan<model::Msg>)
 {
 	let mesg = fmt!("snmp-modeler.py exited%s", if err.is_some() {~" with error: " + err.get()} else {~""});
 	error!("%s", mesg);
 	
-	let alert = {device: ~"gnos:map", id: ~"snmp-modeler.py exited", level: model::error_level, mesg: mesg, resolution: ~"Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
-	comm::send(state_chan, model::update_msg(~"alerts", |store, _err| {model::open_alert(&store, alert)}, ~""));
+	let alert = {device: ~"gnos:map", id: ~"snmp-modeler.py exited", level: model::ErrorLevel, mesg: mesg, resolution: ~"Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
+	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _err| {model::open_alert(&store, alert)}, ~""));
 }
 
-fn setup(options: options::options, state_chan: comm::Chan<model::msg>) 
+fn setup(options: options::Options, state_chan: comm::Chan<model::Msg>) 
 {
 	let root = options.root;
 	let client2 = copy options.client;
 	let cleanup = copy options.cleanup;
 	
-	let action: task_runner::job_fn = || copy_scripts(root, env!("GNOS_USER"), client2);
-	let cp = {action: action, policy: task_runner::shutdown_on_failure};
+	let action: task_runner::JobFn = || copy_scripts(root, env!("GNOS_USER"), client2);
+	let cp = {action: action, policy: task_runner::ShutdownOnFailure};
 	
 	let client3 = copy options.client;
 	let ccc = copy(options.script);
-	let action: task_runner::job_fn = || run_snmp(env!("GNOS_USER"), client3, ccc);
-	let run = {action: action, policy: task_runner::notify_on_exit(|err| {snmp_exited(err, state_chan)})};
+	let action: task_runner::JobFn = || run_snmp(env!("GNOS_USER"), client3, ccc);
+	let run = {action: action, policy: task_runner::NotifyOnExit(|err| {snmp_exited(err, state_chan)})};
 	
 	task_runner::sequence(~[cp, run], cleanup);
 }
 
-fn get_shutdown(options: options::options) -> !
+fn get_shutdown(options: options::Options) -> !
 {
 	info!("received shutdown request");
 	for options.cleanup.each |f| {f()};
 	libc::exit(0)
 }
 
-fn update_globals(store: Store, options: options::options) -> bool
+fn update_globals(store: Store, options: options::Options) -> bool
 {
 	store.add(~"gnos:globals", ~[
 		(~"gnos:admin", BoolValue(true)),		// TODO: get this from a setting
@@ -86,7 +86,7 @@ fn main(args: ~[~str])
 	if !options.db
 	{
 		let client = options.client;
-		let c1: task_runner::exit_fn = || {utils::run_remote_command(env!("GNOS_USER"), client, ~"pgrep -f snmp-modeler.py | xargs --no-run-if-empty kill -9");};
+		let c1: task_runner::ExitFn = || {utils::run_remote_command(env!("GNOS_USER"), client, ~"pgrep -f snmp-modeler.py | xargs --no-run-if-empty kill -9");};
 		options.cleanup = ~[c1];
 		
 		setup(options, state_chan);
@@ -97,7 +97,7 @@ fn main(args: ~[~str])
 	}
 	
 	let options1 = copy options;
-	comm::send(state_chan, model::update_msg(~"globals", |store, _err| {update_globals(store, options1)}, ~""));
+	comm::send(state_chan, model::UpdateMsg(~"globals", |store, _err| {update_globals(store, options1)}, ~""));
 	
 	let options2 = copy options;
 	let options3 = copy options;

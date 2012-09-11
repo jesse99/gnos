@@ -8,13 +8,13 @@ export setup;
 
 // TODO: In the future this should be replaced with a turtle file
 // and --db should take a path to it (and maybe others).
-fn setup(state_chan: comm::Chan<model::msg>, poll_rate: u16) 
+fn setup(state_chan: comm::Chan<model::Msg>, poll_rate: u16) 
 {
-	comm::send(state_chan, model::update_msg(~"primary", |store, _data| {add_got(store, state_chan, poll_rate); true}, ~""));
+	comm::send(state_chan, model::UpdateMsg(~"primary", |store, _data| {add_got(store, state_chan, poll_rate); true}, ~""));
 	add_alerts(state_chan);
 }
 
-fn update_got(state_chan: comm::Chan<model::msg>, winterfell_loyalty: ~str, wl: f64, kings_landing_loyalty: ~str, kl: f64, poll_rate: u16)
+fn update_got(state_chan: comm::Chan<model::Msg>, winterfell_loyalty: ~str, wl: f64, kings_landing_loyalty: ~str, kl: f64, poll_rate: u16)
 {
 	libc::funcs::posix88::unistd::sleep(poll_rate as core::libc::types::os::arch::c95::c_uint);
 	
@@ -25,7 +25,7 @@ fn update_got(state_chan: comm::Chan<model::msg>, winterfell_loyalty: ~str, wl: 
 	let winterfell_loyalty2 = copy winterfell_loyalty;
 	let kings_landing_loyalty2 = copy kings_landing_loyalty;
 	
-	comm::send(state_chan, model::update_msg(~"primary",
+	comm::send(state_chan, model::UpdateMsg(~"primary",
 		|store, _data|
 		{
 			info!("setting winterfell_loyalty to %?", wl);
@@ -37,7 +37,7 @@ fn update_got(state_chan: comm::Chan<model::msg>, winterfell_loyalty: ~str, wl: 
 	update_got(state_chan, winterfell_loyalty, wl, kings_landing_loyalty, kl, poll_rate);
 }
 
-fn add_got(store: Store, state_chan: comm::Chan<model::msg>, poll_rate: u16)
+fn add_got(store: Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 {
 	// map
 	store.add(~"gnos:map", ~[
@@ -176,34 +176,34 @@ fn add_got(store: Store, state_chan: comm::Chan<model::msg>, poll_rate: u16)
 	do task::spawn_sched(task::SingleThreaded) {update_got(state_chan, winterfell_loyalty, 0.6f64, kings_landing_loyalty, 0.9f64, poll_rate);}
 }
 
-fn add_alerts(state_chan: comm::Chan<model::msg>) -> bool
+fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool
 {
 	// map
-	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg|
+	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _msg|
 	{
-		model::open_alert(&store, {device: ~"gnos:map", id: ~"m1", level: model::error_level, mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."});
-		model::open_alert(&store, {device: ~"gnos:map", id: ~"m2", level: model::warning_level, mesg: ~"Approaching critical mass", resolution: ~"Reduce mass."});
+		model::open_alert(&store, {device: ~"gnos:map", id: ~"m1", level: model::ErrorLevel, mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."});
+		model::open_alert(&store, {device: ~"gnos:map", id: ~"m2", level: model::WarningLevel, mesg: ~"Approaching critical mass", resolution: ~"Reduce mass."});
 		
-		model::open_alert(&store, {device: ~"gnos:map", id: ~"m3", level: model::error_level, mesg: ~"Electrons are leaking", resolution: ~"Call a plumber."});
+		model::open_alert(&store, {device: ~"gnos:map", id: ~"m3", level: model::ErrorLevel, mesg: ~"Electrons are leaking", resolution: ~"Call a plumber."});
 		model::close_alert(&store, ~"gnos:map", ~"m3");			// closed alert 
 		
 																	// open_alert is idempotent
-		model::open_alert(&store, {device: ~"gnos:map", id: ~"m1", level: model::error_level, mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."})
+		model::open_alert(&store, {device: ~"gnos:map", id: ~"m1", level: model::ErrorLevel, mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."})
 	}, ~""));
 	
 	// devices
-	comm::send(state_chan, model::update_msg(~"alerts", |store, _msg|
+	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _msg|
 	{
-		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w1", level: model::error_level, mesg: ~"The ocean is rising.", resolution: ~"Call King Canute."});
-		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w2", level: model::error_level, mesg: ~"Ghosts walk the grounds.", resolution: ~"Who you going to call?"});
-		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w3", level: model::warning_level, mesg: ~"Winter is coming.", resolution: ~"Increase the stores."});
-		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w4", level: model::info_level, mesg: ~"Bran stubbed his toe.", resolution: ~"Call the Maester."});
+		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w1", level: model::ErrorLevel, mesg: ~"The ocean is rising.", resolution: ~"Call King Canute."});
+		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w2", level: model::ErrorLevel, mesg: ~"Ghosts walk the grounds.", resolution: ~"Who you going to call?"});
+		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w3", level: model::WarningLevel, mesg: ~"Winter is coming.", resolution: ~"Increase the stores."});
+		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w4", level: model::InfoLevel, mesg: ~"Bran stubbed his toe.", resolution: ~"Call the Maester."});
 		
-		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w5", level: model::error_level, mesg: ~"A deserter from the Wall was found.", resolution: ~"Chop his head off."});
+		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w5", level: model::ErrorLevel, mesg: ~"A deserter from the Wall was found.", resolution: ~"Chop his head off."});
 		model::close_alert(&store, ~"devices:winterfell", ~"w5");	// closed alert
 		
 		model::close_alert(&store, ~"devices:winterfell", ~"w2");	// re-opened alert
-		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w2", level: model::error_level, mesg: ~"More ghosts walk the grounds.", resolution: ~"Who you going to call?"})
+		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w2", level: model::ErrorLevel, mesg: ~"More ghosts walk the grounds.", resolution: ~"Who you going to call?"})
 	}, ~""));
 	
 	true

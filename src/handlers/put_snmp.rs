@@ -2,14 +2,14 @@
 // incoming json, converts it into triplets, and updates the model.
 //use core::to_str::{to_str};
 use core::dvec::*;
-use model::{msg, update_msg, updates_msg, query_msg, eval_query};
-use options::{options, device};
+use model::{Msg, UpdateMsg, UpdatesMsg, QueryMsg, eval_query};
+use options::{Options, Device};
 use rrdf::rrdf::*;
 use server = rwebserve::rwebserve;
 
 export put_snmp;
 
-fn put_snmp(options: options, state_chan: comm::Chan<msg>, request: &server::Request, response: &server::Response) -> server::Response
+fn put_snmp(options: Options, state_chan: comm::Chan<Msg>, request: &server::Request, response: &server::Response) -> server::Response
 {
 	// Unfortunately we don't send an error back to the modeler if the json was invalid.
 	// Of course that shouldn't happen...
@@ -21,12 +21,12 @@ fn put_snmp(options: options, state_chan: comm::Chan<msg>, request: &server::Req
 	let old = query_old_info(state_chan);
 	
 	let ooo = copy(options);
-	comm::send(state_chan, updates_msg(~[~"primary", ~"snmp", ~"alerts"], |ss, d| {updates_snmp(ooo, addr, ss, d, &old)}, request.body));
+	comm::send(state_chan, UpdatesMsg(~[~"primary", ~"snmp", ~"alerts"], |ss, d| {updates_snmp(ooo, addr, ss, d, &old)}, request.body));
 	
 	server::Response {body: ~"", ..*response}
 }
 
-fn updates_snmp(options: options, remote_addr: ~str, stores: &[Store], body: ~str, old: &Solution) -> bool
+fn updates_snmp(options: Options, remote_addr: ~str, stores: &[Store], body: ~str, old: &Solution) -> bool
 {
 	match std::json::from_str(body)
 	{
@@ -56,7 +56,7 @@ fn updates_snmp(options: options, remote_addr: ~str, stores: &[Store], body: ~st
 	true
 }
 
-fn query_old_info(state_chan: comm::Chan<msg>) -> Solution
+fn query_old_info(state_chan: comm::Chan<Msg>) -> Solution
 {
 	let po = comm::Port();
 	let ch = comm::Chan(po);
@@ -73,7 +73,7 @@ WHERE
 	BIND(rrdf:pname(?predicate) AS ?name) 
 }";
 	
-	comm::send(state_chan, query_msg(~"primary", query, ch));
+	comm::send(state_chan, QueryMsg(~"primary", query, ch));
 	let solution = comm::recv(po);
 	//for solution.eachi |i, r| {error!("%?: %?", i, r)}
 	solution
@@ -96,7 +96,7 @@ WHERE
 //    },
 //    ...
 // }
-fn json_to_primary(options: options, remote_addr: ~str, store: &Store, alerts_store: &Store, data: std::map::hashmap<~str, std::json::Json>, old: &Solution)
+fn json_to_primary(options: Options, remote_addr: ~str, store: &Store, alerts_store: &Store, data: std::map::hashmap<~str, std::json::Json>, old: &Solution)
 {
 	store.clear();
 	store.add_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:last_update", object: DateTimeValue(std::time::now())});
@@ -140,7 +140,7 @@ fn json_to_primary(options: options, remote_addr: ~str, store: &Store, alerts_st
 // "sysLocation": "closet", 
 // "sysName": "Router", 
 // "sysUpTime": "5080354"
-fn add_device(store: &Store, alerts_store: &Store, devices: ~[device], managed_ip: ~str, device: std::map::hashmap<~str, std::json::Json>, old: &Solution, old_subject: ~str)
+fn add_device(store: &Store, alerts_store: &Store, devices: ~[Device], managed_ip: ~str, device: std::map::hashmap<~str, std::json::Json>, old: &Solution, old_subject: ~str)
 {
 	match devices.find(|d| {d.managed_ip == managed_ip})
 	{
@@ -199,7 +199,7 @@ fn toggle_device_uptime_alert(alerts_store: &Store, managed_ip: ~str, time: floa
 	{
 		// TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
 		let mesg = ~"Device rebooted.";		// we can't add the time here because alerts aren't changed when re-opened (and the mesg doesn't change when they are closed)
-		model::open_alert(alerts_store, {device: device, id: id, level: model::warning_level, mesg: mesg, resolution: ~""});
+		model::open_alert(alerts_store, {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
 	}
 	else
 	{
@@ -220,7 +220,7 @@ fn toggle_device_down_alert(alerts_store: &Store, managed_ip: ~str, up: bool)
 	{
 		let mesg = ~"Device is down.";
 		let resolution = ~"Check the power cable, power it on if it is off, check the IP address, verify routing.";
-		model::open_alert(alerts_store, {device: device, id: id, level: model::error_level, mesg: mesg, resolution: resolution});
+		model::open_alert(alerts_store, {device: device, id: id, level: model::ErrorLevel, mesg: mesg, resolution: resolution});
 	}
 }
 
@@ -550,7 +550,7 @@ fn toggle_interface_uptime_alert(alerts_store: &Store, managed_ip: ~str, interfa
 	{
 		// TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
 		let mesg = fmt!("%s status changed.", name);		// we can't add the time here because alerts aren't changed when re-opened (and the mesg doesn't change when they are closed)
-		model::open_alert(alerts_store, {device: device, id: id, level: model::warning_level, mesg: mesg, resolution: ~""});
+		model::open_alert(alerts_store, {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
 	}
 	else
 	{
@@ -567,7 +567,7 @@ fn toggle_admin_vs_oper_interface_alert(alerts_store: &Store, managed_ip: ~str, 
 	if admin_status.is_not_empty() && oper_status != admin_status
 	{
 		let mesg = fmt!("Admin set %s to %s, but operational state is %s.", name, trim_interface_status(admin_status), trim_interface_status(oper_status));
-		model::open_alert(alerts_store, {device: device, id: id, level: model::error_level, mesg: mesg, resolution: ~""});
+		model::open_alert(alerts_store, {device: device, id: id, level: model::ErrorLevel, mesg: mesg, resolution: ~""});
 	}
 	else
 	{
@@ -592,7 +592,7 @@ fn toggle_weird_interface_state_alert(alerts_store: &Store, managed_ip: ~str, na
 	else
 	{
 		let mesg = fmt!("%s operational state is %s.", name, trim_interface_status(oper_status));
-		model::open_alert(alerts_store, {device: device, id: id, level: model::warning_level, mesg: mesg, resolution: ~""});
+		model::open_alert(alerts_store, {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
 	}
 }
 
