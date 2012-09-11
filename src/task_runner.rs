@@ -23,7 +23,11 @@ type ExitFn = fn~ () -> ();
 /// Returns a message on errors.
 type JobFn = fn~ () -> option::Option<~str>;
 
-type Job = {action: JobFn, policy: FailurePolicy};
+struct Job
+{
+	let action: JobFn;
+	let policy: FailurePolicy;
+}
 
 /// Run the job within a task.
 fn run(+job: Job, +cleanup: ~[ExitFn])

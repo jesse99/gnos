@@ -199,7 +199,7 @@ fn toggle_device_uptime_alert(alerts_store: &Store, managed_ip: ~str, time: floa
 	{
 		// TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
 		let mesg = ~"Device rebooted.";		// we can't add the time here because alerts aren't changed when re-opened (and the mesg doesn't change when they are closed)
-		model::open_alert(alerts_store, {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
+		model::open_alert(alerts_store, model::Alert {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
 	}
 	else
 	{
@@ -220,7 +220,7 @@ fn toggle_device_down_alert(alerts_store: &Store, managed_ip: ~str, up: bool)
 	{
 		let mesg = ~"Device is down.";
 		let resolution = ~"Check the power cable, power it on if it is off, check the IP address, verify routing.";
-		model::open_alert(alerts_store, {device: device, id: id, level: model::ErrorLevel, mesg: mesg, resolution: resolution});
+		model::open_alert(alerts_store, model::Alert {device: device, id: id, level: model::ErrorLevel, mesg: mesg, resolution: resolution});
 	}
 }
 
@@ -550,7 +550,7 @@ fn toggle_interface_uptime_alert(alerts_store: &Store, managed_ip: ~str, interfa
 	{
 		// TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
 		let mesg = fmt!("%s status changed.", name);		// we can't add the time here because alerts aren't changed when re-opened (and the mesg doesn't change when they are closed)
-		model::open_alert(alerts_store, {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
+		model::open_alert(alerts_store, model::Alert {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
 	}
 	else
 	{
@@ -567,7 +567,7 @@ fn toggle_admin_vs_oper_interface_alert(alerts_store: &Store, managed_ip: ~str, 
 	if admin_status.is_not_empty() && oper_status != admin_status
 	{
 		let mesg = fmt!("Admin set %s to %s, but operational state is %s.", name, trim_interface_status(admin_status), trim_interface_status(oper_status));
-		model::open_alert(alerts_store, {device: device, id: id, level: model::ErrorLevel, mesg: mesg, resolution: ~""});
+		model::open_alert(alerts_store, model::Alert {device: device, id: id, level: model::ErrorLevel, mesg: mesg, resolution: ~""});
 	}
 	else
 	{
@@ -592,7 +592,7 @@ fn toggle_weird_interface_state_alert(alerts_store: &Store, managed_ip: ~str, na
 	else
 	{
 		let mesg = fmt!("%s operational state is %s.", name, trim_interface_status(oper_status));
-		model::open_alert(alerts_store, {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
+		model::open_alert(alerts_store, model::Alert {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
 	}
 }
 

@@ -48,7 +48,14 @@ enum Msg
 /// When an alert is added to the "alerts" store a gnos:begin dateTime is
 /// included. When the alert becomes inactive (i.e. the condition no longer
 /// holds) a gnos:end timestamp is added.
-type Alert = {device: ~str, id: ~str, level: AlertLevel, mesg: ~str, resolution: ~str};
+struct Alert
+{
+	let device: ~str;
+	let id: ~str;
+	let level: AlertLevel;
+	let mesg: ~str;
+	let resolution: ~str;
+}
 
 enum AlertLevel
 {

@@ -181,29 +181,29 @@ fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool
 	// map
 	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _msg|
 	{
-		model::open_alert(&store, {device: ~"gnos:map", id: ~"m1", level: model::ErrorLevel, mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."});
-		model::open_alert(&store, {device: ~"gnos:map", id: ~"m2", level: model::WarningLevel, mesg: ~"Approaching critical mass", resolution: ~"Reduce mass."});
+		model::open_alert(&store, Alert {device: ~"gnos:map", id: ~"m1", level: model::ErrorLevel, mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."});
+		model::open_alert(&store, Alert {device: ~"gnos:map", id: ~"m2", level: model::WarningLevel, mesg: ~"Approaching critical mass", resolution: ~"Reduce mass."});
 		
-		model::open_alert(&store, {device: ~"gnos:map", id: ~"m3", level: model::ErrorLevel, mesg: ~"Electrons are leaking", resolution: ~"Call a plumber."});
+		model::open_alert(&store, Alert {device: ~"gnos:map", id: ~"m3", level: model::ErrorLevel, mesg: ~"Electrons are leaking", resolution: ~"Call a plumber."});
 		model::close_alert(&store, ~"gnos:map", ~"m3");			// closed alert 
 		
 																	// open_alert is idempotent
-		model::open_alert(&store, {device: ~"gnos:map", id: ~"m1", level: model::ErrorLevel, mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."})
+		model::open_alert(&store, Alert {device: ~"gnos:map", id: ~"m1", level: model::ErrorLevel, mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."})
 	}, ~""));
 	
 	// devices
 	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _msg|
 	{
-		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w1", level: model::ErrorLevel, mesg: ~"The ocean is rising.", resolution: ~"Call King Canute."});
-		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w2", level: model::ErrorLevel, mesg: ~"Ghosts walk the grounds.", resolution: ~"Who you going to call?"});
-		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w3", level: model::WarningLevel, mesg: ~"Winter is coming.", resolution: ~"Increase the stores."});
-		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w4", level: model::InfoLevel, mesg: ~"Bran stubbed his toe.", resolution: ~"Call the Maester."});
+		model::open_alert(&store, Alert {device: ~"devices:winterfell", id: ~"w1", level: model::ErrorLevel, mesg: ~"The ocean is rising.", resolution: ~"Call King Canute."});
+		model::open_alert(&store, Alert {device: ~"devices:winterfell", id: ~"w2", level: model::ErrorLevel, mesg: ~"Ghosts walk the grounds.", resolution: ~"Who you going to call?"});
+		model::open_alert(&store, Alert {device: ~"devices:winterfell", id: ~"w3", level: model::WarningLevel, mesg: ~"Winter is coming.", resolution: ~"Increase the stores."});
+		model::open_alert(&store, Alert {device: ~"devices:winterfell", id: ~"w4", level: model::InfoLevel, mesg: ~"Bran stubbed his toe.", resolution: ~"Call the Maester."});
 		
-		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w5", level: model::ErrorLevel, mesg: ~"A deserter from the Wall was found.", resolution: ~"Chop his head off."});
+		model::open_alert(&store, Alert {device: ~"devices:winterfell", id: ~"w5", level: model::ErrorLevel, mesg: ~"A deserter from the Wall was found.", resolution: ~"Chop his head off."});
 		model::close_alert(&store, ~"devices:winterfell", ~"w5");	// closed alert
 		
 		model::close_alert(&store, ~"devices:winterfell", ~"w2");	// re-opened alert
-		model::open_alert(&store, {device: ~"devices:winterfell", id: ~"w2", level: model::ErrorLevel, mesg: ~"More ghosts walk the grounds.", resolution: ~"Who you going to call?"})
+		model::open_alert(&store, Alert {device: ~"devices:winterfell", id: ~"w2", level: model::ErrorLevel, mesg: ~"More ghosts walk the grounds.", resolution: ~"Who you going to call?"})
 	}, ~""));
 	
 	true

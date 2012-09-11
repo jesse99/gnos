@@ -5,27 +5,35 @@ use std::getopts::*;
 
 export Options, Device, get_version, validate, parse_command_line;
 
-type Device = {name: ~str, managed_ip: ~str, community: ~str, center_x: float, center_y: float, style: ~str};
+struct Device
+{
+	let name: ~str;
+	let managed_ip: ~str;
+	let community: ~str;
+	let center_x: float;
+	let center_y: float;
+	let style: ~str;
+}
 
 /// Various options derived from the command line and the network.json file.
-type Options =
+struct Options
 {
 	// these are from the command line
-	root: Path,
-	admin: bool,
-	script: ~str,
-	db: bool,
+	let root: Path;
+	let admin: bool;
+	let script: ~str;
+	let db: bool;
 	
 	// these are from the network.json file
-	client: ~str,
-	server: ~str,
-	port: u16,
-	poll_rate: u16,
-	devices: ~[Device],
+	let client: ~str;
+	let server: ~str;
+	let port: u16;
+	let poll_rate: u16;
+	let devices: ~[Device];
 	
 	// this is from main
-	cleanup: ~[task_runner::ExitFn],
-};
+	let cleanup: ~[task_runner::ExitFn];
+}
 
 // str constants aren't supported yet.
 // TODO: get this (somehow) from the link attribute in the rc file (going the other way
@@ -70,7 +78,7 @@ fn parse_command_line(args: ~[~str]) -> Options
 	let path: path::Path = path::from_str(matched.free[0]);
 	let network = load_network_file(path);
 	
-	{
+	Options {
 		root: path::from_str(opt_str(matched, ~"root")),
 		admin: opt_present(matched, ~"admin"),
 		script: path.filename().get(),
@@ -179,7 +187,7 @@ fn get_network_device(path: Path, name: ~str, value: std::json::Json) -> Device
 	{
 		std::json::Dict(value) =>
 		{
-			{
+			Device {
 				name: name,
 				managed_ip: get_network_str(path, value, ~"ip"),
 				community: get_network_str(path, value, ~"community"),
