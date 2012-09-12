@@ -25,8 +25,8 @@ type JobFn = fn~ () -> option::Option<~str>;
 
 struct Job
 {
-	let action: JobFn;
-	let policy: FailurePolicy;
+	pub action: JobFn,
+	pub policy: FailurePolicy,
 }
 
 /// Run the job within a task.

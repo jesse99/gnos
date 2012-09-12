@@ -80,7 +80,7 @@ fn check_solutions(actual: Solution, expected: Solution) -> bool
 	return true;
 }
 
-fn update(state_chan: comm::Chan<msg>, data: ~[(~str, ~str)])
+fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
 {
 	fn get_str(entry: @~[std::json::Json], index: uint) -> ~str
 	{
@@ -343,50 +343,50 @@ fn test_alerts()
 	let store = Store(namespaces, &std::map::box_str_hash());
 	
 	// open foo/bar => adds the alert
-	open_alert(&store, {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"fie", resolution: ~""});
+	open_alert(&store, Alert {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"fie", resolution: ~""});
 	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
 	]});
 	
 	// open foo/bar => does nothing
-	open_alert(&store, {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"no-op fie", resolution: ~""});
+	open_alert(&store, Alert {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"no-op fie", resolution: ~""});
 	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
 	]});
 	
 	// open foo/cat => adds alert
-	open_alert(&store, {device: ~"gnos:foo", id: ~"cat", level: ErrorLevel, mesg: ~"meow", resolution: ~""});
+	open_alert(&store, Alert {device: ~"gnos:foo", id: ~"cat", level: ErrorLevel, mesg: ~"meow", resolution: ~""});
 	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
-		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
 		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
+		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
 	]});
 	
 	// close foo/bar => closes it
 	close_alert(&store, ~"gnos:foo", ~"bar");
 	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
-		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
 		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
+		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
 	]});
 	
 	// close foo/dog => does nothing
 	close_alert(&store, ~"gnos:foo", ~"dog");
 	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
-		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
 		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
+		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
 	]});
 	
 	// close foo/bar => does nothing
 	close_alert(&store, ~"gnos:foo", ~"bar");
 	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
-		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
 		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
+		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
 	]});
 	
 	// open foo/bar => adds a new alert
-	open_alert(&store, {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"fum", resolution: ~""});
+	open_alert(&store, Alert {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"fum", resolution: ~""});
 	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
-		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
 		~[(~"mesg", StringValue(~"fum", ~"")), (~"closed", BoolValue(false))],
 		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
+		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
 	]});
 }

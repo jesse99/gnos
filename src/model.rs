@@ -50,11 +50,11 @@ enum Msg
 /// holds) a gnos:end timestamp is added.
 struct Alert
 {
-	let device: ~str;
-	let id: ~str;
-	let level: AlertLevel;
-	let mesg: ~str;
-	let resolution: ~str;
+	pub device: ~str,
+	pub id: ~str,
+	pub level: AlertLevel,
+	pub mesg: ~str,
+	pub resolution: ~str,
 }
 
 enum AlertLevel
@@ -63,6 +63,20 @@ enum AlertLevel
 	WarningLevel,
 	InfoLevel,
 	DebugLevel,
+}
+
+// TODO: This is hopefully temporary: at some point rust should again be able to compare enums without assistence.
+impl AlertLevel : cmp::Eq
+{
+	pure fn eq(&&rhs: AlertLevel) -> bool
+	{
+		fmt!("%?", self) == fmt!("%?", rhs)
+	}
+	
+	pure fn ne(&&rhs: AlertLevel) -> bool
+	{
+		fmt!("%?", self) != fmt!("%?", rhs)
+	}
 }
 
 type Registration = {queries: ~[~str], channel: RegisterChan, solutions: @mut ~[Solution]};

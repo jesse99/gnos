@@ -7,7 +7,7 @@ export scp_files, run_remote_command, list_dir_path, imprecise_time_s, i64_to_un
 	
 // Like spawn_listener except the new task (and whatever tasks it spawns) are distributed
 // among a fixed number of OS threads. See https://github.com/mozilla/rust/issues/3435
-fn spawn_moded_listener<A:send>(mode: task::SchedMode, +block: fn~ (comm::Port<A>)) -> comm::Chan<A>
+fn spawn_moded_listener<A:Send>(mode: task::SchedMode, +block: fn~ (comm::Port<A>)) -> comm::Chan<A>
 {
     let channel_port: comm::Port<comm::Chan<A>> = comm::Port();
     let channel_channel = comm::Chan(channel_port);

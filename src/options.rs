@@ -7,32 +7,32 @@ export Options, Device, get_version, validate, parse_command_line;
 
 struct Device
 {
-	let name: ~str;
-	let managed_ip: ~str;
-	let community: ~str;
-	let center_x: float;
-	let center_y: float;
-	let style: ~str;
+	pub name: ~str,
+	pub managed_ip: ~str,
+	pub community: ~str,
+	pub center_x: float,
+	pub center_y: float,
+	pub style: ~str,
 }
 
 /// Various options derived from the command line and the network.json file.
 struct Options
 {
 	// these are from the command line
-	let root: Path;
-	let admin: bool;
-	let script: ~str;
-	let db: bool;
+	pub root: Path,
+	pub admin: bool,
+	pub script: ~str,
+	pub db: bool,
 	
 	// these are from the network.json file
-	let client: ~str;
-	let server: ~str;
-	let port: u16;
-	let poll_rate: u16;
-	let devices: ~[Device];
+	pub client: ~str,
+	pub server: ~str,
+	pub port: u16,
+	pub poll_rate: u16,
+	pub devices: ~[Device],
 	
 	// this is from main
-	let cleanup: ~[task_runner::ExitFn];
+	pub cleanup: ~[task_runner::ExitFn],
 }
 
 // str constants aren't supported yet.
