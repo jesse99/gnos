@@ -4,6 +4,14 @@ use core::ops::*;
 
 export Unit, Meter, Feet, Second, Minute, Micro, Milli, Kilo, Compound,
 	Value;
+	
+//# name		scaling 	canonical	abrev		(name*scaling == canonical)
+//length:
+//Meter		1.0			Meter		"m"
+//Feet		0.3048		Meter		"ft"
+//
+//modifiers:
+//Kilo		1.0e3		Modifier	"k"
 
 // ---- Unit ----------------------------------------------------------------------------
 /// Simple units are specified with one of the constructors (e.g. Meter).
@@ -27,6 +35,23 @@ enum Unit
 	
 	// compound
 	Compound(@[Unit], @[Unit]),	// numerator, denominator (which must be simple units)
+}
+
+impl Unit
+{
+	pure fn is_dimensionless() -> bool
+	{
+		match self
+		{
+			Compound(n, d)	=> n.is_empty() && d.is_empty(),
+			_					=> false,
+		}
+	}
+	
+	pure fn is_not_dimensionless() -> bool
+	{
+		!self.is_dimensionless()
+	}
 }
 
 impl Unit : ops::Mul<Unit, Unit>
@@ -53,33 +78,94 @@ impl  Unit : ToStr
 {
 	fn to_str() -> ~str
 	{
+		// Bit of an icky function: converts stuff like ["m", "s", "m"] to "m^2*s".
+		fn units_to_str(original: @[Unit], units: ~[~str], invert: bool) -> ~str
+		{
+			fn power_count(units: ~[~str], start: uint) -> int
+			{
+				let mut count = 0;
+				
+				for units.eachi
+				|i, u|
+				{
+					if u == units[start]
+					{
+						if i < start
+						{
+							// found an earlier copy of the unit so this one doesn't count
+							return 0;
+						}
+						count += 1;
+					}
+				}
+				
+				count
+			}
+			
+			// This is like str::connect except that it checks for empty terms
+			// and only adds sep if it is not a modifier.
+			fn connect_units(original: @[Unit], units: ~[~str]) -> ~str
+			{
+				let mut result = ~"", first = true;
+				for units.eachi
+				|i, ss|
+				{
+					if ss.is_not_empty()
+					{
+						if first
+						{
+							first = false;
+						}
+						else if !is_modifier(original[i-1])
+						{
+							unchecked {str::push_str(result, ~"*");}
+						}
+						unchecked {str::push_str(result, ss)};
+					}
+				}
+				result
+			}
+			
+			let x = do units.mapi
+			|i, u|
+			{
+				match power_count(units, i)
+				{
+					0	=> ~"",
+					1	=> if invert {fmt!("%s^-1", u)} else {u},
+					n	=> fmt!("%s^%?", u, if invert {-n} else {n}),
+				}
+			};
+			
+			connect_units(original, x)
+		}
+		
 		match self
 		{
-			// length
-			Meter		=> ~"m",
-			Feet		=> ~"ft",
-			
-			// time
-			Second		=> ~"s",
-			Minute		=> ~"min",
-			
-			// modifiers
-			Micro		=> ~"u",
-			Milli		=> ~"m",
-			Kilo		=> ~"k",
-			
-			// compound
 			Compound(n, d) if  n.is_empty() && d.is_empty() =>
 			{
 				~""
 			}
 			Compound(n, d) =>
 			{
-				// TODO: need to report x*x as x^2
-				// TODO: need to special case empty arrays
-				let numer = str::connect(do n.map |u| {u.to_str()}, ~"*");
-				let denom = str::connect(do d.map |u| {u.to_str()}, ~"*");
-				fmt!("%s/%s", numer, denom)
+				let numer = units_to_str(n, do n.map |u| {u.to_str()}, false);
+				let denom = units_to_str(d, do d.map |u| {u.to_str()}, n.is_empty());
+				if numer.is_not_empty() && denom.is_not_empty()
+				{
+					fmt!("%s/%s", numer, denom)
+				}
+				else if denom.is_not_empty()
+				{
+					denom
+				}
+				else
+				{
+					numer
+				}
+			}
+			u =>
+			{
+				unit_abrev(u)
 			}
 		}
 	}
@@ -109,7 +195,7 @@ impl Unit : cmp::Eq
 struct Value
 {
 	pub value: float,
-	priv units: Unit,		// private so that we can enforce the invariant that Compound units only contain simple units
+	priv units: Unit,		// private so that we can enforce the invariant that Compound units only contain simple units, and that units are canceled properly
 }
 
 /// Creates a dimensionless value.
@@ -156,6 +242,21 @@ impl Value : ops::Div<Value, Value>
 	pure fn div(rhs: Value) -> Value
 	{
 		Value {value: self.value/rhs.value, units: self.units/rhs.units}
+	}
+}
+
+impl  Value : ToStr 
+{
+	fn to_str() -> ~str
+	{
+		if self.units.is_not_dimensionless()
+		{
+			fmt!("%.f %s", self.value, self.units.to_str())
+		}
+		else
+		{
+			fmt!("%.f", self.value)
+		}
 	}
 }
 
@@ -294,19 +395,15 @@ fn increment_type(numer: hashmap<@~str, uint>, denom: hashmap<@~str, uint>, u: U
 {
 	fn increment(table: hashmap<@~str, uint>, u: Unit)
 	{
-		let key =
-			match u
-			{
-				Meter | Feet			=> @~"length",
-				Second | Minute		=> @~"time",
-				Micro | Milli | Kilo		=> return,
-				Compound(*)			=> fail fmt!("%? should not be nested", u),
-			};
-		match table.find(key)
+		let key = @unit_type(u);
+		if key.is_not_empty()
 		{
-			option::Some(count)	=> table.insert(key, count + 1),
-			option::None			=> table.insert(key, 1),
-		};
+			match table.find(key)
+			{
+				option::Some(count)	=> table.insert(key, count + 1),
+				option::None			=> table.insert(key, 1),
+			};
+		}
 	}
 	
 	match u
@@ -342,7 +439,60 @@ pure fn canonical_unit(u: Unit) -> (float, @[Unit])
 	}
 }
 
+pure fn is_modifier(u: Unit) -> bool
+{
+	match u
+	{
+		Micro | Milli | Kilo	=> true,
+		_					=> false,
+	}
+}
+
+pure fn unit_type(u: Unit) -> ~str
+{
+	match u
+	{
+		Meter | Feet			=> ~"length",
+		Second | Minute		=> ~"time",
+		Micro | Milli | Kilo		=> ~"",
+		Compound(*)			=> fail fmt!("unit_type should only be called with simple units, not %?", u),
+	}
+}
+
+pure fn unit_abrev(u: Unit) -> ~str
+{
+	match u
+	{
+		// length
+		Meter		=> ~"m",
+		Feet		=> ~"ft",
+		
+		// time
+		Second		=> ~"s",
+		Minute		=> ~"min",
+		
+		// modifiers
+		Micro		=> ~"u",
+		Milli		=> ~"m",
+		Kilo		=> ~"k",
+		
+		// compound
+		Compound(*)	=> fail fmt!("unit_abrev should only be called with simple units, not %?", u),
+	}
+}
+
 // ---- Tests ---------------------------------------------------------------------------
+#[cfg(test)]
+fn check_strings(actual: ~str, expected: ~str) -> bool
+{
+	if actual != expected
+	{
+		io::stderr().write_line(fmt!("Found %? but expected %?", actual, expected));
+		return false;
+	}
+	return true;
+}
+
 #[cfg(test)]
 fn check_floats(actual: float, expected: float) -> bool
 {
@@ -494,20 +644,51 @@ fn test_incommensurable_convert()
 	assert x.value > 0.0;
 }
 
+#[test]
+fn test_value_to_str()
+{
+	let x = from_number(5.0);
+	assert check_strings(x.to_str(), ~"5");
+	
+	let x = from_units(5.0, Meter);
+	assert check_strings(x.to_str(), ~"5 m");
+	
+	let x = from_units(5.0, Meter*Meter);
+	assert check_strings(x.to_str(), ~"5 m^2");
+	
+	let x = from_units(5.0, Meter*Second*Meter);
+	assert check_strings(x.to_str(), ~"5 m^2*s");
+	
+	let x = from_units(5.0, Meter/Second);
+	assert check_strings(x.to_str(), ~"5 m/s");
+	
+	let x = from_units(5.0, Meter/(Kilo*Second*Second));
+	assert check_strings(x.to_str(), ~"5 m/ks^2");
+	
+	let x = from_number(10.0)/from_units(5.0, Meter);
+	assert check_strings(x.to_str(), ~"2 m^-1");
+	
+	let x = from_number(10.0)/from_units(5.0, Meter*Meter);
+	assert check_strings(x.to_str(), ~"2 m^-2");
+}
+
 // TODO:
-// better unit to_str
-//    use exponentiation for repeated units
-//	test 1/5m (prints 0.2m^-1)
-//	test 1/5m*m (prints 0.2m^-2)
-// value to_str
-//	test 1/5m (prints 0.2m^-1)
-//	test 1/5m*m (prints 0.2m^-2)
-// add a script to generate tables (or a macro)
-//    use SI units
-//    use IEC binary prefixes
-//    use imperial units
+// probably want to start a github project for this
+// commit the generated code
+// start using Python to generate items
+//	enum first
+//	see if include! will work (gives us control over visiblity)
+//	if so, ticket "expression" language
+//	if not, ticket a request for a better include!
+//	then each function, one by one
 // support comparisons (need commensurate check)
 // support plus/minus (need commensurate check)
 // support modulo (need commensurate check)
 // support neg
 // maybe turn this into a project
+// add support for more units
+//    SI units
+//    IEC binary prefixes
+//    imperial units
+// maybe add an example (unit test)
+// 	could include it in the readme
