@@ -23,6 +23,9 @@ run-snmp:
 check: bin/test-gnos
 	export RUST_LOG=gnos=1,rwebserve=1,socket=1,rrdf=0 && ./bin/test-gnos
 
+check1: bin/test-gnos
+	export RUST_LOG=gnos=2,rwebserve=1,socket=1,rrdf=0 && ./bin/test-gnos test_div_unit
+
 # You can either use this target (assuming that the libraries are in /usr/local/lib/rust)
 # or install them via cargo.
 update-libraries:
