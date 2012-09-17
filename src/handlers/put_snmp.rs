@@ -167,13 +167,13 @@ fn add_device(store: &Store, alerts_store: &Store, devices: ~[Device], managed_i
 			// These are undocumented because they not intended to be used by clients.
 			store.add_triple(~[], {subject: subject, predicate: ~"gnos:internal-info", object: BlankValue(old_subject)});
 			
-			let entries = ~[
-				(~"gnos:timestamp", FloatValue(time.value as f64)),
-				(~"sname:ipInReceives", IntValue(get_snmp_i64(device, ~"ipInReceives", 0))),
-				(~"sname:ipForwDatagrams", IntValue(get_snmp_i64(device, ~"ipForwDatagrams", 0))),
-				(~"sname:ipInDelivers", IntValue(get_snmp_i64(device, ~"ipInDelivers", 0))),
+			let entries = [
+				(~"gnos:timestamp", option::Some(snmp.new_time)),
+				(~"sname:ipInReceives", snmp.get_value(~"ipInReceives", Packet)),
+				(~"sname:ipForwDatagrams", snmp.get_value(~"ipForwDatagrams", Packet)),
+				(~"sname:ipInDelivers", snmp.get_value(~"ipInDelivers", Packet)),
 			];
-			store.add(old_subject, entries);
+			add_value_entries(store, old_subject, entries);
 			
 			toggle_device_uptime_alert(alerts_store, managed_ip, time);
 			
@@ -378,14 +378,14 @@ fn get_device_label(snmp: &Snmp) -> ~str
 {
 	let mut label = ~"";
 	
-	let x = snmp.get_value_per_sec(~"ipInReceives", Packet, Packet);
-	if x.is_some() {label += fmt!("recv: %s\n", get_value_str(x.get()));}
+	let x = snmp.get_value_per_sec(~"ipInReceives", Packet);
+	if x.is_some() {label += fmt!("recv: %s\n", get_si_str(x));}
 	
-	let x = snmp.get_value_per_sec(~"ipForwDatagrams", Packet, Packet);
-	if x.is_some() {label += fmt!("fwd: %s\n", get_value_str(x.get()));}
+	let x = snmp.get_value_per_sec(~"ipForwDatagrams", Packet);
+	if x.is_some() {label += fmt!("fwd: %s\n", get_si_str(x));}
 	
-	let x = snmp.get_value_per_sec(~"ipInDelivers", Packet, Packet);
-	if x.is_some() {label += fmt!("del: %s\n", get_value_str(x.get()));}
+	let x = snmp.get_value_per_sec(~"ipInDelivers", Packet);
+	if x.is_some() {label += fmt!("del: %s\n", get_si_str(x));}
 	
 	label
 }
@@ -470,25 +470,25 @@ fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, device: 
 	let mut html = ~"";
 	let name = lookup(interface, ~"ifDescr", ~"eth?");
 	
+	let old_url = option::Some(IriValue(~"http://network/" + managed_ip));
+	let snmp = Snmp(device, interface, *old,  fmt!("sname:%s-", name), old_url);
+	
 	let oper_status = lookup(interface, ~"ifOperStatus", ~"missing");
 	if oper_status.contains(~"(1)")
 	{
-		let old_url = option::Some(IriValue(~"http://network/" + managed_ip));
-		let snmp = Snmp(device, interface, *old,  fmt!("sname:%s-", name), old_url);
-		
 		let prefix = fmt!("sname:%s-", name);
-//		let old_timestamp = from_units(get_old_f64(old_url, ~"gnos:timestamp", old) as float, Second);
-//		let delta_time = uptime - old_timestamp;
 		
-		let out_octets = snmp.get_value_per_sec(~"ifOutOctets", Byte, Bit);
+		let out_octets = snmp.get_value_per_sec(~"ifOutOctets", Byte);
+		let out_octets = convert_per_sec(out_octets, Bit);
 		if  out_octets.is_some() && is_compound(out_octets.get())
 		{
-			add_interface_out_meter(store, managed_ip, name, interface, out_octets.get());
+			add_interface_out_meter(store, &snmp, managed_ip, name, out_octets.get());
 		}
 		let out_octets = if out_octets.is_some() {out_octets.get().to_str()} else {~""};
 		let out_octets = str::replace(out_octets, ~"b/s", ~"bps");
 		
-		let in_octets = snmp.get_value_per_sec(~"ifInOctets", Byte, Bit);
+		let in_octets = snmp.get_value_per_sec(~"ifInOctets", Byte);
+		let in_octets = convert_per_sec(in_octets, Bit);
 		let in_octets = if in_octets.is_some() {in_octets.get().to_str()} else {~""};
 		let in_octets = str::replace(in_octets, ~"b/s", ~"bps");
 		
@@ -500,62 +500,69 @@ fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, device: 
 		// like Netflow).
 		html += ~"<tr>\n";
 			html += fmt!("<td>%s</td>", name);
-			html += fmt!("<td>%s%s</td>", get_str_cell(interface, ~"ipAdEntAddr"), get_subnet(interface));
+			html += fmt!("<td>%s%s</td>", lookup(interface, ~"ipAdEntAddr", ~""), get_subnet(interface));
 			html += fmt!("<td>%s</td>", in_octets);
 			html += fmt!("<td>%s</td>", out_octets);
-			html += fmt!("<td>%s</td>", get_int_cell(interface, ~"ifSpeed", ~"bps"));
-			html += fmt!("<td>%s</td>", get_str_cell(interface, ~"ifPhysAddress").to_upper());
-			html += fmt!("<td>%s</td>", get_int_cell(interface, ~"ifMtu", ~"B"));
+			html += fmt!("<td>%s</td>", 	get_si_str(snmp.get_value(~"ifSpeed", Bit/Second)));
+			html += fmt!("<td>%s</td>", lookup(interface, ~"ifPhysAddress", ~""));
+			html += fmt!("<td>%s</td>", get_value_str(snmp.get_value(~"ifMtu", Byte)));
 			html += fmt!("<td><a href='./subject/snmp/snmp:%s-%s'>data</a></td>", managed_ip, name);
 		html += ~"\n</tr>\n";
 		
 		// These are undocumented because they are not intended to be used by clients.
-		let entries = ~[
-			(prefix + ~"ifInOctets", IntValue(get_snmp_i64(interface, ~"ifInOctets", 0))),
-			(prefix + ~"ifOutOctets", IntValue(get_snmp_i64(interface, ~"ifOutOctets", 0))),
+		let entries = [
+			(prefix + ~"ifInOctets", snmp.get_value(~"ifInOctets", Byte)),
+			(prefix + ~"ifOutOctets", snmp.get_value(~"ifOutOctets", Byte)),
 		];
-		store.add(old_subject, entries);
+		add_value_entries(store, old_subject, entries);
 	}
 	
-	toggle_interface_uptime_alert(alerts_store, managed_ip, interface, name, uptime);
+	toggle_interface_uptime_alert(alerts_store, managed_ip, &snmp, name, uptime);
 	toggle_admin_vs_oper_interface_alert(alerts_store, managed_ip, interface, name, oper_status);
 	toggle_weird_interface_state_alert(alerts_store, managed_ip, name, oper_status);
 	
 	return (name, html);
 }
 
-fn add_interface_out_meter(store: &Store, managed_ip: ~str, name: ~str, interface: std::map::hashmap<~str, std::json::Json>, out_bps: Value)
+fn add_interface_out_meter(store: &Store, snmp: &Snmp, managed_ip: ~str, name: ~str, out_bps: Value)
 {
-	let if_speed = from_units(get_snmp_i64(interface, ~"ifSpeed", 0) as float, Bit/Second);
-	let level = out_bps/if_speed;
-	if if_speed.value > 0.0 && level.value > 0.1
+	let if_speed = snmp.get_value(~"ifSpeed", Bit/Second);
+	if if_speed.is_some()
 	{
-		let subject = get_blank_name(store, fmt!("%s-meter", managed_ip));
-		store.add(subject, ~[
-			(~"gnos:meter",          StringValue(name, ~"")),
-			(~"gnos:target",          IriValue(fmt!("devices:%s", managed_ip))),
-			(~"gnos:level",           FloatValue(level.value as f64)),
-			(~"gnos:description",  StringValue(~"Percentage of interface bandwidth used by output packets.", ~"")),
-		]);
+		let level = out_bps/if_speed.get();
+		if level.value > 0.1
+		{
+			let subject = get_blank_name(store, fmt!("%s-meter", managed_ip));
+			store.add(subject, ~[
+				(~"gnos:meter",          StringValue(name, ~"")),
+				(~"gnos:target",          IriValue(fmt!("devices:%s", managed_ip))),
+				(~"gnos:level",           FloatValue(level.value as f64)),
+				(~"gnos:description",  StringValue(~"Percentage of interface bandwidth used by output packets.", ~"")),
+			]);
+		}
 	}
 }
 
-fn toggle_interface_uptime_alert(alerts_store: &Store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::Json>, name: ~str, sys_uptime: Value)
+fn toggle_interface_uptime_alert(alerts_store: &Store, managed_ip: ~str, snmp: &Snmp, name: ~str, sys_uptime: Value)
 {
 	let device = fmt!("devices:%s", managed_ip);
 	let id = name + ~"-uptime";
-	let if_time = from_units((get_snmp_i64(interface, ~"ifLastChange", -1) as float)/100.0, Second);
-	let time = sys_uptime - if_time;
-	
-	if if_time.value >= 0.0 && time.value < 60.0		// only signal changed if we actually got an up time
+	let if_time = snmp.get_value(~"ifLastChange", Centi*Second);
+	if if_time.is_some()
 	{
-		// TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
-		let mesg = fmt!("%s status changed.", name);		// we can't add the time here because alerts aren't changed when re-opened (and the mesg doesn't change when they are closed)
-		model::open_alert(alerts_store, model::Alert {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
-	}
-	else
-	{
-		model::close_alert(alerts_store, device, id);
+		let if_time = if_time.get().convert_to(Second);
+		let time = sys_uptime - if_time;
+		
+		if time.value < 60.0
+		{
+			// TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
+			let mesg = fmt!("%s status changed.", name);		// we can't add the time here because alerts aren't changed when re-opened (and the mesg doesn't change when they are closed)
+			model::open_alert(alerts_store, model::Alert {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
+		}
+		else
+		{
+			model::close_alert(alerts_store, device, id);
+		}
 	}
 }
 
@@ -710,55 +717,65 @@ fn count_trailing_zeros(mask: uint) -> int
 	return count;
 }
 
-fn get_value_str(value: Value) -> ~str
+fn add_value_entries(store: &Store, subject: ~str, entries: &[(~str, option::Option<Value>)])
 {
-	let ustr = value.units.to_str();
-	let ustr = str::replace(ustr, ~"p/s", ~"pps");
-	fmt!("%.0f %s", value.value, ustr)
+	let entries = do entries.filter_map
+	|e|
+	{
+		if e.second().is_some()
+		{
+			option::Some((e.first(), FloatValue(e.second().get().value as f64)))
+		}
+		else
+		{
+			option::None
+		}
+	};
+	store.add(subject, entries);
 }
 
-fn get_old_f64(old_url: option::Option<Object>, predicate: ~str, old: &Solution) -> f64
+fn get_value_str(value: option::Option<Value>) -> ~str
 {
-	let old_row = old.rows.find(|r| {r.search(~"subject") == old_url && r.search(~"name") == option::Some(StringValue(predicate, ~""))});
-	if old_row.is_some()
+	if value.is_some()
 	{
-		old_row.get().get(~"value").as_f64()
+		let ustr = value.get().units.to_str();
+		let ustr = str::replace(ustr, ~"b/s", ~"bps");
+		let ustr = str::replace(ustr, ~"p/s", ~"pps");
+		fmt!("%.0f %s", value.get().value, ustr)
 	}
 	else
 	{
-		0.0f64
+		~"?"
 	}
 }
 
-fn get_scaled_int_value(data: std::map::hashmap<~str, std::json::Json>, label: ~str, key: ~str, units: ~str, scaling: i64) -> ~str
+fn get_si_str(value: option::Option<Value>) -> ~str
 {
-	let value = get_snmp_i64(data, key, 0)*scaling;
-	if value > 0
+	if value.is_some()
 	{
-		fmt!("<strong>%s:</strong> %s%s<br>\n", label, utils::i64_to_unit_str(value), units)
+		let value = option::Some(value.get().normalize_si());
+		get_value_str(value)
 	}
 	else
 	{
-		~""
+		~"?"
 	}
 }
 
-fn get_int_cell(data: std::map::hashmap<~str, std::json::Json>, key: ~str, units: ~str) -> ~str
+fn convert_per_sec(x: option::Option<Value>, to: Unit) -> option::Option<Value>
 {
-	let value = get_snmp_i64(data, key, 0);
-	if value > 0
+	do x.chain
+	|value|
 	{
-		fmt!("%s%s", utils::i64_to_unit_str(value), units)
+		if is_compound(value)
+		{
+			option::Some(value.convert_to(to/Second).normalize_si())
+		}
+		else
+		{
+			option::Some(value.convert_to(to).normalize_si())
+		}
 	}
-	else
-	{
-		~""
-	}
-}
-
-fn get_str_cell(data: std::map::hashmap<~str, std::json::Json>, key: ~str) -> ~str
-{
-	lookup(data, key, ~"")
 }
 
 // We store snmp data for various objects in the raw so that views are able to use it
@@ -869,53 +886,3 @@ fn interface_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interfa
 		for interface.each() |k, v| {error!("   %s => %?", k, v);};
 	}
 }
-
-fn get_snmp_i64(table: std::map::hashmap<~str, std::json::Json>, key: ~str, default: i64) -> i64
-{
-	match lookup(table, key, ~"")
-	{
-		~"" =>
-		{
-			default
-		}
-		text =>
-		{
-			match i64::from_str(text)
-			{
-				option::Some(value) =>
-				{
-					value
-				}
-				option::None =>
-				{
-					error!("%s was %s, but expected an int", key, text);
-					default
-				}
-			}
-		}
-	}
-}
-
-// Lookup an SNMP value.
-fn lookup(table: std::map::hashmap<~str, std::json::Json>, key: ~str, default: ~str) -> ~str
-{
-	match table.find(key)
-	{
-		option::Some(std::json::String(s)) =>
-		{
-			*s
-		}
-		option::Some(value) =>
-		{
-			// This is something that should never happen so it's not so bad that we don't provide a lot of context
-			// (if it does somehow happen admins can crank up the logging level to see where it is coming from).
-			error!("%s was expected to be a string but is a %?", key, value);	// TODO: would be nice if the site could somehow show logs
-			default
-		}
-		option::None =>
-		{
-			default
-		}
-	}
-}
-

@@ -6,9 +6,8 @@ use runits::generated::*;
 use runits::units::*;
 use Option = option::Option;
 
-export Snmp;
+export Snmp, lookup;
 
-// TODO: probably want to make new_time private
 struct Snmp
 {
 	priv data: hashmap<~str, Json>,		// the data from a modeler
@@ -48,30 +47,40 @@ fn Snmp(device: hashmap<~str, Json>, data: hashmap<~str, Json>, old: Solution, o
 
 impl &Snmp
 {
-	// Snmp key should be in units units. If there was a previous value then the result
-	// is in out_units/Second. Otherwise it will be in out_units. Result is normalized.
-	fn get_value_per_sec(key: ~str, in_units: Unit, out_units: Unit) -> Option<Value>
+	// It would be nice if these methods normalized their results but we stick the value
+	// into a store so we need to ensure that the units are known.
+	fn get_value(key: ~str, units: Unit) -> Option<Value>
 	{
-		do get_new_value(self.data, key, in_units).chain
+		do get_new_value(self.data, key, units).chain
+		|new_value|
+		{
+			option::Some(new_value)
+		}
+	}
+	
+	// Snmp key should be in units units. If there was a previous value then the result
+	// is in out_units/Second. Otherwise it will be in out_units.
+	fn get_value_per_sec(key: ~str, units: Unit) -> Option<Value>
+	{
+		do get_new_value(self.data, key, units).chain
 		|new_value|
 		{
 			let name = self.old_prefix + key;
-			let old_value = get_old_value(self.old_subject, name, &self.old, out_units);
+			let old_value = get_old_value(self.old_subject, name, &self.old, units);
 			
 			if old_value.is_some() && self.delta_time.is_some() && self.delta_time.get().value > 1.0
 			{
 				let ps = (new_value - old_value.get())/self.delta_time.get();
-				option::Some(ps.convert_to(out_units/Second).normalize_si())
+				option::Some(ps.convert_to(units/Second))
 			}
 			else
 			{
-				option::Some(new_value.convert_to(out_units).normalize_si())
+				option::Some(new_value)
 			}
 		}
 	}
 }
 
-// ---- Internal Items ------------------------------------------------------------------
 fn lookup(table: hashmap<~str, Json>, key: ~str, default: ~str) -> ~str
 {
 	match table.find(key)
@@ -94,6 +103,7 @@ fn lookup(table: hashmap<~str, Json>, key: ~str, default: ~str) -> ~str
 	}
 }
 
+// ---- Internal Items ------------------------------------------------------------------
 fn get_new_value(data: hashmap<~str, Json>, key: ~str, units: Unit) -> Option<Value>
 {
 	match lookup(data, key, ~"")
@@ -104,11 +114,11 @@ fn get_new_value(data: hashmap<~str, Json>, key: ~str, units: Unit) -> Option<Va
 		}
 		text =>
 		{
-			match i64::from_str(text)
+			match float::from_str(text)
 			{
 				option::Some(value) =>
 				{
-					option::Some(from_units(value as float, units))
+					option::Some(from_units(value, units))
 				}
 				option::None =>
 				{
