@@ -17,6 +17,7 @@
 use std;
 use mustache (name = "mustache", vers = "0.1");
 use rrdf (name = "rrdf", vers = "0.2");
+use runits (name = "runits", vers = "0.1");
 use rwebserve (name = "rwebserve", vers = "0.2");
 
 mod db;
@@ -24,7 +25,6 @@ mod gnos;
 mod model;
 mod options;
 mod task_runner;
-mod units;
 mod utils;
 mod handlers
 {

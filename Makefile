@@ -33,6 +33,7 @@ update-libraries:
 	cp /usr/local/lib/rust/libsocket-*-0.1.dylib bin
 	cp /usr/local/lib/rust/librparse-*-0.6.dylib bin
 	cp /usr/local/lib/rust/librrdf-*-0.2.dylib bin
+	cp /usr/local/lib/rust/librunits-*-0.1.dylib bin
 	cp /usr/local/lib/rust/librwebserve-*-0.2.dylib bin
 	rm -f bin/gnos
 
