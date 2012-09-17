@@ -379,13 +379,13 @@ fn get_device_label(snmp: &Snmp) -> ~str
 	let mut label = ~"";
 	
 	let x = snmp.get_value_per_sec(~"ipInReceives", Packet);
-	if x.is_some() {label += fmt!("recv: %s\n", get_si_str(x));}
+	if x.is_some() {label += fmt!("recv: %s\n", get_si_str(x, "%.1f"));}
 	
 	let x = snmp.get_value_per_sec(~"ipForwDatagrams", Packet);
-	if x.is_some() {label += fmt!("fwd: %s\n", get_si_str(x));}
+	if x.is_some() {label += fmt!("fwd: %s\n", get_si_str(x, "%.1f"));}
 	
 	let x = snmp.get_value_per_sec(~"ipInDelivers", Packet);
-	if x.is_some() {label += fmt!("del: %s\n", get_si_str(x));}
+	if x.is_some() {label += fmt!("del: %s\n", get_si_str(x, "%.1f"));}
 	
 	label
 }
@@ -484,13 +484,11 @@ fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, device: 
 		{
 			add_interface_out_meter(store, &snmp, managed_ip, name, out_octets.get());
 		}
-		let out_octets = if out_octets.is_some() {out_octets.get().to_str()} else {~""};
-		let out_octets = str::replace(out_octets, ~"b/s", ~"bps");
+		let out_octets = get_si_str(out_octets, "%.2f");
 		
 		let in_octets = snmp.get_value_per_sec(~"ifInOctets", Byte);
 		let in_octets = convert_per_sec(in_octets, Bit);
-		let in_octets = if in_octets.is_some() {in_octets.get().to_str()} else {~""};
-		let in_octets = str::replace(in_octets, ~"b/s", ~"bps");
+		let in_octets = get_si_str(in_octets, "%.2f");
 		
 		// TODO: We're not showing ifInUcastPkts and ifOutUcastPkts because bandwidth seems
 		// more important, the table starts to get cluttered when we do, and multicast is at least as
@@ -503,9 +501,9 @@ fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, device: 
 			html += fmt!("<td>%s%s</td>", lookup(interface, ~"ipAdEntAddr", ~""), get_subnet(interface));
 			html += fmt!("<td>%s</td>", in_octets);
 			html += fmt!("<td>%s</td>", out_octets);
-			html += fmt!("<td>%s</td>", 	get_si_str(snmp.get_value(~"ifSpeed", Bit/Second)));
+			html += fmt!("<td>%s</td>", 	get_si_str(snmp.get_value(~"ifSpeed", Bit/Second), "%.0f"));
 			html += fmt!("<td>%s</td>", lookup(interface, ~"ifPhysAddress", ~""));
-			html += fmt!("<td>%s</td>", get_value_str(snmp.get_value(~"ifMtu", Byte)));
+			html += fmt!("<td>%s</td>", get_value_str(snmp.get_value(~"ifMtu", Byte), "%.0f"));
 			html += fmt!("<td><a href='./subject/snmp/snmp:%s-%s'>data</a></td>", managed_ip, name);
 		html += ~"\n</tr>\n";
 		
@@ -734,50 +732,6 @@ fn add_value_entries(store: &Store, subject: ~str, entries: &[(~str, option::Opt
 	store.add(subject, entries);
 }
 
-fn get_value_str(value: option::Option<Value>) -> ~str
-{
-	if value.is_some()
-	{
-		let ustr = value.get().units.to_str();
-		let ustr = str::replace(ustr, ~"b/s", ~"bps");
-		let ustr = str::replace(ustr, ~"p/s", ~"pps");
-		fmt!("%.0f %s", value.get().value, ustr)
-	}
-	else
-	{
-		~"?"
-	}
-}
-
-fn get_si_str(value: option::Option<Value>) -> ~str
-{
-	if value.is_some()
-	{
-		let value = option::Some(value.get().normalize_si());
-		get_value_str(value)
-	}
-	else
-	{
-		~"?"
-	}
-}
-
-fn convert_per_sec(x: option::Option<Value>, to: Unit) -> option::Option<Value>
-{
-	do x.chain
-	|value|
-	{
-		if is_compound(value)
-		{
-			option::Some(value.convert_to(to/Second).normalize_si())
-		}
-		else
-		{
-			option::Some(value.convert_to(to).normalize_si())
-		}
-	}
-}
-
 // We store snmp data for various objects in the raw so that views are able to use it
 // and so admins can view the complete raw data.
 fn json_to_snmp(remote_addr: ~str, store: &Store, data: std::map::hashmap<~str, std::json::Json>)
@@ -884,5 +838,56 @@ fn interface_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interfa
 	{
 		error!("%s interface was missing an ifDescr:", remote_addr);
 		for interface.each() |k, v| {error!("   %s => %?", k, v);};
+	}
+}
+
+fn get_value_str(value: option::Option<Value>, format: &str) -> ~str
+{
+	if value.is_some()
+	{
+		let ustr = value.get().units.to_str();
+		let ustr = str::replace(ustr, ~"b/s", ~"bps");
+		let ustr = str::replace(ustr, ~"p/s", ~"pps");
+		match format
+		{
+			"%.0f"	=> fmt!("%.0f %s", value.get().value, ustr),
+			"%.1f"	=> fmt!("%.1f %s", value.get().value, ustr),
+			"%.2f"	=> fmt!("%.2f %s", value.get().value, ustr),
+			"%.3f"	=> fmt!("%.3f %s", value.get().value, ustr),
+			_		=> fail ~"bad format string: " + format,
+		}
+	}
+	else
+	{
+		~"?"
+	}
+}
+
+fn get_si_str(value: option::Option<Value>, format: &str) -> ~str
+{
+	if value.is_some()
+	{
+		let value = option::Some(value.get().normalize_si());
+		get_value_str(value, format)
+	}
+	else
+	{
+		~"?"
+	}
+}
+
+fn convert_per_sec(x: option::Option<Value>, to: Unit) -> option::Option<Value>
+{
+	do x.chain
+	|value|
+	{
+		if is_compound(value)
+		{
+			option::Some(value.convert_to(to/Second).normalize_si())
+		}
+		else
+		{
+			option::Some(value.convert_to(to).normalize_si())
+		}
 	}
 }

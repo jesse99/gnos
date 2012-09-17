@@ -71,7 +71,7 @@ impl &Snmp
 			if old_value.is_some() && self.delta_time.is_some() && self.delta_time.get().value > 1.0
 			{
 				let ps = (new_value - old_value.get())/self.delta_time.get();
-				option::Some(ps.convert_to(units/Second))
+				option::Some(ps)
 			}
 			else
 			{
