@@ -81,7 +81,7 @@ impl AlertLevel : cmp::Eq
 
 type Registration = {queries: ~[~str], channel: RegisterChan, solutions: @mut ~[Solution]};
 
-fn get_standard_store_names() -> ~[~str]
+pure fn get_standard_store_names() -> ~[~str]
 {
 	return ~[~"globals", ~"primary", ~"alerts", ~"snmp"];
 }

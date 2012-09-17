@@ -848,7 +848,7 @@ fn get_value_str(value: option::Option<Value>, format: &str) -> ~str
 		let ustr = value.get().units.to_str();
 		let ustr = str::replace(ustr, ~"b/s", ~"bps");
 		let ustr = str::replace(ustr, ~"p/s", ~"pps");
-		match format
+		match format									// matching is awfully lame, but fmt! requires a string literal and there doesn't appear to be a good alternative
 		{
 			"%.0f"	=> fmt!("%.0f %s", value.get().value, ustr),
 			"%.1f"	=> fmt!("%.1f %s", value.get().value, ustr),

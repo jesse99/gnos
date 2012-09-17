@@ -80,30 +80,6 @@ fn list_dir_path(dir: &Path, extensions: ~[~str]) -> ~[~Path]
 	}
 }
 
-//fn opt_str_or_default(matched: match, name: ~str, default: ~str) -> ~str
-//{
-//	if opt_present(matched, name)
-//	{
-//		opt_str(matched, name)
-//	}
-//	else
-//	{
-//		default
-//	}
-//}
-//
-//fn opt_strs_or_default(matched: match, name: ~str, default: ~[~str]) -> ~[~str]
-//{
-//	if opt_present(matched, name)
-//	{
-//		opt_strs(matched, name)
-//	}
-//	else
-//	{
-//		default
-//	}
-//}
-
 // Like time::precise_time_s except that a lower resolution (and presumbably much faster)
 // timer is used.
 fn imprecise_time_s() -> float

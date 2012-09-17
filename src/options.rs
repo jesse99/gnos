@@ -38,7 +38,7 @@ struct Options
 // str constants aren't supported yet.
 // TODO: get this (somehow) from the link attribute in the rc file (going the other way
 // doesn't work because vers in the link attribute has to be a literal)
-fn get_version() -> ~str
+pure fn get_version() -> ~str
 {
 	~"0.1"
 }
