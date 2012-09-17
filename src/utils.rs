@@ -2,7 +2,7 @@ use Path = path::Path;
 use std::getopts::*;
 use std::time::*;
 
-export scp_files, run_remote_command, list_dir_path, imprecise_time_s, i64_to_unit_str, f64_to_unit_str,
+export scp_files, run_remote_command, list_dir_path, imprecise_time_s,
 	tm_to_delta_str, title_case, spawn_moded_listener;
 	
 // Like spawn_listener except the new task (and whatever tasks it spawns) are distributed
@@ -114,36 +114,6 @@ fn imprecise_time_s() -> float
 	return secs;
 }
 
-// Takes a floating point value and returns a string like "234", "200K", "3.2M", etc.
-fn f64_to_unit_str(value: f64) -> ~str
-{
-	if value < 1.0f64
-	{
-		fmt!("%.1f", value as float)
-	}
-	else
-	{
-		i64_to_unit_str(value as i64)
-	}
-}
-
-// Takes an integer value and returns a string like "234", "200K", "3.2M", etc.
-fn i64_to_unit_str(value: i64) -> ~str
-{
-	if value < 10*1024
-	{
-		fmt!("%?", value)
-	}
-	else if value < 1024*1024
-	{
-		fmt!("%?K", value/1024)
-	}
-	else
-	{
-		fmt!("%.1fM", (value as float)/(1024.0*1024.0))
-	}
-}
-
 // Takes a tm and returns the number of seconds from the current
 // time and strings like "2 minutes ago", "Yesterday 18:06", and
 // "Thu Jan  1 00:00:00 1970".
@@ -208,7 +178,7 @@ fn tm_to_delta_str(time: Tm) -> {elapsed: float, delta: ~str}
 	}
 }
 
-// ----------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------
 fn run_command(tool: ~str, args: ~[~str]) -> option::Option<~str>
 {
 	match core::run::program_output(tool, args)
