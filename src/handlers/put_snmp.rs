@@ -6,6 +6,7 @@ use options::{Options, Device};
 use rrdf::rrdf::*;
 use runits::generated::*;
 use runits::units::*;
+use snmp::*;
 use server = rwebserve::rwebserve;
 
 export put_snmp;
@@ -147,7 +148,10 @@ fn add_device(store: &Store, alerts_store: &Store, devices: ~[Device], managed_i
 	{
 		option::Some(options_device) =>
 		{
-			let time = from_units((get_snmp_i64(device, ~"sysUpTime", -1) as float)/100.0, Second);
+			let old_url = option::Some(IriValue(~"http://network/" + managed_ip));
+			let snmp = Snmp(device, device, *old,  ~"sname:", old_url);
+			let time = snmp.new_time;
+			
 			let entries = ~[
 				(~"gnos:center_x", FloatValue(options_device.center_x as f64)),
 				(~"gnos:center_y", FloatValue(options_device.center_y as f64)),
@@ -155,7 +159,7 @@ fn add_device(store: &Store, alerts_store: &Store, devices: ~[Device], managed_i
 				
 				(~"gnos:primary_label", StringValue(options_device.name, ~"")),
 				(~"gnos:secondary_label", StringValue(managed_ip, ~"")),
-				(~"gnos:tertiary_label", StringValue(get_device_label(device, managed_ip, old, time).trim(), ~"")),
+				(~"gnos:tertiary_label", StringValue(get_device_label(&snmp).trim(), ~"")),
 			];
 			let subject = fmt!("devices:%s", managed_ip);
 			store.add(subject, entries);
@@ -176,7 +180,7 @@ fn add_device(store: &Store, alerts_store: &Store, devices: ~[Device], managed_i
 			let interfaces = device.find(~"interfaces");
 			if interfaces.is_some()
 			{
-				let has_interfaces = add_interfaces(store, alerts_store, managed_ip, interfaces.get(), old, old_subject, time);
+				let has_interfaces = add_interfaces(store, alerts_store, device, managed_ip, interfaces.get(), old, old_subject, time);
 				toggle_device_down_alert(alerts_store, managed_ip, has_interfaces);
 			}
 			else
@@ -370,28 +374,23 @@ fn get_alert_html(alerts_store: &Store, managed_ip: ~str) -> std::map::hashmap<~
 	return table;
 }
 
-fn get_device_label(device: std::map::hashmap<~str, std::json::Json>, managed_ip: ~str, old: &Solution, uptime: Value) -> ~str
+fn get_device_label(snmp: &Snmp) -> ~str
 {
-	let old_url = option::Some(IriValue(~"http://network/" + managed_ip));
-	
-	let old_timestamp = from_units(get_old_f64(old_url, ~"gnos:timestamp", old) as float, Second);
-	let delta = uptime - old_timestamp;
-	
 	let mut label = ~"";
 	
-	let x = get_value_per_sec(device, ~"ipInReceives", old_url, ~"sname:ipInReceives", old, delta, Packet, Packet);
+	let x = snmp.get_value_per_sec(~"ipInReceives", Packet, Packet);
 	if x.is_some() {label += fmt!("recv: %s\n", get_value_str(x.get()));}
 	
-	let x = get_value_per_sec(device, ~"ipForwDatagrams", old_url, ~"sname:ipForwDatagrams", old, delta, Packet, Packet);
+	let x = snmp.get_value_per_sec(~"ipForwDatagrams", Packet, Packet);
 	if x.is_some() {label += fmt!("fwd: %s\n", get_value_str(x.get()));}
 	
-	let x = get_value_per_sec(device, ~"ipInDelivers", old_url, ~"sname:ipInDelivers", old, delta, Packet, Packet);
+	let x = snmp.get_value_per_sec(~"ipInDelivers", Packet, Packet);
 	if x.is_some() {label += fmt!("del: %s\n", get_value_str(x.get()));}
 	
 	label
 }
 
-fn add_interfaces(store: &Store, alerts_store: &Store, managed_ip: ~str, data: std::json::Json, old: &Solution, old_subject: ~str, uptime: Value) -> bool
+fn add_interfaces(store: &Store, alerts_store: &Store, device: std::map::hashmap<~str, std::json::Json>, managed_ip: ~str, data: std::json::Json, old: &Solution, old_subject: ~str, uptime: Value) -> bool
 {
 	match data
 	{
@@ -405,7 +404,7 @@ fn add_interfaces(store: &Store, alerts_store: &Store, managed_ip: ~str, data: s
 				{
 					std::json::Dict(d) =>
 					{
-						vec::push(rows, add_interface(store, alerts_store, managed_ip, d, old, old_subject, uptime));
+						vec::push(rows, add_interface(store, alerts_store, managed_ip, device, d, old, old_subject, uptime));
 					}
 					_ =>
 					{
@@ -466,7 +465,7 @@ fn add_interfaces(store: &Store, alerts_store: &Store, managed_ip: ~str, data: s
 // "ifType": "ethernetCsmacd(6)", 
 // "ipAdEntAddr": "10.101.3.2", 
 // "ipAdEntNetMask": "255.255.255.0"
-fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::Json>, old: &Solution, old_subject: ~str, uptime: Value) -> (~str, ~str)
+fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, device: std::map::hashmap<~str, std::json::Json>, interface: std::map::hashmap<~str, std::json::Json>, old: &Solution, old_subject: ~str, uptime: Value) -> (~str, ~str)
 {
 	let mut html = ~"";
 	let name = lookup(interface, ~"ifDescr", ~"eth?");
@@ -474,22 +473,23 @@ fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, interfac
 	let oper_status = lookup(interface, ~"ifOperStatus", ~"missing");
 	if oper_status.contains(~"(1)")
 	{
-		let prefix = fmt!("sname:%s-", name);
-		
 		let old_url = option::Some(IriValue(~"http://network/" + managed_ip));
-		let old_timestamp = from_units(get_old_f64(old_url, ~"gnos:timestamp", old) as float, Second);
-		let delta_time = uptime - old_timestamp;
+		let snmp = Snmp(device, interface, *old,  fmt!("sname:%s-", name), old_url);
 		
-		let out_octets = get_value_per_sec(interface, ~"ifOutOctets", old_url, prefix + ~"ifOutOctets", old, delta_time, Byte, Bit);
+		let prefix = fmt!("sname:%s-", name);
+//		let old_timestamp = from_units(get_old_f64(old_url, ~"gnos:timestamp", old) as float, Second);
+//		let delta_time = uptime - old_timestamp;
+		
+		let out_octets = snmp.get_value_per_sec(~"ifOutOctets", Byte, Bit);
 		if  out_octets.is_some() && is_compound(out_octets.get())
 		{
 			add_interface_out_meter(store, managed_ip, name, interface, out_octets.get());
 		}
-		let out_octets = if out_octets.is_some() {out_octets.get().normalize_si().to_str()} else {~""};
+		let out_octets = if out_octets.is_some() {out_octets.get().to_str()} else {~""};
 		let out_octets = str::replace(out_octets, ~"b/s", ~"bps");
 		
-		let in_octets = get_value_per_sec(interface, ~"ifInOctets", old_url, prefix + ~"ifInOctets", old, delta_time, Byte, Bit);
-		let in_octets = if in_octets.is_some() {in_octets.get().normalize_si().to_str()} else {~""};
+		let in_octets = snmp.get_value_per_sec(~"ifInOctets", Byte, Bit);
+		let in_octets = if in_octets.is_some() {in_octets.get().to_str()} else {~""};
 		let in_octets = str::replace(in_octets, ~"b/s", ~"bps");
 		
 		// TODO: We're not showing ifInUcastPkts and ifOutUcastPkts because bandwidth seems
@@ -715,35 +715,6 @@ fn get_value_str(value: Value) -> ~str
 	let ustr = value.units.to_str();
 	let ustr = str::replace(ustr, ~"p/s", ~"pps");
 	fmt!("%.0f %s", value.value, ustr)
-}
-
-// If an old value exists and delta_time is reasonable then return the delta as units/sec.
-// Otherwise return new value using units.
-fn get_value_per_sec(data: std::map::hashmap<~str, std::json::Json>, key: ~str, old_url: option::Option<Object>, name: ~str, old: &Solution, delta_time: Value, units: Unit, out_units: Unit) -> option::Option<Value>
-{
-	match lookup(data, key, ~"")
-	{
-		~"" =>
-		{
-			option::None
-		}
-		value =>
-		{
-			let new_value = from_units(i64::from_str(value).get() as float, units);
-			let old_value = from_units(get_old_f64(old_url, name, old) as float, units);
-			if old_value.value > 0.0 && delta_time.value > 1.0
-			{
-				let pps = (new_value - old_value)/delta_time;
-				let pps = pps.convert_to(out_units/Second);
-				option::Some(pps.normalize_si())
-			}
-			else
-			{
-				let new_value = new_value.convert_to(out_units);
-				option::Some(new_value.normalize_si())
-			}
-		}
-	}
 }
 
 fn get_old_f64(old_url: option::Option<Object>, predicate: ~str, old: &Solution) -> f64
