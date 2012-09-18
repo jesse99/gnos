@@ -1,6 +1,9 @@
 // This is the code that handles PUTs from the snmp-modeler script. It parses the
 // incoming json, converts it into triplets, and updates the model.
 use core::dvec::*;
+use std::json::{Json};
+use json = std::json;
+use std::map::*;
 use model::{Msg, UpdateMsg, UpdatesMsg, QueryMsg, eval_query};
 use options::{Options, Device};
 use rrdf::rrdf::*;
@@ -30,13 +33,13 @@ fn put_snmp(options: Options, state_chan: comm::Chan<Msg>, request: &server::Req
 
 fn updates_snmp(options: Options, remote_addr: ~str, stores: &[Store], body: ~str, old: &Solution) -> bool
 {
-	match std::json::from_str(body)
+	match json::from_str(body)
 	{
 		result::Ok(data) =>
 		{
 			match data
 			{
-				std::json::Dict(d) =>
+				json::Dict(d) =>
 				{
 					json_to_primary(options, remote_addr, &stores[0], &stores[2], d, old);
 					json_to_snmp(remote_addr, &stores[1], d);
@@ -98,7 +101,7 @@ WHERE
 //    },
 //    ...
 // }
-fn json_to_primary(options: Options, remote_addr: ~str, store: &Store, alerts_store: &Store, data: std::map::hashmap<~str, std::json::Json>, old: &Solution)
+fn json_to_primary(options: Options, remote_addr: ~str, store: &Store, alerts_store: &Store, data: hashmap<~str, Json>, old: &Solution)
 {
 	store.clear();
 	store.add_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:last_update", object: DateTimeValue(std::time::now())});
@@ -109,7 +112,7 @@ fn json_to_primary(options: Options, remote_addr: ~str, store: &Store, alerts_st
 	{
 		match the_device
 		{
-			std::json::Dict(device) =>
+			json::Dict(device) =>
 			{
 				let old_subject = get_blank_name(store, ~"old");
 				add_device(store, alerts_store, options.devices, managed_ip, device, old, old_subject);
@@ -142,7 +145,7 @@ fn json_to_primary(options: Options, remote_addr: ~str, store: &Store, alerts_st
 // "sysLocation": "closet", 
 // "sysName": "Router", 
 // "sysUpTime": "5080354"
-fn add_device(store: &Store, alerts_store: &Store, devices: ~[Device], managed_ip: ~str, device: std::map::hashmap<~str, std::json::Json>, old: &Solution, old_subject: ~str)
+fn add_device(store: &Store, alerts_store: &Store, devices: ~[Device], managed_ip: ~str, device: hashmap<~str, Json>, old: &Solution, old_subject: ~str)
 {
 	match devices.find(|d| {d.managed_ip == managed_ip})
 	{
@@ -229,7 +232,7 @@ fn toggle_device_down_alert(alerts_store: &Store, managed_ip: ~str, up: bool)
 	}
 }
 
-fn add_device_notes(store: &Store, alerts_store: &Store, managed_ip: ~str, _device: std::map::hashmap<~str, std::json::Json>)
+fn add_device_notes(store: &Store, alerts_store: &Store, managed_ip: ~str, _device: hashmap<~str, Json>)
 {
 	// summary
 	let html = #fmt["
@@ -291,9 +294,9 @@ fn add_alerts(store: &Store, managed_ip: ~str, alerts: ~[(float, ~str)], level: 
 	}
 }
 
-fn get_alert_html(alerts_store: &Store, managed_ip: ~str) -> std::map::hashmap<~str, @DVec<(float, ~str)>>
+fn get_alert_html(alerts_store: &Store, managed_ip: ~str) -> hashmap<~str, @DVec<(float, ~str)>>
 {
-	let table = std::map::str_hash();		// level => [(elapsed, html)]
+	let table = str_hash();		// level => [(elapsed, html)]
 	table.insert(~"error", @DVec());
 	table.insert(~"warning", @DVec());
 	table.insert(~"info", @DVec());
@@ -390,11 +393,11 @@ fn get_device_label(snmp: &Snmp) -> ~str
 	label
 }
 
-fn add_interfaces(store: &Store, alerts_store: &Store, device: std::map::hashmap<~str, std::json::Json>, managed_ip: ~str, data: std::json::Json, old: &Solution, old_subject: ~str, uptime: Value) -> bool
+fn add_interfaces(store: &Store, alerts_store: &Store, device: hashmap<~str, Json>, managed_ip: ~str, data: Json, old: &Solution, old_subject: ~str, uptime: Value) -> bool
 {
 	match data
 	{
-		std::json::List(interfaces) =>
+		json::List(interfaces) =>
 		{
 			let mut rows = ~[];		// [(ifname, html)]
 			for interfaces.each
@@ -402,7 +405,7 @@ fn add_interfaces(store: &Store, alerts_store: &Store, device: std::map::hashmap
 			{
 				match interface
 				{
-					std::json::Dict(d) =>
+					json::Dict(d) =>
 					{
 						vec::push(rows, add_interface(store, alerts_store, managed_ip, device, d, old, old_subject, uptime));
 					}
@@ -465,7 +468,7 @@ fn add_interfaces(store: &Store, alerts_store: &Store, device: std::map::hashmap
 // "ifType": "ethernetCsmacd(6)", 
 // "ipAdEntAddr": "10.101.3.2", 
 // "ipAdEntNetMask": "255.255.255.0"
-fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, device: std::map::hashmap<~str, std::json::Json>, interface: std::map::hashmap<~str, std::json::Json>, old: &Solution, old_subject: ~str, uptime: Value) -> (~str, ~str)
+fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, device: hashmap<~str, Json>, interface: hashmap<~str, Json>, old: &Solution, old_subject: ~str, uptime: Value) -> (~str, ~str)
 {
 	let mut html = ~"";
 	let name = lookup(interface, ~"ifDescr", ~"eth?");
@@ -564,7 +567,7 @@ fn toggle_interface_uptime_alert(alerts_store: &Store, managed_ip: ~str, snmp: &
 	}
 }
 
-fn toggle_admin_vs_oper_interface_alert(alerts_store: &Store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::Json>, name: ~str, oper_status: ~str)
+fn toggle_admin_vs_oper_interface_alert(alerts_store: &Store, managed_ip: ~str, interface: hashmap<~str, Json>, name: ~str, oper_status: ~str)
 {
 	let admin_status = lookup(interface, ~"ifAdminStatus", ~"");
 	
@@ -626,7 +629,7 @@ fn is_compound(x: Value) -> bool
 	}
 }
 
-fn get_subnet(interface: std::map::hashmap<~str, std::json::Json>) -> ~str
+fn get_subnet(interface: hashmap<~str, Json>) -> ~str
 {
 	match lookup(interface, ~"ipAdEntNetMask", ~"")
 	{
@@ -657,19 +660,19 @@ fn get_subnet(interface: std::map::hashmap<~str, std::json::Json>) -> ~str
 #[test]
 fn test_get_subnet()
 {
-	let interface = std::map::str_hash();
+	let interface = str_hash();
 	assert get_subnet(interface) == ~"/?";
 	
-	interface.insert(~"ipAdEntNetMask", std::json::String(@~"255.255.255.255"));
+	interface.insert(~"ipAdEntNetMask", json::String(@~"255.255.255.255"));
 	assert get_subnet(interface) == ~"/32";
 	
-	interface.insert(~"ipAdEntNetMask", std::json::String(@~"255.0.0.0"));
+	interface.insert(~"ipAdEntNetMask", json::String(@~"255.0.0.0"));
 	assert get_subnet(interface) == ~"/8";
 	
-	interface.insert(~"ipAdEntNetMask", std::json::String(@~"0.0.0.0"));
+	interface.insert(~"ipAdEntNetMask", json::String(@~"0.0.0.0"));
 	assert get_subnet(interface) == ~"/0";
 	
-	interface.insert(~"ipAdEntNetMask", std::json::String(@~"255.0.1.0"));
+	interface.insert(~"ipAdEntNetMask", json::String(@~"255.0.1.0"));
 	assert get_subnet(interface) == ~"/255.0.1.0";
 }
 
@@ -734,7 +737,7 @@ fn add_value_entries(store: &Store, subject: ~str, entries: &[(~str, option::Opt
 
 // We store snmp data for various objects in the raw so that views are able to use it
 // and so admins can view the complete raw data.
-fn json_to_snmp(remote_addr: ~str, store: &Store, data: std::map::hashmap<~str, std::json::Json>)
+fn json_to_snmp(remote_addr: ~str, store: &Store, data: hashmap<~str, Json>)
 {
 	store.clear();
 	
@@ -743,7 +746,7 @@ fn json_to_snmp(remote_addr: ~str, store: &Store, data: std::map::hashmap<~str, 
 	{
 		match value
 		{
-			std::json::Dict(d) =>
+			json::Dict(d) =>
 			{
 				device_to_snmp(remote_addr, store, key, d);
 			}
@@ -755,7 +758,7 @@ fn json_to_snmp(remote_addr: ~str, store: &Store, data: std::map::hashmap<~str, 
 	}
 }
 
-fn device_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, data: std::map::hashmap<~str, std::json::Json>)
+fn device_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, data: hashmap<~str, Json>)
 {
 	let mut entries = ~[];
 	vec::reserve(entries, data.size());
@@ -765,11 +768,11 @@ fn device_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, data: std:
 	{
 		match value
 		{
-			std::json::String(s) =>
+			json::String(s) =>
 			{
 				vec::push(entries, (~"sname:" + name, StringValue(*s, ~"")));
 			}
-			std::json::List(interfaces) =>
+			json::List(interfaces) =>
 			{
 				interfaces_to_snmp(remote_addr, store, managed_ip, interfaces);
 			}
@@ -784,14 +787,14 @@ fn device_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, data: std:
 	store.add(subject, entries);
 }
 
-fn interfaces_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interfaces: @~[std::json::Json])
+fn interfaces_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interfaces: @~[Json])
 {
 	for interfaces.each
 	|data|
 	{
 		match data
 		{
-			std::json::Dict(interface) =>
+			json::Dict(interface) =>
 			{
 				interface_to_snmp(remote_addr, store, managed_ip, interface);
 			}
@@ -803,7 +806,7 @@ fn interfaces_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interf
 	}
 }
 
-fn interface_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interface: std::map::hashmap<~str, std::json::Json>)
+fn interface_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interface: hashmap<~str, Json>)
 {
 	let mut ifname = ~"";
 	let mut entries = ~[];
@@ -814,7 +817,7 @@ fn interface_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interfa
 	{
 		match value
 		{
-			std::json::String(s) =>
+			json::String(s) =>
 			{
 				if name == ~"ifDescr"
 				{
