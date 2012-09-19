@@ -103,11 +103,14 @@ fn main(args: ~[~str])
 	let options2 = copy options;
 	let options3 = copy options;
 	let options4 = copy options;
-	let models_v: server::ResponseHandler = |_settings, _request: &server::Request, response: &server::Response| {get_models::get_models(response, state_chan)};
-	let subject_v: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {get_subject::get_subject(request, response)};
+	let options5 = copy options;
+	let options6 = copy options;
+	let options7 = copy options;
+	let models_v: server::ResponseHandler = |_settings, _request: &server::Request, response: &server::Response| {get_models::get_models(options5, response, state_chan)};
+	let subject_v: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {get_subject::get_subject(options6, request, response)};
 	let map_v: server::ResponseHandler = |_settings, _request: &server::Request, response: &server::Response| {get_map::get_map(options2, response)};
 	let modeler_p: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {put_snmp::put_snmp(options4, state_chan, request, response)};
-	let query_store_v: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {get_query_store::get_query_store(request, response)};
+	let query_store_v: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {get_query_store::get_query_store(options7, request, response)};
 	let query_s: server::OpenSse = |_settings, request: &server::Request, push| {get_query::get_query(state_chan, request, push)};
 	let bail_v: server::ResponseHandler = |_settings, _request: &server::Request, _response: &server::Response| {get_shutdown(options3)};
 	

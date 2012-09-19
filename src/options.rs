@@ -25,6 +25,7 @@ struct Options
 	pub db: bool,
 	
 	// these are from the network.json file
+	pub network_name: ~str,
 	pub client: ~str,
 	pub server: ~str,
 	pub port: u16,
@@ -78,12 +79,14 @@ fn parse_command_line(args: ~[~str]) -> Options
 	let path: path::Path = path::from_str(matched.free[0]);
 	let network = load_network_file(path);
 	
-	Options {
+	Options
+	{
 		root: path::from_str(opt_str(matched, ~"root")),
 		admin: opt_present(matched, ~"admin"),
 		script: path.filename().get(),
 		db: opt_present(matched, ~"db"),
 		
+		network_name: network.network,
 		client: network.client,
 		server: network.server,
 		port: network.port,
@@ -116,7 +119,7 @@ fn print_usage()
 	io::println(~"--version   prints the gnos version number and exits");
 }
 
-fn load_network_file(path: Path) -> {client: ~str, server: ~str, port: u16, poll_rate: u16, devices: ~[Device]}
+fn load_network_file(path: Path) -> {network: ~str, client: ~str, server: ~str, port: u16, poll_rate: u16, devices: ~[Device]}
 {
 	match io::file_reader(&path)
 	{
@@ -127,6 +130,7 @@ fn load_network_file(path: Path) -> {client: ~str, server: ~str, port: u16, poll
 				result::Ok(std::json::Dict(data)) =>
 				{
 					{
+						network: get_network_str(path, data, ~"network"),
 						client: get_network_str(path, data, ~"client"),
 						server: get_network_str(path, data, ~"server"),
 						port: get_network_u16(path, data, ~"port"),
