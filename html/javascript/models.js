@@ -4,12 +4,12 @@ window.onload = function()
 {
 	GNOS.models = {}
 	
-	var expr = '												\
+	var expr = '											\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>	\
-SELECT DISTINCT 											\
+SELECT DISTINCT 										\
 	?name 													\
-WHERE 														\
-{ 																\
+WHERE 													\
+{ 															\
 	gnos:globals gnos:store ?name . 						\
 } ORDER BY ?name';
 	var source = new EventSource('/query?name=globals&expr={0}'.
@@ -24,9 +24,12 @@ WHERE 														\
 		{
 			var row = data[i];
 			
-			html += '<h2>{0}</h2>\n'.format(escapeHtml(row.name));
+			html += '<details open="open">\n';
+			html += '<summary>{0}</summary>\n'.format(escapeHtml(row.name));
 			html += '<table border="1" class="model" id="{0}-store">\n'.format(row.name);
 			html += '</table>\n';
+			html += '</details>\n';
+			html += '<br>\n';
 			
 			register_store_event(row.name);
 		}
@@ -47,17 +50,21 @@ WHERE 														\
 	});
 }
 
+// TODO: Chrome version 21 only supports four outstanding EventSources so snmp doesn't
+// show up (if you use the Network tab in the developer panel you'll see that the snmp request
+// is marked pending). The Sep 2012 beta, version 22, supports more so the snmp items show
+// up there.
 function register_store_event(name)
 {
 	if (name in GNOS.models)
 		GNOS.models[name].close();
 	
-	var expr = '												\
+	var expr = '											\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>	\
-SELECT DISTINCT 											\
+SELECT DISTINCT 										\
 	?name 													\
-WHERE 														\
-{ 																\
+WHERE 													\
+{ 															\
 	?subject ?predicate ?object . 							\
 	BIND(rrdf:pname(?subject) AS ?name) 				\
 } ORDER BY ?name';
