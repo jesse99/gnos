@@ -56,12 +56,10 @@ gnos:tertiary_label		xsd:string			"server room"\
 \
 
 \b\fs50 Relations\
-\pard\pardeftab480\pardirnatural
 
-\fs36 \cf0 _:rel1\
-\pard\pardeftab480\pardirnatural
+\fs36 _:rel1\
 
-\b0 \cf0 \ul \ulc0 gnos:src\ulnone 					blank				devices:10.1.0.1\
+\b0 \ul gnos:src\ulnone 					blank				devices:10.1.0.1\
 \ul gnos:dst\ulnone 					blank				devices:10.1.0.2\
 gnos:type					xsd:string			"undirected" or "bidirectional" or "unidirectional"\
 gnos:style				xsd:string			"", "link", "route", etc\
@@ -73,12 +71,10 @@ gnos:tertiary_label		xsd:string			"ospf"\
 \
 
 \b\fs50 Indicators\
-\pard\pardeftab480\pardirnatural
 
-\fs36 \cf0 _:meter1\
-\pard\pardeftab480\pardirnatural
+\fs36 _:meter1\
 
-\b0 \cf0 \ul \ulc0 gnos:meter\ulnone 				xsd:string			"CPU"\
+\b0 \ul gnos:meter\ulnone 				xsd:string			"CPU"\
 gnos:target				blank				devices:10.1.0.1\
 gnos:level				xsd:float			0.2 (range is 0.0 to 1.0)\
 \
@@ -87,14 +83,12 @@ gnos:description			xsd:string			"snapshot of CPU usage"\
 \
 
 \b\fs50 Details\
-\pard\pardeftab480\pardirnatural
 
-\fs36 \cf0 _:summary1\
+\fs36 _:summary1\
 
 \b0 gnos:title					xsd:string			"10.1.0.1 SNMP" (can be empty)\
 gnos:device				xsd:iri				devices:10.1.0.1\
-\pard\pardeftab480\pardirnatural
-\cf0 \ul \ulc0 gnos:detail\ulnone 				xsd:string			(html with SNMP keys and values)\
+\ul gnos:target\ulnone 				xsd:string			(html with SNMP keys and values)\
 gnos:weight				xsd:float			0.1 (larger values are displayed first)\
 gnos:open				xsd:string			"always", "yes", or "no" (uses disclosure widget if not "always")\
 gnos:key					xsd:string			arbitrary text (used by the client to keep widgets open on refresh)\
