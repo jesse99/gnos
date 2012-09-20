@@ -223,7 +223,7 @@ fn open_alert(store: &Store, alert: Alert) -> bool
 					
 				let subject = get_blank_name(store, ~"alert");
 				store.add(subject, ~[
-					(~"gnos:device", IriValue(alert.device)),
+					(~"gnos:target", IriValue(alert.device)),
 					(~"gnos:id", StringValue(alert.id, ~"")),
 					(~"gnos:begin", DateTimeValue(std::time::now())),
 					(~"gnos:mesg", StringValue(alert.mesg, ~"")),

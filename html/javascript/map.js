@@ -2,7 +2,7 @@
 
 GNOS.scene = new Scene();
 GNOS.primary_data = null;
-GNOS.alert_data = null;
+GNOS.alert_count_data = null;
 
 GNOS.selection_name = null;
 GNOS.selection_source = null;
@@ -29,7 +29,7 @@ window.onload = function()
 	
 	draw_initial_map();
 	register_primary_query();
-	register_alerts_query();
+	register_alert_count_query();
 }
 
 function resize_canvas()
@@ -167,7 +167,7 @@ WHERE 														\
 	});
 }
 
-function register_alerts_query()
+function register_alert_count_query()
 {
 	var expr = '												\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
@@ -183,12 +183,12 @@ WHERE 														\
 		format(encodeURIComponent(expr)));
 	source.addEventListener('message', function(event)
 	{
-		GNOS.alert_data = {};
+		GNOS.alert_count_data = {};
 		var data = JSON.parse(event.data);
 		for (var i = 0; i < data.length; ++i)
 		{
 			var row = data[i];
-			GNOS.alert_data[row.device] = row.count;
+			GNOS.alert_count_data[row.device] = row.count;
 			//console.log("row{0}: {1:j}".format(i, row));
 		}
 		
@@ -201,14 +201,14 @@ WHERE 														\
 	
 	source.addEventListener('open', function(event)
 	{
-		console.log('alerts stream opened');
+		console.log('alert count stream opened');
 	});
 	
 	source.addEventListener('error', function(event)
 	{
 		if (event.eventPhase === 2)
 		{
-			console.log('alerts stream closed');
+			console.log('alert count stream closed');
 		}
 	});
 }
@@ -283,7 +283,7 @@ WHERE 														\
 	});
 	
 	GNOS.selection_source.addEventListener('open', function(event)
-	{
+	{ 
 		console.log('selection stream {0} opened'.format(name));
 	});
 	
@@ -372,15 +372,15 @@ function add_map_label_shapes(times)
 	var row = times[0];
 	GNOS.poll_interval = row.poll_interval;
 	
-	if (GNOS.alert_data)
+	if (GNOS.alert_count_data)
 		add_alert_label_shapes(context);
 }
 
 function add_alert_label_shapes(context)
 {
-	if ('http://www.gnos.org/2012/schema#map' in GNOS.alert_data)
+	if ('http://www.gnos.org/2012/schema#map' in GNOS.alert_count_data)
 	{
-		var label = get_error_alert_label('http://www.gnos.org/2012/schema#map');
+		var label = get_error_alert_count_label('http://www.gnos.org/2012/schema#map');
 		var shape = new TextLinesShape(context,
 			function (self)
 			{
@@ -502,10 +502,10 @@ function add_device_shapes(devices, meters)
 			}
 		}
 		
-		// Then error alerts.
-		if (GNOS.alert_data && device.name in GNOS.alert_data)
+		// Then error count alerts.
+		if (GNOS.alert_count_data && device.name in GNOS.alert_count_data)
 		{
-			var label = get_error_alert_label(device.name);
+			var label = get_error_alert_count_label(device.name);
 			shapes.push(new TextLinesShape(context, Point.zero, [label], label_styles, ['error_label']));
 		}
 		
@@ -517,9 +517,9 @@ function add_device_shapes(devices, meters)
 	}
 }
 
-function get_error_alert_label(name)
+function get_error_alert_count_label(name)
 {
-	var count = GNOS.alert_data[name];
+	var count = GNOS.alert_count_data[name];
 	if (count === "1")
 		return "1 error alert";
 	else if (count !== "0")
