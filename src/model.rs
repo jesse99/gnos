@@ -9,10 +9,10 @@ export UpdateFn, Msg, QueryMsg, UpdateMsg, UpdatesMsg, RegisterMsg, DeregisterMs
 /// Function used to update a store within the model task.
 ///
 /// Data can be anything, but is typically json. Return true if the store was updated.
-type UpdateFn = fn~ (store: Store, data: ~str) -> bool;
+type UpdateFn = fn~ (store: &Store, data: ~str) -> bool;
 
 /// Like UpdateFn except that it takes multiple stores.
-type UpdatesFn = fn~ (store: ~[Store], data: ~str) -> bool;
+type UpdatesFn = fn~ (store: ~[@Store], data: ~str) -> bool;
 
 /// The channel used by RegisterMsg to communicate the initial result and
 /// subsequent results back to the original task.
@@ -27,7 +27,7 @@ type RegisterChan = comm::Chan<result::Result<~[Solution], ~str>>;
 enum Msg
 {
 	QueryMsg(~str, ~str, comm::Chan<Solution>),		// store + SPARQL query + channel to send results back along
-	UpdateMsg(~str, UpdateFn, ~str),					// store + function to use to update the store + data to use
+	UpdateMsg(~str, UpdateFn, ~str),						// store + function to use to update the store + data to use
 	UpdatesMsg(~[~str], UpdatesFn, ~str),				// stores + function to use to update the stores + data to use
 	
 	RegisterMsg(~str, ~str, ~[~str], RegisterChan),		// store + key + SPARQL queries + channel to send results back along
@@ -105,7 +105,7 @@ fn manage_state(port: comm::Port<Msg>)
 	for get_standard_store_names().each
 	|name|
 	{
-		stores.insert(name,  Store(namespaces, &std::map::box_str_hash()));
+		stores.insert(name,  @Store(namespaces, &std::map::box_str_hash()));
 		registered.insert(name, std::map::str_hash());
 	}
 	
@@ -115,7 +115,7 @@ fn manage_state(port: comm::Port<Msg>)
 		{
 			QueryMsg(name, expr, channel) =>
 			{
-				let solutions = eval_queries(&stores.get(name), queries, ~[expr]).get();		// always a canned query so we want to fail fast on error
+				let solutions = eval_queries(stores.get(name), queries, ~[expr]).get();		// always a canned query so we want to fail fast on error
 				assert solutions.len() == 1;
 				comm::send(channel, copy solutions[0]);
 			}
@@ -146,7 +146,7 @@ fn manage_state(port: comm::Port<Msg>)
 			}
 			RegisterMsg(name, key, exprs, channel) =>
 			{
-				match eval_queries(&stores.get(name), queries, exprs)
+				match eval_queries(stores.get(name), queries, exprs)
 				{
 					result::Ok(solutions) =>
 					{
@@ -328,7 +328,7 @@ fn eval_query(store: &Store, expr: ~str) -> result::Result<Solution, ~str>
 	}
 }
 // ---- Internal functions ----------------------------------------------------
-fn update_registered(stores: hashmap<~str, Store>, name: ~str, queries: hashmap<~str, Selector>, registered: hashmap<~str, hashmap<~str, Registration>>)
+fn update_registered(stores: hashmap<~str, @Store>, name: ~str, queries: hashmap<~str, Selector>, registered: hashmap<~str, hashmap<~str, Registration>>)
 {
 	let store = stores.find(name);
 	if store.is_some()
@@ -339,7 +339,7 @@ fn update_registered(stores: hashmap<~str, Store>, name: ~str, queries: hashmap<
 			for map.get().each_value
 			|r|
 			{
-				let solutions = eval_queries(&store.get(), queries, r.queries).get();	// query that worked once so should be OK to fail fast
+				let solutions = eval_queries(store.get(), queries, r.queries).get();	// query that worked once so should be OK to fail fast
 				if solutions != *r.solutions
 				{
 					comm::send(r.channel, result::Ok(copy(solutions)));

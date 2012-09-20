@@ -27,7 +27,7 @@ fn snmp_exited(err: option::Option<~str>, state_chan: comm::Chan<model::Msg>)
 	error!("%s", mesg);
 	
 	let alert = model::Alert {device: ~"gnos:map", id: ~"snmp-modeler.py exited", level: model::ErrorLevel, mesg: mesg, resolution: ~"Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
-	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _err| {model::open_alert(&store, alert)}, ~""));
+	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _err| {model::open_alert(store, alert)}, ~""));
 }
 
 fn setup(options: options::Options, state_chan: comm::Chan<model::Msg>) 
@@ -54,7 +54,7 @@ fn get_shutdown(options: options::Options) -> !
 	libc::exit(0)
 }
 
-fn update_globals(store: Store, options: options::Options) -> bool
+fn update_globals(store: &Store, options: options::Options) -> bool
 {
 	store.add(~"gnos:globals", ~[
 		(~"gnos:admin", BoolValue(true)),		// TODO: get this from a setting

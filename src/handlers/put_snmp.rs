@@ -31,7 +31,7 @@ fn put_snmp(options: Options, state_chan: comm::Chan<Msg>, request: &server::Req
 	server::Response {body: ~"", ..*response}
 }
 
-fn updates_snmp(options: Options, remote_addr: ~str, stores: &[Store], body: ~str, old: &Solution) -> bool
+fn updates_snmp(options: Options, remote_addr: ~str, stores: &[@Store], body: ~str, old: &Solution) -> bool
 {
 	match json::from_str(body)
 	{
@@ -41,8 +41,8 @@ fn updates_snmp(options: Options, remote_addr: ~str, stores: &[Store], body: ~st
 			{
 				json::Dict(d) =>
 				{
-					json_to_primary(options, remote_addr, &stores[0], &stores[2], d, old);
-					json_to_snmp(remote_addr, &stores[1], d);
+					json_to_primary(options, remote_addr, stores[0], stores[2], d, old);
+					json_to_snmp(remote_addr, stores[1], d);
 				}
 				_ =>
 				{

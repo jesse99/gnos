@@ -15,9 +15,8 @@ on high-level semantic concepts instead of network specific data (which, for exa
 allow views to work unchanged if custom modelers add new information to the model).\
 \
 The schema is defined with the aid of a couple of different namespace prefixes:\
-\pard\pardeftab480\pardirnatural
 
-\b \cf0 devices
+\b devices
 \b0  - http://network/\
 
 \b gnos
@@ -26,13 +25,14 @@ The schema is defined with the aid of a couple of different namespace prefixes:\
 \b xsd
 \b0  - http://www.w3.org/2001/XMLSchema#\
 \
-
-\b\fs50 Map\
-
-\fs36 gnos:map\
 \pard\pardeftab480\pardirnatural
 
-\b0 \cf0 gnos:poll_interval		xsd:integer		30 (seconds)\
+\b\fs50 \cf0 Map\
+\pard\pardeftab480\pardirnatural
+
+\fs36 \cf0 gnos:map\
+
+\b0 gnos:poll_interval		xsd:integer		30 (seconds)\
 \
 												zero or one\
 gnos:last_update		xsd:dateTime\
@@ -40,10 +40,12 @@ gnos:last_update		xsd:dateTime\
 \pard\pardeftab480\pardirnatural
 
 \b\fs50 \cf0 Devices\
+\pard\pardeftab480\pardirnatural
 
-\fs36 devices:10.1.0.1\
+\fs36 \cf0 devices:10.1.0.1\
+\pard\pardeftab480\pardirnatural
 
-\b0 \ul gnos:center_x\ulnone 			xsd:float			0.3 (unit scale where origin is upper-left)\
+\b0 \cf0 \ul \ulc0 gnos:center_x\ulnone 			xsd:float			0.3 (unit scale where origin is upper-left)\
 \ul gnos:center_y\ulnone 			xsd:float			0.6\
 gnos:style				xsd:string			"", "host", "router", "large", etc\
 \
@@ -54,10 +56,12 @@ gnos:tertiary_label		xsd:string			"server room"\
 \
 
 \b\fs50 Relations\
+\pard\pardeftab480\pardirnatural
 
-\fs36 _:rel1\
+\fs36 \cf0 _:rel1\
+\pard\pardeftab480\pardirnatural
 
-\b0 \ul gnos:src\ulnone 					blank				devices:10.1.0.1\
+\b0 \cf0 \ul \ulc0 gnos:src\ulnone 					blank				devices:10.1.0.1\
 \ul gnos:dst\ulnone 					blank				devices:10.1.0.2\
 gnos:type					xsd:string			"undirected" or "bidirectional" or "unidirectional"\
 gnos:style				xsd:string			"", "link", "route", etc\
@@ -69,10 +73,12 @@ gnos:tertiary_label		xsd:string			"ospf"\
 \
 
 \b\fs50 Indicators\
+\pard\pardeftab480\pardirnatural
 
-\fs36 _:meter1\
+\fs36 \cf0 _:meter1\
+\pard\pardeftab480\pardirnatural
 
-\b0 \ul gnos:meter\ulnone 				xsd:string			"CPU"\
+\b0 \cf0 \ul \ulc0 gnos:meter\ulnone 				xsd:string			"CPU"\
 gnos:target				blank				devices:10.1.0.1\
 gnos:level				xsd:float			0.2 (range is 0.0 to 1.0)\
 \
@@ -81,20 +87,18 @@ gnos:description			xsd:string			"snapshot of CPU usage"\
 \
 
 \b\fs50 Details\
-
-\fs36 _:summary1\
 \pard\pardeftab480\pardirnatural
 
-\b0 \cf0 gnos:title					xsd:string			"10.1.0.1 SNMP" (can be empty)\
+\fs36 \cf0 _:summary1\
+
+\b0 gnos:title					xsd:string			"10.1.0.1 SNMP" (can be empty)\
 gnos:device				xsd:iri				devices:10.1.0.1\
 \pard\pardeftab480\pardirnatural
 \cf0 \ul \ulc0 gnos:detail\ulnone 				xsd:string			(html with SNMP keys and values)\
 gnos:weight				xsd:float			0.1 (larger values are displayed first)\
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:open				xsd:string			"always", "yes", or "no" (uses disclosure widget if not "always")\
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:key					xsd:string			arbitrary text (used by the client to keep widgets open on refresh)\
+gnos:open				xsd:string			"always", "yes", or "no" (uses disclosure widget if not "always")\
+gnos:key					xsd:string			arbitrary text (used by the client to keep widgets open on refresh)\
 \
 Note that style objects can cascade styles by separating each style with a space. \
-Underlined predicates represent primary key sort of names.\
+Underlined predicates represent what are (more or less) primary keys.\
 }

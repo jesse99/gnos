@@ -37,7 +37,7 @@ fn update_got(state_chan: comm::Chan<model::Msg>, winterfell_loyalty: ~str, wl: 
 	update_got(state_chan, winterfell_loyalty, wl, kings_landing_loyalty, kl, poll_rate);
 }
 
-fn add_got(store: Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
+fn add_got(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 {
 	// map
 	store.add(~"gnos:map", ~[
@@ -75,11 +75,11 @@ fn add_got(store: Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 	]);
 	
 	// relations
-	add_relation(&store, wall, winterfell, ~"link", ~"road");
-	add_relation(&store, kings_landing, winterfell, ~"route", ~"king's road");
+	add_relation(store, wall, winterfell, ~"link", ~"road");
+	add_relation(store, kings_landing, winterfell, ~"route", ~"king's road");
 	
 	// indicators
-	let wall_mf = get_blank_name(&store, ~"meter");
+	let wall_mf = get_blank_name(store, ~"meter");
 	store.add(wall_mf, ~[
 		(~"gnos:meter",        StringValue(~"MF", ~"")),
 		(~"gnos:target",        IriValue(wall)),
@@ -87,7 +87,7 @@ fn add_got(store: Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 		(~"gnos:description", StringValue(~"male/female ratio", ~"")),
 	]);
 	
-	let wall_loyalty = get_blank_name(&store, ~"meter");
+	let wall_loyalty = get_blank_name(store, ~"meter");
 	store.add(wall_loyalty, ~[
 		(~"gnos:meter",        StringValue(~"loyalty", ~"")),
 		(~"gnos:target",        IriValue(wall)),
@@ -95,7 +95,7 @@ fn add_got(store: Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 		(~"gnos:description", StringValue(~"loyalty to the crown", ~"")),
 	]);
 	
-	let winterfell_mf = get_blank_name(&store, ~"meter");
+	let winterfell_mf = get_blank_name(store, ~"meter");
 	store.add(winterfell_mf, ~[
 		(~"gnos:meter",        StringValue(~"MF", ~"")),
 		(~"gnos:target",        IriValue(winterfell)),
@@ -103,7 +103,7 @@ fn add_got(store: Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 		(~"gnos:description", StringValue(~"male/female ratio", ~"")),
 	]);
 	
-	let winterfell_loyalty = get_blank_name(&store, ~"meter");
+	let winterfell_loyalty = get_blank_name(store, ~"meter");
 	store.add(winterfell_loyalty, ~[
 		(~"gnos:meter",        StringValue(~"loyalty", ~"")),
 		(~"gnos:target",        IriValue(winterfell)),
@@ -111,7 +111,7 @@ fn add_got(store: Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 		(~"gnos:description", StringValue(~"loyalty to the crown", ~"")),
 	]);
 	
-	let kings_landing_mf = get_blank_name(&store, ~"meter");
+	let kings_landing_mf = get_blank_name(store, ~"meter");
 	store.add(kings_landing_mf, ~[
 		(~"gnos:meter",        StringValue(~"MF", ~"")),
 		(~"gnos:target",        IriValue(kings_landing)),
@@ -119,7 +119,7 @@ fn add_got(store: Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 		(~"gnos:description", StringValue(~"male/female ratio", ~"")),
 	]);
 	
-	let kings_landing_loyalty = get_blank_name(&store, ~"meter");
+	let kings_landing_loyalty = get_blank_name(store, ~"meter");
 	store.add(kings_landing_loyalty, ~[
 		(~"gnos:meter",        StringValue(~"loyalty", ~"")),
 		(~"gnos:target",        IriValue(kings_landing)),
@@ -128,7 +128,7 @@ fn add_got(store: Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 	]);
 	
 	// details
-	let map_summary = get_blank_name(&store, ~"summary");
+	let map_summary = get_blank_name(store, ~"summary");
 	store.add(map_summary, ~[
 		(~"gnos:title",       StringValue(~"Game of Thrones", ~"")),
 		(~"gnos:target",    IriValue(~"gnos:map")),
@@ -137,7 +137,7 @@ fn add_got(store: Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 		(~"gnos:open",     StringValue(~"always", ~"")),
 	]);
 
-	let wall_summary = get_blank_name(&store, ~"summary");
+	let wall_summary = get_blank_name(store, ~"summary");
 	store.add(wall_summary, ~[
 		(~"gnos:title",       StringValue(~"Night's Watch Vows", ~"")),
 		(~"gnos:target",    IriValue(wall)),
@@ -146,7 +146,7 @@ fn add_got(store: Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 		(~"gnos:open",     StringValue(~"yes", ~"")),
 	]);
 	
-	let winterfell_summary = get_blank_name(&store, ~"summary");
+	let winterfell_summary = get_blank_name(store, ~"summary");
 	store.add(winterfell_summary, ~[
 		(~"gnos:title",       StringValue(~"Winterfell Description", ~"")),
 		(~"gnos:target",    IriValue(winterfell)),
@@ -155,7 +155,7 @@ fn add_got(store: Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 		(~"gnos:open",     StringValue(~"yes", ~"")),
 	]);
 	
-	let kings_landing_summary = get_blank_name(&store, ~"summary");
+	let kings_landing_summary = get_blank_name(store, ~"summary");
 	store.add(kings_landing_summary, ~[
 		(~"gnos:title",       StringValue(~"King's Landing Description", ~"")),
 		(~"gnos:target",    IriValue(kings_landing)),
@@ -164,7 +164,7 @@ fn add_got(store: Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 		(~"gnos:open",     StringValue(~"yes", ~"")),
 	]);
 	
-	let kings_landing_places = get_blank_name(&store, ~"places");
+	let kings_landing_places = get_blank_name(store, ~"places");
 	store.add(kings_landing_places, ~[
 		(~"gnos:title",       StringValue(~"King's Landing Places", ~"")),
 		(~"gnos:target",    IriValue(kings_landing)),
@@ -181,29 +181,29 @@ fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool
 	// map
 	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _msg|
 	{
-		model::open_alert(&store, Alert {device: ~"gnos:map", id: ~"m1", level: model::ErrorLevel, mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."});
-		model::open_alert(&store, Alert {device: ~"gnos:map", id: ~"m2", level: model::WarningLevel, mesg: ~"Approaching critical mass", resolution: ~"Reduce mass."});
+		model::open_alert(store, Alert {device: ~"gnos:map", id: ~"m1", level: model::ErrorLevel, mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."});
+		model::open_alert(store, Alert {device: ~"gnos:map", id: ~"m2", level: model::WarningLevel, mesg: ~"Approaching critical mass", resolution: ~"Reduce mass."});
 		
-		model::open_alert(&store, Alert {device: ~"gnos:map", id: ~"m3", level: model::ErrorLevel, mesg: ~"Electrons are leaking", resolution: ~"Call a plumber."});
-		model::close_alert(&store, ~"gnos:map", ~"m3");			// closed alert 
+		model::open_alert(store, Alert {device: ~"gnos:map", id: ~"m3", level: model::ErrorLevel, mesg: ~"Electrons are leaking", resolution: ~"Call a plumber."});
+		model::close_alert(store, ~"gnos:map", ~"m3");			// closed alert 
 		
-																	// open_alert is idempotent
-		model::open_alert(&store, Alert {device: ~"gnos:map", id: ~"m1", level: model::ErrorLevel, mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."})
+																		// open_alert is idempotent
+		model::open_alert(store, Alert {device: ~"gnos:map", id: ~"m1", level: model::ErrorLevel, mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."})
 	}, ~""));
 	
 	// devices
 	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _msg|
 	{
-		model::open_alert(&store, Alert {device: ~"devices:winterfell", id: ~"w1", level: model::ErrorLevel, mesg: ~"The ocean is rising.", resolution: ~"Call King Canute."});
-		model::open_alert(&store, Alert {device: ~"devices:winterfell", id: ~"w2", level: model::ErrorLevel, mesg: ~"Ghosts walk the grounds.", resolution: ~"Who you going to call?"});
-		model::open_alert(&store, Alert {device: ~"devices:winterfell", id: ~"w3", level: model::WarningLevel, mesg: ~"Winter is coming.", resolution: ~"Increase the stores."});
-		model::open_alert(&store, Alert {device: ~"devices:winterfell", id: ~"w4", level: model::InfoLevel, mesg: ~"Bran stubbed his toe.", resolution: ~"Call the Maester."});
+		model::open_alert(store, Alert {device: ~"devices:winterfell", id: ~"w1", level: model::ErrorLevel, mesg: ~"The ocean is rising.", resolution: ~"Call King Canute."});
+		model::open_alert(store, Alert {device: ~"devices:winterfell", id: ~"w2", level: model::ErrorLevel, mesg: ~"Ghosts walk the grounds.", resolution: ~"Who you going to call?"});
+		model::open_alert(store, Alert {device: ~"devices:winterfell", id: ~"w3", level: model::WarningLevel, mesg: ~"Winter is coming.", resolution: ~"Increase the stores."});
+		model::open_alert(store, Alert {device: ~"devices:winterfell", id: ~"w4", level: model::InfoLevel, mesg: ~"Bran stubbed his toe.", resolution: ~"Call the Maester."});
 		
-		model::open_alert(&store, Alert {device: ~"devices:winterfell", id: ~"w5", level: model::ErrorLevel, mesg: ~"A deserter from the Wall was found.", resolution: ~"Chop his head off."});
-		model::close_alert(&store, ~"devices:winterfell", ~"w5");	// closed alert
+		model::open_alert(store, Alert {device: ~"devices:winterfell", id: ~"w5", level: model::ErrorLevel, mesg: ~"A deserter from the Wall was found.", resolution: ~"Chop his head off."});
+		model::close_alert(store, ~"devices:winterfell", ~"w5");	// closed alert
 		
-		model::close_alert(&store, ~"devices:winterfell", ~"w2");	// re-opened alert
-		model::open_alert(&store, Alert {device: ~"devices:winterfell", id: ~"w2", level: model::ErrorLevel, mesg: ~"More ghosts walk the grounds.", resolution: ~"Who you going to call?"})
+		model::close_alert(store, ~"devices:winterfell", ~"w2");	// re-opened alert
+		model::open_alert(store, Alert {device: ~"devices:winterfell", id: ~"w2", level: model::ErrorLevel, mesg: ~"More ghosts walk the grounds.", resolution: ~"Who you going to call?"})
 	}, ~""));
 	
 	true
