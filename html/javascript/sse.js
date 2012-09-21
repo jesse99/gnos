@@ -70,8 +70,11 @@ function register_event(id, store, queries, handler)
 function deregister_event(id)
 {
 //console.log("deregistering {0} event".format(id));
-	if (GNOS.sse_events)
+	if (GNOS.sse_events[id])
+	{
+		GNOS.sse_events[id].close();
 		delete GNOS.sse_events[id];
+	}
 }
 
 // Add a function which is called when a named GNOS.model value changes.
@@ -102,13 +105,6 @@ function deregister_updater(id)
 	{
 		delete GNOS.sse_updaters[id];
 	}
-}
-
-// Removes all updaters.
-function deregister_updaters()
-{
-//console.log("deregistering all updaters");
-	delete GNOS.sse_updaters;
 }
 
 // ---- Internal Functions --------------------------------------------------------------

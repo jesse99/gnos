@@ -2,7 +2,12 @@
 
 window.onload = function()
 {
-	var expr = '											\
+	GNOS.store_event_ids = [];
+	GNOS.store_updater_ids = [];
+	
+	register_updater("models", ["models"], "body", models_updater);
+	
+	var query = '											\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>	\
 SELECT DISTINCT 										\
 	?name 													\
@@ -10,59 +15,85 @@ WHERE 													\
 { 															\
 	gnos:globals gnos:store ?name . 						\
 } ORDER BY ?name';
-	var source = new EventSource('/query?name=globals&expr={0}'.
-		format(encodeURIComponent(expr)));
-	source.addEventListener('message', function(event)
+	register_event("models", "globals", [query], models_handler);
+}
+
+function models_handler(solution)
+{
+	deregister_store_events();
+	deregister_store_updaters();
+	
+	GNOS.model.models = solution.map(
+		function (row)
+		{
+			return row.name;
+		});
+	
+	return ["models"];
+}
+
+function models_updater(element, model_names)
+{
+	assert(model_names.length == 1, "expected one model_names but found " + model_names.length);
+	
+	// Add place holders for each store's subjects.
+	var html = "";
+	for (var i = 0; i < GNOS.model.models.length; ++i)
 	{
-		var body = document.getElementById('body');
-		var data = JSON.parse(event.data);
+		var store = GNOS.model.models[i];
 		
-		var html = "";
-		deregister_updaters();
-		for (var i = 0; i < data.length; ++i)
-		{
-			var row = data[i];
-			
-			html += '<details open="open">\n';
-			html += '<summary>{0}</summary>\n'.format(escapeHtml(row.name));
-			html += '<table border="1" class="model" id="{0}-store">\n'.format(row.name);
-			html += '</table>\n';
-			html += '</details>\n';
-			html += '<br>\n';
-			
-			var id = row.name + "-updater";
-			var model_name = row.name + "-store";
-			var element = "{0}-store".format(row.name);
-			register_updater(id, [model_name], element, function (element, model_names) {store_updater(row.name, element, model_names)});
-			
-			store_event(row.name);
-		}
-		body.innerHTML = html;
-	});
+		html += '<details open="open">\n';
+		html += '<summary>{0}</summary>\n'.format(escapeHtml(store));
+		html += '<table border="1" class="model" id="{0}-store">\n'.format(store);
+		html += '</table>\n';
+		html += '</details>\n';
+		html += '<br>\n';
+	}
+	element.innerHTML = html;
 	
-	source.addEventListener('open', function(event)
+	// Add sse callbacks to update the place holders.
+	GNOS.store_event_ids = [];
+	GNOS.store_updater_ids = [];
+	for (var i = 0; i < GNOS.model.models.length; ++i)
 	{
-		console.log('models> globals stream opened');
-	});
-	
-	source.addEventListener('error', function(event)
+		var store = GNOS.model.models[i];
+		
+		var id = store + "-updater";
+		var model_name = store + "-store";
+		var element = "{0}-store".format(store);
+		register_updater(id, [model_name], element, function (element, model_names) {store_updater(store, element, model_names)});
+		GNOS.store_updater_ids.push(id);
+		
+		register_store_event(store);
+	}
+}
+
+function deregister_store_events()
+{
+	for (var i = 0; i < GNOS.store_event_ids.length; ++i)
 	{
-		if (event.eventPhase === 2)
-		{
-			console.log('models> globals stream closed');
-		}
-	});
+		var id = GNOS.store_event_ids[i];
+		delete GNOS.sse_events[i];
+	}
+	GNOS.store_event_ids = [];
+}
+
+function deregister_store_updaters()
+{
+	for (var i = 0; i < GNOS.store_updater_ids.length; ++i)
+	{
+		var id = GNOS.store_updater_ids[i];
+		delete GNOS.sse_updaters[i];
+	}
+	GNOS.store_updater_ids = [];
 }
 
 // TODO: Chrome version 21 only supports four outstanding EventSources so snmp doesn't
 // show up (if you use the Network tab in the developer panel you'll see that the snmp request
-// is marked pending). The Sep 2012 beta, version 22, supports more so the snmp items show
-// up there.
-function store_event(store)
+// is marked pending). The Sep 2012 beta, version 22, supports more so the snmp items do 
+// show up there.
+function register_store_event(store)
 {
-	var id = "models-" + store;
-	deregister_event(id);
-	
 	var query = '											\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>	\
 SELECT DISTINCT 										\
@@ -72,7 +103,10 @@ WHERE 													\
 	?subject ?predicate ?object . 							\
 	BIND(rrdf:pname(?subject) AS ?name) 				\
 } ORDER BY ?name';
+	
+	var id = "models-" + store;
 	register_event(id, store, [query], function (solution) {return store_handler(store, solution)});
+	GNOS.store_event_ids.push(id);
 }
 
 function store_handler(store, solution)
