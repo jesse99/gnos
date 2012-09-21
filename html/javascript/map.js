@@ -1,6 +1,9 @@
 "use strict";
 
 GNOS.scene = new Scene();
+GNOS.timer_id = undefined;
+GNOS.last_update = undefined;
+GNOS.poll_interval = undefined;
 
 // Thresholds for different meter levels.
 GNOS.good_level		= 0.0;
@@ -13,8 +16,9 @@ window.onload = function()
 	resize_canvas();
 	window.onresize = resize_canvas;
 	
-	register_renderer("default map", ["device_info", "device_labels"], "map", map_renderer);
+	register_renderer("default map", ["device_info", "device_labels", "device_meters", "poll_interval"], "map", map_renderer);
 	register_map_query();
+	GNOS.timer_id = setInterval(update_time, 1000);
 }
 
 function resize_canvas()
@@ -60,8 +64,36 @@ WHERE 														\
 	{															\
 		?name gnos:tertiary_label ?tertiary_label .				\
 	}															\
+}',
+	'															\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
+SELECT 														\
+	?label ?device ?level ?description							\
+WHERE 														\
+{																\
+	?indicator gnos:meter ?label .								\
+	?indicator gnos:target ?device .							\
+	?indicator gnos:level ?level .								\
+	OPTIONAL												\
+	{															\
+		?indicator gnos:description ?description .				\
+	}															\
+}',
+	'															\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
+SELECT 														\
+	?poll_interval ?last_update								\
+WHERE 														\
+{																\
+	gnos:map gnos:poll_interval ?poll_interval .				\
+	OPTIONAL												\
+	{															\
+		gnos:map gnos:last_update ?last_update .				\
+	}															\
 }'];
-	register_query("map query", ["device_info", "device_labels"], "primary", queries, [device_shapes_query]);
+	register_query("map query", ["device_info", "device_labels", "device_meters", "poll_interval"], "primary", queries, [device_shapes_query, device_meters_query, poll_interval_query]);
 }
 
 // solution rows have 
@@ -74,7 +106,6 @@ function device_shapes_query(solution)
 		var lines = text.split('\n');
 		for (var i = 0; i < lines.length; ++i)
 		{
-console.log("   adding label " + [lines[i]]);
 			shapes.push(new TextLinesShape(context, Point.zero, [lines[i]], base_styles, style_names));
 		}
 	}
@@ -94,7 +125,6 @@ console.log("   adding label " + [lines[i]]);
 		
 		// Record some information for each device.
 		infos.push({name: device.name, center_x: device.center_x, center_y: device.center_y, base_styles: base_styles});
-console.log("found {0} at ({1}, {2})".format(device.name, device.center_x, device.center_y));
 		
 		// Create shapes for device labels.
 		var device_labels = [];
@@ -117,6 +147,124 @@ console.log("found {0} at ({1}, {2})".format(device.name, device.center_x, devic
 	return {device_info: infos, device_labels: labels}
 }
 
+// solution rows have 
+// required fields: label, device, level
+// optional fields: description
+function device_meters_query(solution)
+{
+	var meters = {};
+	
+	var map = document.getElementById('map');
+	var context = map.getContext('2d');
+	for (var i = 0; i < solution.length; ++i)
+	{
+		var meter = solution[i];
+		
+		if (meter.level >= GNOS.ok_level)			// TODO: may want an inspector option to show all meters
+		{
+			if (meter.level < GNOS.ok_level)
+				var bar_styles = ['good_level'];
+			else if (meter.level < GNOS.warn_level)
+				var bar_styles = ['ok_level'];
+			else if (meter.level < GNOS.danger_level)
+				var bar_styles = ['warn_level'];
+			else 
+				var bar_styles = ['danger_level'];
+				
+			var label = "{0}% {1}".format(Math.round(100*meter.level), meter.label);	// TODO: option to show description?
+			var label_styles = ['label', 'secondary_label'];
+			
+			var shape = new ProgressBarShape(context, Point.zero, meter.level, bar_styles, label, label_styles);
+			if (!meters[meter.device])
+				meters[meter.device] = [];
+			meters[meter.device].push(shape);		// note that a device can have multiple meters
+		}
+	}
+	
+	return {device_meters: meters}
+}
+
+// solution rows have 
+// required fields: poll_interval
+// optional fields: last_update
+function poll_interval_query(solution)
+{
+	assert(solution.length == 1, "expected one row but found " + solution.length);
+	
+	var row = solution[0];
+	GNOS.last_update = new Date().getTime();
+	GNOS.poll_interval = row.poll_interval;
+	
+	var shape = create_poll_interval_label(GNOS.last_update, GNOS.poll_interval);
+	
+	return {poll_interval: shape}
+}
+
+function update_time()
+{
+	if (GNOS.scene.shapes.length > 0 && GNOS.poll_interval)
+	{
+		var shape = create_poll_interval_label(GNOS.last_update, GNOS.poll_interval);
+		GNOS.scene.shapes[GNOS.scene.shapes.length-1] = shape;
+		
+		var map = document.getElementById('map');
+		var context = map.getContext('2d');
+		context.clearRect(0, 0, map.width, map.height);
+		GNOS.scene.draw(context);
+	}
+}
+
+function create_poll_interval_label(last, poll_interval)
+{
+	function get_updated_label(last, poll_interval)
+	{
+		var current = new Date().getTime();
+		var last_delta = interval_to_time(current - last);
+		
+		if (poll_interval)
+		{
+			var next = last + 1000*poll_interval;
+			if (current <= next)
+			{
+				var next_delta = interval_to_time(next - current);	
+				var label = "updated {0} ago (next due in {1})".format(last_delta, next_delta);
+				var style_name = "label";
+			}
+			else if (current < next + 60*1000)		// next will be when modeler starts grabbing new data so there will be a bit of a delay before it makes it all the way to the client
+			{
+				var label = "updated {0} ago (next is due)".format(last_delta);
+				var style_name = "label";
+			}
+			else
+			{
+				var next_delta = interval_to_time(current - next);	
+				var label = "updated {0} ago (next was due {1} ago)".format(last_delta, next_delta);
+				var style_name = "error_label";
+			}
+		}
+		else
+		{
+			// No longer updating (server has gone down or lost connection).
+			var label = "updated {0} ago (not connected)".format(last_delta);
+			var style_name = "error_label";
+		}
+		
+		return [label, style_name];
+	}
+	
+	var map = document.getElementById('map');
+	var context = map.getContext('2d');
+	
+	var labels = get_updated_label(last, poll_interval);
+	var shape = new TextLinesShape(context,
+		function (self)
+		{
+			return new Point(context.canvas.width/2, self.stats.total_height/2);
+		}, [labels[0]], ['xsmaller'], [labels[1]]);
+	
+	return shape;
+}
+
 function map_renderer(element, model, model_names)
 {
 	var map = document.getElementById('map');
@@ -129,7 +277,7 @@ function map_renderer(element, model, model_names)
 		{
 			var child_shapes = [];
 			child_shapes.push_all(model.device_labels[device.name]);
-			// meter indicators
+			child_shapes.push_all(model.device_meters[device.name]);
 			// error counts
 			
 			// Unfortunately we can't create this shape until after all the other sub-shapes are created.
@@ -138,6 +286,10 @@ function map_renderer(element, model, model_names)
 			var shape = new DeviceShape(context, device.name, center, device.base_styles, child_shapes);
 			GNOS.scene.append(shape);
 		});
+	if (model.poll_interval)								// this must be the last shape (we dynamically swap new shapes in)
+		GNOS.scene.append(model.poll_interval);
+	else
+		GNOS.scene.append(new NoOpShape());
 	GNOS.scene.draw(context);
 }
 

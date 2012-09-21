@@ -1,6 +1,29 @@
 // Immutable objects that scene draws, hit tests, and (eventually) moves.
 "use strict";
 
+// ---- NoOpShape class -------------------------------------------------------
+function NoOpShape()
+{
+	this.geometry = Point.zero;
+	this.width = 0;
+	this.height = 0;
+	freezeProps(this);
+}
+
+NoOpShape.prototype.draw = function (context)
+{
+}
+
+NoOpShape.prototype.hit_test = function (pt)
+{
+	return false;
+}
+
+NoOpShape.prototype.toString = function ()
+{
+	return "NoOpShape";
+}
+
 // ---- LineShape class -------------------------------------------------------
 // arrows are objects with stem_height and base_width properties
 function LineShape(line, style_names, from_arrow, to_arrow)
