@@ -56,21 +56,21 @@ window.onload = function()
 	
 	var oldest = new Date();
 	oldest.setDate(oldest.getDate() - 7);	// show alerts for the last week
-	var expr = '													\
+	var expr = '												\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
-SELECT 															\
-	?mesg ?resolution ?level ?begin ?end					\
-WHERE 															\
-{																	\
+SELECT 														\
+	?mesg ?resolution ?level ?begin ?end						\
+WHERE 														\
+{																\
 	?subject gnos:mesg ?mesg .								\
-	?subject gnos:level ?level .									\
+	?subject gnos:level ?level .								\
 	?subject gnos:begin ?begin .								\
-	?subject gnos:resolution ?resolution .					\
-	OPTIONAL													\
-	{																\
+	?subject gnos:resolution ?resolution .						\
+	OPTIONAL												\
+	{															\
 		?subject gnos:end ?end								\
-	}																\
+	}															\
 	FILTER (?begin >= "{0}"^^xsd:dateTime)				\
 } ORDER BY ?begin ?mesg'.format(oldest.toISOString());
 

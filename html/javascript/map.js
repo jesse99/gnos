@@ -278,7 +278,7 @@ WHERE 														\
 		if (GNOS.primary_data)
 		{
 			populate_shapes();
-			animated_redraw("details");
+			animated_redraw("details");	// TODO: should this be map?
 		}
 	});
 	
