@@ -22,12 +22,12 @@ WHERE 																\
 	BIND(IF(?is_url, rrdf:pname(?value), ?value) AS ?value_label)	\
 } ORDER BY ?predicate_label ?value_label'.format(about);
 
-	register_event("subject", store, [query], handle_subject);
+	register_query("subject", ["subject"], store, [query], subject_query);
 	
-	register_updater("subject", ["subject"], "subject", update_subject);
+	register_renderer("subject", ["subject"], "subject", subject_renderer);
 }
 
-function handle_subject(solution)
+function subject_query(solution)
 {
 	var html = '';
 	for (var i = 0; i < solution.length; ++i)
@@ -65,15 +65,12 @@ function handle_subject(solution)
 		html += '</tr>';
 	}
 	
-	GNOS.model.subject = html;
-	
-	return ["subject"];
+	return {subject: html};
 }
 
-function update_subject(element, model_names)
+function subject_renderer(element, model, model_names)
 {
-	element.innerHTML = GNOS.model.subject;
-	GNOS.model.subject = "";
+	element.innerHTML = model.subject;
 }
 
 function make_link(url, label)

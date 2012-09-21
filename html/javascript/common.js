@@ -4,6 +4,30 @@
 // risk of name clashes with other libraries or new versions of javascript.
 var GNOS = {}
 
+Array.prototype.intersect = function(rhs)
+{
+	var result = [];
+	
+	for (var i = 0; i < this.length; ++i)
+	{
+		if (rhs.indexOf(this[i]) >= 0)
+			result.push(this[i]);
+	}
+	
+	return result;
+}
+
+Array.prototype.intersects = function(rhs)
+{
+	for (var i = 0; i < this.length; ++i)
+	{
+		if (rhs.indexOf(this[i]) >= 0)
+			return true;
+	}
+	
+	return false;
+}
+
 // Replaces {0} with argument 0, {1} with argument 1, etc.
 // Argument index can be appended with ":j" to print the argument as json.
 String.prototype.format = function()

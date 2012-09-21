@@ -2,8 +2,8 @@
 
 window.onload = function()
 {
-	GNOS.store_event_ids = [];
-	GNOS.store_updater_ids = [];
+	GNOS.store_query_ids = [];
+	GNOS.store_renderer_ids = [];
 	
 	var query = '											\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>	\
@@ -13,11 +13,11 @@ WHERE 													\
 { 															\
 	gnos:globals gnos:store ?name . 						\
 } ORDER BY ?name';
-	register_event("models", "globals", [query], models_handler);
-	register_updater("models", ["models"], "body", models_updater);
+	register_query("models", ["models"], "globals", [query], models_query);
+	register_renderer("models", ["models"], "body", models_renderer);
 }
 
-function models_handler(solution)
+function models_query(solution)
 {
 	var html = "";
 	for (var i = 0; i < solution.length; ++i)
@@ -32,59 +32,55 @@ function models_handler(solution)
 		html += '<br>\n';
 	}
 	
-	GNOS.model.models = [html, solution];
-	
-	return ["models"];
+	return {models: [html, solution]};
 }
 
-function models_updater(element, model_names)
+function models_renderer(element, model, model_names)
 {
-	element.innerHTML = GNOS.model.models[0];
+	element.innerHTML = model.models[0];
 	
 	// Add sse callbacks to update the place holders.
-	deregister_store_events();
-	deregister_updater_events();
+	deregister_store_queries();
+	deregister_store_renderers();
 	
-	var solution = GNOS.model.models[1];
+	var solution = model.models[1];
 	for (var i = 0; i < solution.length; ++i)
 	{
 		var store = solution[i].name;
-		register_store_event(store);
+		register_store_query(store);
 		
 		var name = "{0}-store".format(store);
 		var element = document.getElementById(name);
-		register_updater(name, [name], name, store_updater);
-		GNOS.store_updater_ids.push(name);
+		register_renderer(name, [name], name, store_renderer);
+		GNOS.store_renderer_ids.push(name);
 	}
-	
-	GNOS.model.models = null;
 }
 
-function deregister_store_events()
+function deregister_store_queries()
 {
-	for (var i = 0; i < GNOS.store_event_ids.length; ++i)
+	for (var i = 0; i < GNOS.store_query_ids.length; ++i)
 	{
-		var id = GNOS.store_event_ids[i];
-		delete GNOS.sse_events[i];
+		var id = GNOS.store_query_ids[i];
+		deregister_query(id);
 	}
-	GNOS.store_event_ids = [];
+	GNOS.store_query_ids = [];
 }
 
-function deregister_updater_events()
+function deregister_store_renderers()
 {
-	for (var i = 0; i < GNOS.store_updater_ids.length; ++i)
+	for (var i = 0; i < GNOS.store_renderer_ids.length; ++i)
 	{
-		var id = GNOS.store_updater_ids[i];
-		deregister_updater(id);
+		var id = GNOS.store_renderer_ids[i];
+		deregister_renderer(id);
 	}
-	GNOS.store_updater_ids = [];
+	GNOS.store_renderer_ids = [];
 }
 
 // TODO: Chrome version 21 only supports four outstanding EventSources so snmp doesn't
 // show up (if you use the Network tab in the developer panel you'll see that the snmp request
 // is marked pending). The Sep 2012 beta, version 22, supports more so the snmp items do 
 // show up there.
-function register_store_event(store)
+function register_store_query(store)
 {
 	var query = '											\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>	\
@@ -97,11 +93,12 @@ WHERE 													\
 } ORDER BY ?name';
 	
 	var id = "models-" + store;
-	register_event(id, store, [query], function (solution) {return store_handler(store, solution)});
-	GNOS.store_event_ids.push(id);
+	var model_name = "{0}-store".format(store);
+	register_query(id, [model_name], store, [query], function (solution) {return store_query(store, solution)});
+	GNOS.store_query_ids.push(id);
 }
 
-function store_handler(store, solution)
+function store_query(store, solution)
 {
 	var model_name = "{0}-store".format(store);
 	
@@ -117,15 +114,14 @@ function store_handler(store, solution)
 						klass, encodeURIComponent(name), escapeHtml(name), encodeURIComponent(store));
 	}
 	
-	GNOS.model[model_name] = html;
-	
-	return [model_name];
+	var result = {};
+	result[model_name] = html;
+	return result;
 }
 
-function store_updater(element, model_names)
+function store_renderer(element, model, model_names)
 {
 	var model_name = model_names[0];
 	
-	element.innerHTML = GNOS.model[model_name];
-	GNOS.model[model_name] = null;
+	element.innerHTML = model[model_name];
 }

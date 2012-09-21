@@ -1,28 +1,44 @@
-// Used to simplify dynamic web views.
+// Helpers used to manage queries and updating for dynamic views.
 //
-// Based on three core concepts:
-// 1) An event which contains the name of a store and SPARQL query(s) against that store.
-// 2) A handler which processes solutions for an event pushed put by the server and updates the
-// GNOS.model dictionary.
-// 3) An updater which is called when a particular model value changes.
-//
-// Events and handlers are often swapped in and out depending upon the current selection.
-// Updaters tend to be more static.
+// The design consists of a client-side model which is populated with query functions and viewed 
+// with renderer callbacks. This provides a layer of indirection between queries and views which
+// allows the queries to change without affecting the views.
 "use strict";
 
-// Adds store query(s) + a function used to update GNOS.model.
-// id is an arbitrary string used to remove the event+handler
-// store is the name of a serve store, e.g. "primary"
-// query is a SPARQL query which the server will continuously run
-// handler is a function which takes solution(s) and returns the names of the GNOS.model keys 
-//     which were updated
-function register_event(id, store, queries, handler)
+// Adds SPARQL query(s) used to update the model. Renderers will be automatically called
+// as the model changes.
+//
+// id is an arbitrary string used with deregister_query
+// model_names is a list of strings
+// store is the name of a server store, e.g. "primary"
+// queries is a list of SPARQL queries which the server will continuously run
+// callback is of the form: function (solution(s)) -> object
+//    where the object can only have fields within model_names
+function register_query(id, model_names, store, queries, callback)
 {
-	if (!GNOS.sse_events)
-		GNOS.sse_events = {};
-	assert(!GNOS.sse_events[id], id + " is already a registered event");
-//console.log("registering {0} event for {1}".format(id, store));
+	if (!GNOS.sse_queries)
+		GNOS.sse_queries = {};
+	assert(!GNOS.sse_queries[id], id + " is already a registered query");
+//console.log("registering {0} query for {1}".format(id, store));
 	
+	// Models should be associated with only one query.
+	for (var qid in GNOS.sse_queries)
+	{
+		var candidate = GNOS.sse_queries[qid];
+		var common = model_names.intersect(candidate.model_names);
+		assert(common.length == 0, "{0:j} was found in {1}".format(common, qid));
+	}
+	
+	// Start the model off in a well known state.
+	if (!GNOS.sse_model)
+		GNOS.sse_model = {};
+	model_names.forEach(
+		function (model_name)
+		{
+			GNOS.sse_model[model_name] = null;
+		});
+	
+	// Create an EventSource for the query.
 	var expressions = queries.map(
 		function (query, index)
 		{
@@ -31,22 +47,24 @@ function register_event(id, store, queries, handler)
 			else
 				return "expr{0}={1}".format(index+1, encodeURIComponent(query));
 		});
-	
 	var source = new EventSource('/query?name={0}&{1}'.
 		format(encodeURIComponent(store), expressions.join("&")));
+	
 	source.addEventListener('message', function(event)
 	{
+		// For one query this will be a solution. For multiple queries a list of solutions.
 		var data = JSON.parse(event.data);
-//console.log('sse> {0} received update'.format(id));
 		
-		if (!GNOS.model)
-			GNOS.model = {};
-		var model_names = handler(data);
-//console.log('sse> model_names = {0:j}'.format(model_names));
-		if (model_names)
+		var result = callback(data);
+		if (result)
 		{
-//console.log('sse> {0} updating'.format(id));
-			do_model_change(model_names);
+			for (var name in result)
+			{
+				assert(model_names.indexOf(name) >= 0, "{0} returned {1} which is not in {2:j}".format(id, name, model_names));
+				GNOS.sse_model[name] = result[name]
+			}
+			
+			do_model_changed(Object.keys(result));
 		}
 	});
 	
@@ -63,67 +81,79 @@ function register_event(id, store, queries, handler)
 			console.log('sse> {0} error: {1}'.format(id, event.eventPhase));
 	});
 	
-	GNOS.sse_events[id] = source;
+	// Remember the details for this query.
+	GNOS.sse_queries[id] = {source: source, model_names: model_names};
 }
 
 // Removes an existing query.
-function deregister_event(id)
+function deregister_query(id)
 {
-//console.log("deregistering {0} event".format(id));
-	if (GNOS.sse_events[id])
+	var query = GNOS.sse_queries[id];
+	if (query)
 	{
-		GNOS.sse_events[id].close();
-		delete GNOS.sse_events[id];
+		// Renderers will often hang around so don't leave stale state hanging around.
+		query.model_names.forEach(
+			function (name)
+			{
+				GNOS.sse_model[model_name] = null;
+			});
+		
+		// Deterministically close the sse session.
+		query.source.close();
+		
+		// Delete the query.
+		delete GNOS.sse_queries[id];
 	}
 }
 
-// Add a function which is called when a named GNOS.model value changes.
-// id is an arbitrary string used to remove the updater
-// model_names contains a list of model names as returned by handlers
-// element_name is the id of the html element which will be redrawn
-// updater is a function taking the element and model names which changed and returning nothing
-function register_updater(id, model_names, element_name, updater)
+// Add a function which is called when an associated model object changes.
+//
+// id is an arbitrary string used to remove the renderer
+// model_names contains a list of model names used by the renderer
+// element_id is the id of the html element which will be redrawn (via an animation)
+// callback is of the form: function (element, model, model_names) -> ()
+//    element is the HTML element associated with the renderer
+//    model is an object whose entries include the names from model_names
+//       (entries not in model_names may have null values)
+//    model_names are the models that have changed
+function register_renderer(id, model_names, element_id, callback)
 {
-	if (!GNOS.sse_updaters)
-		GNOS.sse_updaters = {};
-	assert(!GNOS.sse_updaters[id], id + " is already a registered updater");
+	if (!GNOS.sse_renderers)
+		GNOS.sse_renderers = {};
+	assert(!GNOS.sse_renderers[id], id + " is already a registered renderer");
 //console.log("registering {0} updater for {1:j}".format(id, model_names));
 	
-	GNOS.sse_updaters[id] =
+	GNOS.sse_renderers[id] =
 		{
-			models: model_names,
-			element: element_name,
-			callback: updater,
+			model_names: model_names,
+			element_id: element_id,
+			callback: callback,
 		};
 }
 
 // Removes an existing updater.
-function deregister_updater(id)
+function deregister_renderer(id)
 {
-//console.log("deregistering {0} updater".format(id));
-	if (GNOS.sse_updaters)
+	if (GNOS.sse_renderers)
 	{
-		delete GNOS.sse_updaters[id];
+		delete GNOS.sse_renderers[id];
 	}
 }
 
 // ---- Internal Functions --------------------------------------------------------------
-function do_model_change(model_names)
+function do_model_changed(model_names)
 {
-	// Figure out which updaters need to be called.
-	var ids = [];
-	for (var id in GNOS.sse_updaters)
+	for (var id in GNOS.sse_renderers)
 	{
-		var updater = GNOS.sse_updaters[id];
-		if (updater.models.some(function (name) {return model_names.indexOf(name) >= 0}))
-			ids.push(id);
-	}
-	
-	// Call them.
-	for (var i = 0; i < ids.length; ++i)
-	{
-		var updater = GNOS.sse_updaters[ids[i]];
-		var element = document.getElementById(updater.element);
-		animated_draw(element, function () {updater.callback(element, model_names)});
+		var candidate = GNOS.sse_renderers[id];
+		if (candidate.model_names.intersects(model_names))
+		{
+			var element = document.getElementById(candidate.element_id);
+			animated_draw(element, 
+				function ()
+				{
+					candidate.callback(element, GNOS.sse_model, model_names)
+				});
+		}
 	}
 }
