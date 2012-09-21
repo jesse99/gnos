@@ -28,6 +28,14 @@ Array.prototype.intersects = function(rhs)
 	return false;
 }
 
+Array.prototype.push_all = function(rhs)
+{
+	for (var i = 0; i < rhs.length; ++i)
+	{
+		this.push(rhs[i]);
+	}
+}
+
 // Replaces {0} with argument 0, {1} with argument 1, etc.
 // Argument index can be appended with ":j" to print the argument as json.
 String.prototype.format = function()

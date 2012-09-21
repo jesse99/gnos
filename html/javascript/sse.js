@@ -12,9 +12,9 @@
 // model_names is a list of strings
 // store is the name of a server store, e.g. "primary"
 // queries is a list of SPARQL queries which the server will continuously run
-// callback is of the form: function (solution(s)) -> object
+// callbacks are of the form: function (solution) -> object
 //    where the object can only have fields within model_names
-function register_query(id, model_names, store, queries, callback)
+function register_query(id, model_names, store, queries, callbacks)
 {
 	if (!GNOS.sse_queries)
 		GNOS.sse_queries = {};
@@ -52,20 +52,26 @@ function register_query(id, model_names, store, queries, callback)
 	
 	source.addEventListener('message', function(event)
 	{
-		// For one query this will be a solution. For multiple queries a list of solutions.
 		var data = JSON.parse(event.data);
-		
-		var result = callback(data);
-		if (result)
+		if (queries.length == 1)
+			data = [data];
+			
+		var keys = [];
+		for (var i = 0; i < queries.length; ++i)
 		{
+			var result = callbacks[i](data[i]);
 			for (var name in result)
 			{
 				assert(model_names.indexOf(name) >= 0, "{0} returned {1} which is not in {2:j}".format(id, name, model_names));
+				assert(keys.indexOf(name) < 0, "{0} returned {1} which is was already returned".format(id, name));
+				
 				GNOS.sse_model[name] = result[name]
+				keys.push(name);
 			}
-			
-			do_model_changed(Object.keys(result));
 		}
+		
+		if (keys)
+			do_model_changed(keys);
 	});
 	
 	source.addEventListener('open', function(event)

@@ -13,7 +13,7 @@ WHERE 													\
 { 															\
 	gnos:globals gnos:store ?name . 						\
 } ORDER BY ?name';
-	register_query("models", ["models"], "globals", [query], models_query);
+	register_query("models", ["models"], "globals", [query], [models_query]);
 	register_renderer("models", ["models"], "body", models_renderer);
 }
 
@@ -94,7 +94,7 @@ WHERE 													\
 	
 	var id = "models-" + store;
 	var model_name = "{0}-store".format(store);
-	register_query(id, [model_name], store, [query], function (solution) {return store_query(store, solution)});
+	register_query(id, [model_name], store, [query], [function (solution) {return store_query(store, solution)}]);
 	GNOS.store_query_ids.push(id);
 }
 

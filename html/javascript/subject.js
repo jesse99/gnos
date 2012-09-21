@@ -22,7 +22,7 @@ WHERE 																\
 	BIND(IF(?is_url, rrdf:pname(?value), ?value) AS ?value_label)	\
 } ORDER BY ?predicate_label ?value_label'.format(about);
 
-	register_query("subject", ["subject"], store, [query], subject_query);
+	register_query("subject", ["subject"], store, [query], [subject_query]);
 	
 	register_renderer("subject", ["subject"], "subject", subject_renderer);
 }
