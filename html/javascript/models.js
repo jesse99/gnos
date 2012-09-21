@@ -3,9 +3,6 @@
 window.onload = function()
 {
 	GNOS.store_event_ids = [];
-	GNOS.store_updater_ids = [];
-	
-	register_updater("models", ["models"], "body", models_updater);
 	
 	var query = '											\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>	\
@@ -21,26 +18,12 @@ WHERE 													\
 function models_handler(solution)
 {
 	deregister_store_events();
-	deregister_store_updaters();
-	
-	GNOS.model.models = solution.map(
-		function (row)
-		{
-			return row.name;
-		});
-	
-	return ["models"];
-}
-
-function models_updater(element, model_names)
-{
-	assert(model_names.length == 1, "expected one model_names but found " + model_names.length);
 	
 	// Add place holders for each store's subjects.
 	var html = "";
-	for (var i = 0; i < GNOS.model.models.length; ++i)
+	for (var i = 0; i < solution.length; ++i)
 	{
-		var store = GNOS.model.models[i];
+		var store = solution[i].name;
 		
 		html += '<details open="open">\n';
 		html += '<summary>{0}</summary>\n'.format(escapeHtml(store));
@@ -49,23 +32,19 @@ function models_updater(element, model_names)
 		html += '</details>\n';
 		html += '<br>\n';
 	}
+	
+	var element = document.getElementById("body");
 	element.innerHTML = html;
 	
 	// Add sse callbacks to update the place holders.
 	GNOS.store_event_ids = [];
-	GNOS.store_updater_ids = [];
-	for (var i = 0; i < GNOS.model.models.length; ++i)
+	for (var i = 0; i < solution.length; ++i)
 	{
-		var store = GNOS.model.models[i];
-		
-		var id = store + "-updater";
-		var model_name = store + "-store";
-		var element = "{0}-store".format(store);
-		register_updater(id, [model_name], element, function (element, model_names) {store_updater(store, element, model_names)});
-		GNOS.store_updater_ids.push(id);
-		
+		var store = solution[i].name;
 		register_store_event(store);
 	}
+	
+	return [];
 }
 
 function deregister_store_events()
@@ -76,16 +55,6 @@ function deregister_store_events()
 		delete GNOS.sse_events[i];
 	}
 	GNOS.store_event_ids = [];
-}
-
-function deregister_store_updaters()
-{
-	for (var i = 0; i < GNOS.store_updater_ids.length; ++i)
-	{
-		var id = GNOS.store_updater_ids[i];
-		delete GNOS.sse_updaters[i];
-	}
-	GNOS.store_updater_ids = [];
 }
 
 // TODO: Chrome version 21 only supports four outstanding EventSources so snmp doesn't
@@ -111,33 +80,21 @@ WHERE 													\
 
 function store_handler(store, solution)
 {
-	var names = solution.map(
-		function (row)
-		{
-			return row.name;
-		});
-	
-	var model_name = store + "-store";
-	GNOS.model[model_name] = names;
-	
-	return [store + "-store"];
-}
+	var element = document.getElementById("{0}-store".format(store));
 
-function store_updater(store, element, model_names)
-{
-	assert(model_names.length == 1, "expected one model_names but found " + model_names.length);
-	
-	var model = GNOS.model[model_names[0]];
-	
 	var html = "";
-	for (var i = 0; i < model.length; ++i)
+	for (var i = 0; i < solution.length; ++i)
 	{
+		var name = solution[i].name;
+		
 		var klass = i & 1 ? "odd" : "even";
 		html += '<tr class="{0}"><td class="value"><span>\
 						<a href="/subject/{3}/{1}">{2}</a>\
 					</span></td></tr>\n'.format(
-						klass, encodeURIComponent(model[i]), escapeHtml(model[i]), encodeURIComponent(store));
+						klass, encodeURIComponent(name), escapeHtml(name), encodeURIComponent(store));
 	}
 	
 	element.innerHTML = html;
+	
+	return [];
 }
