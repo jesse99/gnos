@@ -3,7 +3,10 @@
 window.onload = function()
 {
 	var table = document.getElementById('subject');
-	var expr = '														\
+	var store = table.getAttribute("data-name");
+	var about = table.getAttribute("data-about");
+	
+	var query = '														\
 PREFIX devices: <http://network/>									\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>				\
 PREFIX snmp: <http://snmp/>										\
@@ -17,39 +20,19 @@ WHERE 																\
 	BIND(isIRI(?value) || isBlank(?value) AS ?is_url) .				\
 	BIND(IF(?is_url, ?value, "") AS ?value_url) .					\
 	BIND(IF(?is_url, rrdf:pname(?value), ?value) AS ?value_label)	\
-} ORDER BY ?predicate_label ?value_label'.format(table.getAttribute("data-about"));
+} ORDER BY ?predicate_label ?value_label'.format(about);
 
-	var store_name = table.getAttribute("data-name");
-	var source = new EventSource('/query?name={0}&expr={1}'.format(
-		encodeURIComponent(store_name), encodeURIComponent(expr)));
-	source.addEventListener('message', function(event)
-	{
-		var data = JSON.parse(event.data);
-		
-		var element = document.getElementById('body');
-		animated_draw(element, function() {update_html(data);});
-	});
+	register_event("subject", store, [query], handle_subject);
 	
-	source.addEventListener('open', function(event)
-	{
-		console.log('> subject stream opened');
-	});
-	
-	source.addEventListener('error', function(event)
-	{
-		if (event.eventPhase === 2)
-		{
-			console.log('> subject stream closed');
-		}
-	});
+	register_updater("subject", ["subject"], "subject", update_subject);
 }
 
-function update_html(data)
+function handle_subject(solution)
 {
 	var html = '';
-	for (var i = 0; i < data.length; ++i)
+	for (var i = 0; i < solution.length; ++i)
 	{
-		var row = data[i];
+		var row = solution[i];
 		//console.log('predicate_url: "{0}", predicate_label: "{1}", value_url: "{2}", 
 		//	value_label: "{3}"'.format(row.predicate_url, row.predicate_label, row.value_url, row.value_label));
 		var klass = i & 1 ? "odd" : "even";
@@ -82,8 +65,15 @@ function update_html(data)
 		html += '</tr>';
 	}
 	
-	var table = document.getElementById('subject');
-	table.innerHTML = html;
+	GNOS.model.subject = html;
+	
+	return ["subject"];
+}
+
+function update_subject(element, model_names)
+{
+	element.innerHTML = GNOS.model.subject;
+	GNOS.model.subject = "";
 }
 
 function make_link(url, label)

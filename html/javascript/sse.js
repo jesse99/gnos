@@ -7,7 +7,7 @@
 // 3) An updater which is called when a particular model value changes.
 //
 // Events and handlers are often swapped in and out depending upon the current selection.
-// Updaters tend to be more static. Note that for simple usages the handlers can also update.
+// Updaters tend to be more static.
 "use strict";
 
 // Adds store query(s) + a function used to update GNOS.model.
