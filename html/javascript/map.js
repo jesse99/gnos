@@ -16,8 +16,10 @@ window.onload = function()
 	resize_canvas();
 	window.onresize = resize_canvas;
 	
-	register_renderer("default map", ["device_info", "device_labels", "device_meters", "poll_interval"], "map", map_renderer);
-	register_map_query();
+	var map_model_names = ["device_info", "device_labels", "device_meters", "poll_interval", "map_alert_label", "device_alert_labels"];
+	register_renderer("default map", map_model_names, "map", map_renderer);
+	register_primary_map_query();
+	register_alert_count_query();
 	GNOS.timer_id = setInterval(update_time, 1000);
 }
 
@@ -33,7 +35,7 @@ function resize_canvas()
 	}
 }
 
-function register_map_query()
+function register_primary_map_query()
 {
 	// It's rather awkward to have all these OPTIONAL clauses, but according
 	// to the spec the entire OPTIONAL block must match in order to affect 
@@ -93,7 +95,21 @@ WHERE 														\
 		gnos:map gnos:last_update ?last_update .				\
 	}															\
 }'];
-	register_query("map query", ["device_info", "device_labels", "device_meters", "poll_interval"], "primary", queries, [device_shapes_query, device_meters_query, poll_interval_query]);
+	register_query("primary map query", ["device_info", "device_labels", "device_meters", "poll_interval"], "primary", queries, [device_shapes_query, device_meters_query, poll_interval_query]);
+}
+
+function register_alert_count_query()
+{
+	var query = '												\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
+SELECT 														\
+	?device ?count												\
+WHERE 														\
+{																\
+	?device gnos:num_errors ?count							\
+}';
+	register_query("alert count query", ["map_alert_label", "device_alert_labels"], "alerts", [query], [alert_count_query]);
 }
 
 // solution rows have 
@@ -200,6 +216,50 @@ function poll_interval_query(solution)
 	return {poll_interval: shape}
 }
 
+// solution rows have 
+// required fields: device, count
+function alert_count_query(solution)
+{
+	var map_label = undefined;
+	var device_labels = {};
+	
+	var map = document.getElementById('map');
+	var context = map.getContext('2d');
+	for (var i = 0; i < solution.length; ++i)
+	{
+		var alert = solution[i];
+		
+		var label = get_error_alert_count_label(alert.count);
+		if (alert.device === "http://www.gnos.org/2012/schema#map")
+		{
+			map_label = new TextLinesShape(context,
+				function (self)
+				{
+					return new Point(context.canvas.width/2, context.canvas.height - self.stats.total_height/2);
+				}, [label], ['map', 'label'], ['error_label']);
+		}
+		else
+		{
+			var shape = new TextLinesShape(context, Point.zero, [label], ['label'], ['error_label']);
+			if (!device_labels[alert.device])
+				device_labels[alert.device] = [];
+			device_labels[alert.device].push(shape);
+		}
+	}
+	
+	return {map_alert_label: map_label, device_alert_labels: device_labels};
+}
+
+function get_error_alert_count_label(count)
+{
+	if (count === "1")
+		return "1 error alert";
+	else if (count !== "0")
+		return "{0} error alerts".format(count);
+	else
+		return "";
+}
+
 function update_time()
 {
 	if (GNOS.scene.shapes.length > 0 && GNOS.poll_interval)
@@ -275,10 +335,16 @@ function map_renderer(element, model, model_names)
 	model.device_info.forEach(
 		function (device)
 		{
+			function push_shape(shapes, model, name)
+			{
+				if (model && name in model)
+					model[name].forEach(function (shape) {shapes.push(shape);});
+			}
+			
 			var child_shapes = [];
-			child_shapes.push_all(model.device_labels[device.name]);
-			child_shapes.push_all(model.device_meters[device.name]);
-			// error counts
+			push_shape(child_shapes, model.device_labels, device.name);
+			push_shape(child_shapes, model.device_meters, device.name);
+			push_shape(child_shapes, model.device_alert_labels, device.name);
 			
 			// Unfortunately we can't create this shape until after all the other sub-shapes are created.
 			// So it's simplest just to create the shape here.
@@ -286,6 +352,8 @@ function map_renderer(element, model, model_names)
 			var shape = new DeviceShape(context, device.name, center, device.base_styles, child_shapes);
 			GNOS.scene.append(shape);
 		});
+	if (model.map_alert_label)
+		GNOS.scene.append(model.map_alert_label);
 	if (model.poll_interval)								// this must be the last shape (we dynamically swap new shapes in)
 		GNOS.scene.append(model.poll_interval);
 	else
