@@ -3,6 +3,7 @@
 window.onload = function()
 {
 	GNOS.store_event_ids = [];
+	GNOS.store_updater_ids = [];
 	
 	var query = '											\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>	\
@@ -13,13 +14,11 @@ WHERE 													\
 	gnos:globals gnos:store ?name . 						\
 } ORDER BY ?name';
 	register_event("models", "globals", [query], models_handler);
+	register_updater("models", ["models"], "body", models_updater);
 }
 
 function models_handler(solution)
 {
-	deregister_store_events();
-	
-	// Add place holders for each store's subjects.
 	var html = "";
 	for (var i = 0; i < solution.length; ++i)
 	{
@@ -33,18 +32,32 @@ function models_handler(solution)
 		html += '<br>\n';
 	}
 	
-	var element = document.getElementById("body");
-	element.innerHTML = html;
+	GNOS.model.models = [html, solution];
+	
+	return ["models"];
+}
+
+function models_updater(element, model_names)
+{
+	element.innerHTML = GNOS.model.models[0];
 	
 	// Add sse callbacks to update the place holders.
-	GNOS.store_event_ids = [];
+	deregister_store_events();
+	deregister_updater_events();
+	
+	var solution = GNOS.model.models[1];
 	for (var i = 0; i < solution.length; ++i)
 	{
 		var store = solution[i].name;
 		register_store_event(store);
+		
+		var name = "{0}-store".format(store);
+		var element = document.getElementById(name);
+		register_updater(name, [name], name, store_updater);
+		GNOS.store_updater_ids.push(name);
 	}
 	
-	return [];
+	GNOS.model.models = null;
 }
 
 function deregister_store_events()
@@ -55,6 +68,16 @@ function deregister_store_events()
 		delete GNOS.sse_events[i];
 	}
 	GNOS.store_event_ids = [];
+}
+
+function deregister_updater_events()
+{
+	for (var i = 0; i < GNOS.store_updater_ids.length; ++i)
+	{
+		var id = GNOS.store_updater_ids[i];
+		deregister_updater(id);
+	}
+	GNOS.store_updater_ids = [];
 }
 
 // TODO: Chrome version 21 only supports four outstanding EventSources so snmp doesn't
@@ -80,8 +103,8 @@ WHERE 													\
 
 function store_handler(store, solution)
 {
-	var element = document.getElementById("{0}-store".format(store));
-
+	var model_name = "{0}-store".format(store);
+	
 	var html = "";
 	for (var i = 0; i < solution.length; ++i)
 	{
@@ -94,7 +117,15 @@ function store_handler(store, solution)
 						klass, encodeURIComponent(name), escapeHtml(name), encodeURIComponent(store));
 	}
 	
-	element.innerHTML = html;
+	GNOS.model[model_name] = html;
 	
-	return [];
+	return [model_name];
+}
+
+function store_updater(element, model_names)
+{
+	var model_name = model_names[0];
+	
+	element.innerHTML = GNOS.model[model_name];
+	GNOS.model[model_name] = null;
 }
