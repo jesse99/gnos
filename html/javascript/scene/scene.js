@@ -11,6 +11,14 @@ Scene.prototype.append = function (shape)
 	this.shapes.push(shape);
 }
 
+Scene.prototype.append_all = function (shapes)
+{
+	for (var i = 0; i < shapes.length; ++i)
+	{
+		this.shapes.push(shapes[i]);
+	}
+}
+
 Scene.prototype.find = function (predicate)
 {
 	for (var i = 0; i < this.shapes.length; ++i)

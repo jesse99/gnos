@@ -16,7 +16,7 @@ window.onload = function()
 	resize_canvas();
 	window.onresize = resize_canvas;
 	
-	var map_model_names = ["device_info", "device_labels", "device_meters", "poll_interval", "map_alert_label", "device_alert_labels"];
+	var map_model_names = ["device_info", "device_labels", "device_meters", "poll_interval", "map_alert_label", "device_alert_labels", "device_relation_infos"];
 	register_renderer("default map", map_model_names, "map", map_renderer);
 	register_primary_map_query();
 	register_alert_count_query();
@@ -71,6 +71,34 @@ WHERE 														\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 														\
+	?src ?dst ?primary_label ?secondary_label				\
+	?tertiary_label ?type ?style									\
+WHERE 														\
+{																\
+	?rel gnos:src ?src .											\
+	?rel gnos:dst ?dst .											\
+	?rel gnos:type ?type .										\
+	OPTIONAL												\
+	{															\
+		?rel gnos:style ?style .									\
+	}															\
+	OPTIONAL												\
+	{															\
+		?rel gnos:primary_label ?primary_label .				\
+	}															\
+	OPTIONAL												\
+	{															\
+		?rel gnos:secondary_label ?secondary_label .			\
+	}															\
+	OPTIONAL												\
+	{															\
+		?rel gnos:tertiary_label ?tertiary_label .				\
+	}															\
+}',
+	'															\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
+SELECT 														\
 	?label ?device ?level ?description							\
 WHERE 														\
 {																\
@@ -95,7 +123,9 @@ WHERE 														\
 		gnos:map gnos:last_update ?last_update .				\
 	}															\
 }'];
-	register_query("primary map query", ["device_info", "device_labels", "device_meters", "poll_interval"], "primary", queries, [device_shapes_query, device_meters_query, poll_interval_query]);
+	var model_names = ["device_info", "device_labels", "device_meters", "poll_interval", "device_relation_infos"];
+	var callbacks = [device_shapes_query, relations_query, device_meters_query, poll_interval_query];
+	register_query("primary map query", model_names, "primary", queries, callbacks);
 }
 
 function register_alert_count_query()
@@ -161,6 +191,57 @@ function device_shapes_query(solution)
 	}
 	
 	return {device_info: infos, device_labels: labels}
+}
+
+// solution rows have 
+// required fields: src, dst, type
+// optional fields: style, primary_label, secondary_label, tertiary_label
+function relations_query(solution)
+{
+	var lines = {};
+	
+	var has_arrow = {stem_height: 16, base_width: 12};
+	var no_arrow = {stem_height: 0, base_width: 0};
+	
+	for (var i = 0; i < solution.length; ++i)
+	{
+		var relation = solution[i];
+		
+		var key = relation.src < relation.dst ? relation.src + "/" + relation.dst : relation.dst + "/" + relation.src;
+		if (relation.type === "undirected")
+		{
+			// undirected: no arrows
+			if (key in lines)
+				lines[key] = {r: lines[key].r, s: relation, broken: false, from_arrow: no_arrow, to_arrow: no_arrow};
+			else
+				lines[key] = {r: relation, s: null, broken: false, from_arrow: no_arrow, to_arrow: no_arrow};
+		}
+		else if (relation.type === "unidirectional")
+		{
+			// unidirectional: arrow for each relation
+			if (key in lines)
+				lines[key] = {r: lines[key].r, s: relation, broken: false, from_arrow: has_arrow, to_arrow: has_arrow};
+			else
+				lines[key] = {r: relation, s: null, broken: false, from_arrow: no_arrow, to_arrow: has_arrow};
+		}
+		else if (relation.type === "bidirectional")
+		{
+			// two-way bidirectional: no arrows
+			// one-way bidirectional: broken (red) arrow
+			if (key in lines)
+				lines[key] = {r: lines[key].r, s: relation, broken: false, from_arrow: no_arrow, to_arrow: no_arrow};
+			else
+				lines[key] = {r: relation, s: null, broken: true, from_arrow: no_arrow, to_arrow: has_arrow};
+		}
+		else
+		{
+			console.log("Bad relation type: " + relation.type);
+		}
+	}
+	
+	// Returns object mapping src/dst device subjects to objects of the form:
+	//     {r: relation, broken: bool, from_arrow: arrow, to_arrow}
+	return {device_relation_infos: lines}
 }
 
 // solution rows have 
@@ -325,6 +406,82 @@ function create_poll_interval_label(last, poll_interval)
 	return shape;
 }
 
+function add_relations_shapes(context, infos)
+{
+	function add_relation_line_shape(info)
+	{
+		if ('style' in info.r)
+			var style = info.r.style;
+		else
+			var style = 'identity';
+			
+		if (info.broken)
+			var style_names = [style, 'broken_relation'];
+		else
+			var style_names = [style];
+		
+		var src = GNOS.scene.find(function (shape) {return shape.name === info.r.src});
+		var dst = GNOS.scene.find(function (shape) {return shape.name === info.r.dst});
+		
+		var line = discs_to_line(src.disc.geometry, dst.disc.geometry);
+		line = line.shrink(src.disc.stroke_width/2, dst.disc.stroke_width/2);	// path strokes are centered on the path
+		var shape = new LineShape(line, style_names, info.from_arrow, info.to_arrow);
+		GNOS.scene.append(shape);
+		
+		return line;
+	}
+	
+	function add_relation_label_shape(context, relation, line, p)
+	{
+		if ('style' in relation)
+			var style = relation.style;
+		else
+			var style = 'identity';
+			
+		// TODO: Should allow labels to have EOL characters. (We don't want to allow multiple
+		// labels in the store because the joins get all whacko).
+		var lines = [];
+		var style_names = [];
+		if ('primary_label' in relation)
+		{
+			lines.push(relation.primary_label);
+			style_names.push('primary_relation');
+		}
+		if ('secondary_label' in relation)
+		{
+			lines.push(relation.secondary_label);
+			style_names.push('secondary_relation');
+		}
+		if ('tertiary_label' in relation)
+		{
+			lines.push(relation.tertiary_label);
+			style_names.push('tertiary_relation');
+		}
+		
+		var center = line.interpolate(p);
+		var base_styles = [style, 'label', 'relation_label'];
+		
+		var shape = new TextLinesShape(context, center, lines, base_styles, style_names);
+		GNOS.scene.append(shape);
+	}
+	
+	var lines = [];
+	for (var key in infos)
+	{
+		var info = infos[key];
+		lines.push(add_relation_line_shape(info));
+	}
+	
+	var i = 0;
+	for (var key in infos)		// do this after drawing lines so that the labels appear on top
+	{
+		add_relation_label_shape(context, infos[key].r, lines[i], 0.3);
+		if (infos[key].s)
+			add_relation_label_shape(context, infos[key].s, lines[i], 0.7);
+		i += 1;
+	}
+}
+
 function map_renderer(element, model, model_names)
 {
 	var map = document.getElementById('map');
@@ -352,8 +509,12 @@ function map_renderer(element, model, model_names)
 			var shape = new DeviceShape(context, device.name, center, device.base_styles, child_shapes);
 			GNOS.scene.append(shape);
 		});
+	if (model.device_relation_infos)
+		add_relations_shapes(context, model.device_relation_infos);
+		
 	if (model.map_alert_label)
 		GNOS.scene.append(model.map_alert_label);
+		
 	if (model.poll_interval)								// this must be the last shape (we dynamically swap new shapes in)
 		GNOS.scene.append(model.poll_interval);
 	else
