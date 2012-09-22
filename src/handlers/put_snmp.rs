@@ -116,7 +116,7 @@ fn json_to_primary(options: Options, remote_addr: ~str, store: &Store, alerts_st
 			{
 				let old_subject = get_blank_name(store, ~"old");
 				add_device(store, alerts_store, options.devices, managed_ip, device, old, old_subject);
-				add_device_notes(store, alerts_store, managed_ip, device);
+				add_device_notes(store, managed_ip, device);
 			}
 			_ =>
 			{
@@ -232,7 +232,7 @@ fn toggle_device_down_alert(alerts_store: &Store, managed_ip: ~str, up: bool)
 	}
 }
 
-fn add_device_notes(store: &Store, alerts_store: &Store, managed_ip: ~str, _device: hashmap<~str, Json>)
+fn add_device_notes(store: &Store, managed_ip: ~str, _device: hashmap<~str, Json>)
 {
 	// summary
 	let html = #fmt["
@@ -252,129 +252,6 @@ fn add_device_notes(store: &Store, alerts_store: &Store, managed_ip: ~str, _devi
 		(~"gnos:open",     StringValue(~"no", ~"")),
 		(~"gnos:key",       StringValue(~"device notes", ~"")),
 	]);
-	
-	// alerts
-	for get_alert_html(alerts_store, managed_ip).each
-	|level, alerts|
-	{
-		add_alerts(store, managed_ip, alerts.get(), level);
-	}
-}
-
-fn add_alerts(store: &Store, managed_ip: ~str, alerts: ~[(float, ~str)], level: ~str)
-{
-	if alerts.is_not_empty()
-	{
-		let alerts = std::sort::merge_sort(|x, y| {*x <= *y}, alerts);
-		
-		let mut html = ~"";
-		html += ~"<ul class = 'sequence'>\n";
-			let items = do alerts.map |r| {fmt!("<li>%s</li>\n", r.second())};
-			html += str::connect(items, ~"");
-		html += ~"</ul>\n";
-		
-		let weight = 
-			match level
-			{
-				~"error" => {0.9f64}
-				~"warning" => {0.8f64}
-				~"info" => {0.3f64}
-				_ => {0.01f64}
-			};
-		
-		let subject = get_blank_name(store, fmt!("%s %s-alert", managed_ip, level));
-		store.add(subject, ~[
-			(~"gnos:title",       StringValue(level + ~" alerts", ~"")),
-			(~"gnos:target",    IriValue(fmt!("devices:%s", managed_ip))),
-			(~"gnos:detail",    StringValue(html, ~"")),
-			(~"gnos:weight",  FloatValue(weight)),
-			(~"gnos:open",     StringValue(if level == ~"error" {~"always"} else {~"no"}, ~"")),
-			(~"gnos:key",       StringValue(level + ~"alert", ~"")),
-		]);
-	}
-}
-
-fn get_alert_html(alerts_store: &Store, managed_ip: ~str) -> hashmap<~str, @DVec<(float, ~str)>>
-{
-	let table = str_hash();		// level => [(elapsed, html)]
-	table.insert(~"error", @DVec());
-	table.insert(~"warning", @DVec());
-	table.insert(~"info", @DVec());
-	table.insert(~"debug", @DVec());
-	table.insert(~"closed", @DVec());
-	
-	// Show all open alerts and all alerts closed within the last seven days.
-	let now = std::time::get_time();
-	let then = {sec: now.sec - 60*60*24*7 , .. now};
-	
-	let device = fmt!("devices:%s", managed_ip);
-	let expr = #fmt["
-	PREFIX devices: <http://network/>
-	PREFIX gnos: <http://www.gnos.org/2012/schema#>
-	PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-	SELECT
-		?begin ?mesg ?level ?end ?resolution
-	WHERE
-	{
-		?subject gnos:device %s .
-		?subject gnos:begin ?begin .
-		?subject gnos:mesg ?mesg .
-		?subject gnos:level ?level .
-		?subject gnos:resolution ?resolution .
-		OPTIONAL
-		{
-			?subject gnos:end ?end
-		}
-		FILTER (!bound(?end) || ?end >= \"%s\"^^xsd:dateTime)
-	}", device, std::time::at_utc(then).rfc3339()];
-	
-	match eval_query(alerts_store, expr)
-	{
-		result::Ok(solution) =>
-		{
-			for solution.rows.each
-			|row|
-			{
-				let level = row.get(~"level").as_str();
-				let level = if row.contains(~"end") {~"closed"} else {level};
-				
-				let begin = row.get(~"begin").as_tm();
-				let {elapsed, delta} = utils::tm_to_delta_str(begin);
-				
-				let mesg = row.get(~"mesg").as_str();
-				let (elapsed, mesg) =
-					if !row.contains(~"end")
-					{
-						(elapsed, if elapsed > 60.0{fmt!("%s (%s)", mesg, delta)} else {mesg})
-					}
-					else
-					{
-						let end = row.get(~"end").as_tm();
-						let {elapsed, delta} = utils::tm_to_delta_str(end);
-						(elapsed, if elapsed > 60.0{fmt!("%s (closed %s)", mesg, delta)} else {mesg})
-					};
-				
-				let klass = level + ~"-alert";
-				let resolution = row.get(~"resolution").as_str();
-				let html =
-					if resolution.is_not_empty()
-					{
-						fmt!("<p class='%s tooltip' data-tooltip=' %s'>%s</p>", klass, resolution, mesg)
-					}
-					else
-					{
-						fmt!("<span class='%s'>%s</span>", klass, mesg)
-					};
-				table[level].push((elapsed, html));
-			}
-		}
-		result::Err(err) =>
-		{
-			error!("error querying for %s alerts: %s", managed_ip, err);
-		}
-	}
-	
-	return table;
 }
 
 fn get_device_label(snmp: &Snmp) -> ~str

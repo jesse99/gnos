@@ -23,7 +23,7 @@ window.onload = function()
 	
 	var model_names = ["device_info", "device_labels", "device_meters", "poll_interval", "map_alert_label", "device_alert_labels", "device_relation_infos"];
 	register_renderer("map renderer", model_names, "map", map_renderer);
-	register_renderer("details renderer", ["selection_details"], "details", details_renderer);
+	register_renderer("details renderer", ["selection_details", "selection_alerts"], "details", details_renderer);
 	
 	register_primary_map_query();
 	register_alert_count_query();
@@ -86,11 +86,55 @@ WHERE 														\
 	?details gnos:key ?key 									\
 }  ORDER BY DESC(?weight) ASC(?title)'.format(name);
 	register_query("selection query", ["selection_details"], "primary", [query], [device_selection_query]);
+	
+	var oldest = new Date();
+	oldest.setDate(oldest.getDate() - 7);	// show alerts for the last week
+	if (name === "gnos:map")
+		var query = '											\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
+SELECT 														\
+	?target ?mesg ?resolution ?level ?begin ?end				\
+WHERE 														\
+{																\
+	?subject gnos:target ?target .								\
+	?subject gnos:mesg ?mesg .								\
+	?subject gnos:level ?level .								\
+	?subject gnos:begin ?begin .								\
+	?subject gnos:resolution ?resolution .						\
+	OPTIONAL												\
+	{															\
+		?subject gnos:end ?end								\
+	}															\
+	FILTER (?begin >= "{0}"^^xsd:dateTime)				\
+} ORDER BY ?begin ?mesg'.format(oldest.toISOString());
+	else
+		var query = '											\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
+SELECT 														\
+	?mesg ?resolution ?level ?begin ?end						\
+WHERE 														\
+{																\
+	?subject gnos:target <{0}> .								\
+	?subject gnos:mesg ?mesg .								\
+	?subject gnos:level ?level .								\
+	?subject gnos:begin ?begin .								\
+	?subject gnos:resolution ?resolution .						\
+	OPTIONAL												\
+	{															\
+		?subject gnos:end ?end								\
+	}															\
+	FILTER (?begin >= "{1}"^^xsd:dateTime)				\
+} ORDER BY ?begin ?mesg'.format(name, oldest.toISOString());
+	
+	register_query("selection alerts query", ["selection_alerts"], "alerts", [query], [selection_alerts_query]);
 }
 
 function deregister_selection_query()
 {
 	deregister_query("selection query");
+	deregister_query("selection alerts query");
 	
 	GNOS.selection_name = null;
 	GNOS.selection_source = null;
@@ -139,14 +183,108 @@ function device_selection_query(solution)
 	return {selection_details: details}
 }
 
+// solution rows have 
+// required fields: mesg, resolution, level, begin
+// optional fields: end, target
+function selection_alerts_query(solution)
+{
+	function add_alert(row, options)
+	{
+		var html = "";
+		if (options.levels.indexOf(row.level) >= 0 && (options.kind === "inactive") === 'end' in row)
+		{
+			if ('end' in row)
+				var date = new Date(row.end);
+			else
+				var date = new Date(row.begin);
+				
+			if ('target' in row)
+			{
+				var i = row.target.lastIndexOf('#');
+				if (i < 0)
+					i = row.target.lastIndexOf('/');
+					
+				if (i >= 0)
+					var target = "{0}: ".format(row.target.slice(i+1));
+				else
+					var target = "{0}: ".format(row.target);
+			}
+			else
+				var target = "";
+				
+			var classes = '{0}-alert'.format(row.level);
+			var attributes = '';
+			if (row.resolution)
+			{
+				classes += ' tooltip';
+				attributes += ' data-tooltip=" {0}"'.format(escapeHtml(row.resolution));
+			}
+			
+			html = '<li class="{0}"{1}">{2}{3} ({4})</li>\n'.format(
+				classes, attributes, escapeHtml(target), escapeHtml(row.mesg), dateToStr(date));
+		}
+		return html;
+	}
+	
+	function add_widget(inner, title, open)
+	{
+		var html = "";
+		
+		if (inner)
+		{
+			if (open)
+				html += '<details open="open">\n';
+			else
+				html += '<details>\n';
+			html += '	<summary>{0}</summary>\n'.format(title);
+			html += "		<ul class='sequence'>\n";
+			html += inner;
+			html += "		</ul>\n";
+			html += '</details>\n';
+		}
+		
+		return html;
+	}
+	
+	var error_alerts = "";
+	var warning_alerts = "";
+	var closed_alerts = "";
+	
+	for (var i = 0; i < solution.length; ++i)
+	{
+		var row = solution[i];
+		
+		error_alerts      += add_alert(row, {levels: ["error"], kind: "active"});
+		warning_alerts += add_alert(row, {levels: ["warning"], kind: "active"});
+		closed_alerts    += add_alert(row, {levels: ["error", "warning"], kind: "inactive"});
+	}
+	
+	var html = "";
+	html += add_widget(error_alerts, "Error Alerts", true);
+	html += add_widget(warning_alerts, "Warning Alerts", false);
+	html += add_widget(closed_alerts, "Closed Alerts", false);
+	
+	return {selection_alerts: html}
+}
+
 function details_renderer(element, model, model_names)
 {
 	var html = '';
-	for (var i = 0; i < model.selection_details.length; ++i)
+	
+	if (model.selection_alerts)
 	{
-		var details = model.selection_details[i];
-		html += details + '\n';
+		html += model.selection_alerts + '\n';
 	}
+	
+	if (model.selection_details)
+	{
+		for (var i = 0; i < model.selection_details.length; ++i)
+		{
+			var details = model.selection_details[i];
+			html += details + '\n';
+		}
+	}
+	
 	element.innerHTML = html;
 }
 

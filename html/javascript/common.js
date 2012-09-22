@@ -97,6 +97,22 @@ function escapeHtml(str)
 	return div.innerHTML;
 };
 
+// Returns a string like "Wednesday 18:06".
+function dateToStr(date)
+{
+	if (date.getHours() < 10)
+	{
+		var prefix = '0';
+	}
+	else
+	{
+		var prefix = '';
+	}
+	
+	var days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+	return "{0} {1}:{2}".format(days[date.getDay()], prefix+date.getHours(), date.getMinutes());
+}
+
 // Converts an interval in milliseconds to a string like "2 seconds" or "1.2 hours".
 function interval_to_time(interval)
 {
