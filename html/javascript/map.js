@@ -4,6 +4,8 @@ GNOS.scene = new Scene();
 GNOS.timer_id = undefined;
 GNOS.last_update = undefined;
 GNOS.poll_interval = undefined;
+GNOS.selection_name = null;
+GNOS.opened = {};
 
 // Thresholds for different meter levels.
 GNOS.good_level		= 0.0;
@@ -16,11 +18,19 @@ window.onload = function()
 	resize_canvas();
 	window.onresize = resize_canvas;
 	
-	var map_model_names = ["device_info", "device_labels", "device_meters", "poll_interval", "map_alert_label", "device_alert_labels", "device_relation_infos"];
-	register_renderer("default map", map_model_names, "map", map_renderer);
+	var map = document.getElementById('map');
+	map.addEventListener("click", handle_canvas_click);
+	
+	var model_names = ["device_info", "device_labels", "device_meters", "poll_interval", "map_alert_label", "device_alert_labels", "device_relation_infos"];
+	register_renderer("map renderer", model_names, "map", map_renderer);
+	register_renderer("details renderer", ["selection_details"], "details", details_renderer);
+	
 	register_primary_map_query();
 	register_alert_count_query();
 	GNOS.timer_id = setInterval(update_time, 1000);
+	
+	register_selection_query("gnos:map");
+	GNOS.selection_name = "gnos:map";
 }
 
 function resize_canvas()
@@ -33,6 +43,111 @@ function resize_canvas()
 	{
 		map_renderer(map, GNOS.sse_model, []);
 	}
+}
+
+function handle_canvas_click(event)
+{
+	if (event.button == 0)
+	{
+		var pos = findPosRelativeToViewport(this);
+		var pt = new Point(event.clientX - pos[0], event.clientY - pos[1]);
+		
+		var shape = GNOS.scene.hit_test(pt);
+		if (shape)
+			var name = shape.name;
+		else
+			var name = "gnos:map";
+		
+		if (name != GNOS.selection_name)
+		{
+			deregister_selection_query();
+			register_selection_query(name);
+			GNOS.selection_name = name;
+		}
+		
+		event.preventDefault();
+	}
+}
+
+function register_selection_query(name)
+{
+	var query = '												\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
+SELECT 														\
+	?title ?detail ?open	?weight ?key							\
+WHERE 														\
+{																\
+	?details gnos:title ?title .									\
+	?details gnos:target <{0}> .								\
+	?details gnos:detail ?detail .								\
+	?details gnos:weight ?weight .								\
+	?details gnos:open ?open .									\
+	?details gnos:key ?key 									\
+}  ORDER BY DESC(?weight) ASC(?title)'.format(name);
+	register_query("selection query", ["selection_details"], "primary", [query], [device_selection_query]);
+}
+
+function deregister_selection_query()
+{
+	deregister_query("selection query");
+	
+	GNOS.selection_name = null;
+	GNOS.selection_source = null;
+}
+
+// solution rows have 
+// required fields: title, detail, open, weight, key
+function device_selection_query(solution)
+{
+	function details_to_html(details)
+	{
+		if (details.open === "always")
+		{
+			var html = details.detail;
+		}
+		else
+		{
+			var open = GNOS.opened[details.key] || details.open === "yes";
+			GNOS.opened[details.key] = open;
+			
+			var handler = "GNOS.opened['{0}'] = !GNOS.opened['{0}']".format(details.key);
+			if (open)
+				var html = '<details open="open" onclick = "{0}">\n'.format(handler);
+			else
+				var html = '<details onclick = "{0}">\n'.format(handler);
+				
+			if (details.title)
+				html += '<summary>{0}</summary>\n'.format(details.title);
+				
+			html += '{0}\n'.format(details.detail);
+			html += '</details>\n';
+		}
+			
+		return html;
+	}
+	
+	var details = [];
+	for (var i = 0; i < solution.length; ++i)
+	{
+		var row = solution[i];
+		
+		var content = details_to_html(row);
+		details.push(content);
+	}
+	
+	return {selection_details: details}
+}
+
+function details_renderer(element, model, model_names)
+{
+	var html = '';
+	for (var i = 0; i < model.selection_details.length; ++i)
+	{
+		var details = model.selection_details[i];
+		html += details + '\n';
+	}
+	element.innerHTML = html;
 }
 
 function register_primary_map_query()

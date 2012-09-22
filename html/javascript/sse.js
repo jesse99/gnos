@@ -101,7 +101,7 @@ function deregister_query(id)
 		query.model_names.forEach(
 			function (name)
 			{
-				GNOS.sse_model[model_name] = null;
+				GNOS.sse_model[name] = null;
 			});
 		
 		// Deterministically close the sse session.
@@ -127,7 +127,6 @@ function register_renderer(id, model_names, element_id, callback)
 	if (!GNOS.sse_renderers)
 		GNOS.sse_renderers = {};
 	assert(!GNOS.sse_renderers[id], id + " is already a registered renderer");
-//console.log("registering {0} updater for {1:j}".format(id, model_names));
 	
 	GNOS.sse_renderers[id] =
 		{
@@ -147,6 +146,16 @@ function deregister_renderer(id)
 }
 
 // ---- Internal Functions --------------------------------------------------------------
+// Could get rid of this in javascript 1.7 with the aid of the let keyword,
+// see https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Statements/let
+function create_callback(candidate, element, model_names)
+{
+	return function (x, y, z)
+	{
+		candidate.callback(element, GNOS.sse_model, model_names)
+	};
+}
+
 function do_model_changed(model_names)
 {
 	for (var id in GNOS.sse_renderers)
@@ -155,11 +164,7 @@ function do_model_changed(model_names)
 		if (candidate.model_names.intersects(model_names))
 		{
 			var element = document.getElementById(candidate.element_id);
-			animated_draw(element, 
-				function ()
-				{
-					candidate.callback(element, GNOS.sse_model, model_names)
-				});
+			animated_draw(element, create_callback(candidate, element, model_names));
 		}
 	}
 }
