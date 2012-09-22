@@ -108,7 +108,7 @@ fn main(args: ~[~str])
 	let options7 = copy options;
 	let models_v: server::ResponseHandler = |_settings, _request: &server::Request, response: &server::Response| {get_models::get_models(options5, response, state_chan)};
 	let subject_v: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {get_subject::get_subject(options6, request, response)};
-	let map_v: server::ResponseHandler = |_settings, _request: &server::Request, response: &server::Response| {get_map::get_map(options2, response)};
+	let home_v: server::ResponseHandler = |_settings, _request: &server::Request, response: &server::Response| {get_home::get_home(options2, response)};
 	let modeler_p: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {put_snmp::put_snmp(options4, state_chan, request, response)};
 	let query_store_v: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {get_query_store::get_query_store(options7, request, response)};
 	let query_s: server::OpenSse = |_settings, request: &server::Request, push| {get_query::get_query(state_chan, request, push)};
@@ -124,7 +124,7 @@ fn main(args: ~[~str])
 		server_info: ~"gnos " + options::get_version(),
 		resources_root: options.root,
 		routes: ~[
-			(~"GET", ~"/", ~"map"),
+			(~"GET", ~"/", ~"home"),
 			(~"GET", ~"/shutdown", ~"shutdown"),		// TODO: enable this via debug cfg (or maybe via a command line option)
 			(~"GET", ~"/models", ~"models"),
 			(~"GET", ~"/query-store", ~"query_store"),
@@ -132,7 +132,7 @@ fn main(args: ~[~str])
 			(~"PUT", ~"/snmp-modeler", ~"modeler"),
 		],
 		views: ~[
-			(~"map",  map_v),
+			(~"home",  home_v),
 			(~"shutdown",  bail_v),
 			(~"models",  models_v),
 			(~"query_store",  query_store_v),
