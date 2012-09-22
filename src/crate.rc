@@ -28,7 +28,6 @@ mod task_runner;
 mod utils;
 mod handlers
 {
-	mod get_home;
 	mod get_query;
 	mod get_map;
 	mod get_models;
