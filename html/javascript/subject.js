@@ -1,3 +1,4 @@
+// Page that shows predicates for a particular subject.
 "use strict";
 
 window.onload = function()

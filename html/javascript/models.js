@@ -1,3 +1,4 @@
+// Page that shows subjects in each store.
 "use strict";
 
 window.onload = function()

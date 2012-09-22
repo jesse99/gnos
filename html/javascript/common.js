@@ -1,3 +1,4 @@
+// Misc utility functions.
 "use strict";
 
 // We tuck away all of our global variables into this object to minimize the

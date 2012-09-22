@@ -1,3 +1,4 @@
+// Page that shows a map of the network along with details for the map/selection.
 "use strict";
 
 GNOS.scene = new Scene();

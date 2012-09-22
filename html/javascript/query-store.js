@@ -1,3 +1,4 @@
+// Page that allows an arbitrary query to be run against a store.
 "use strict";
 
 function submit_query()
