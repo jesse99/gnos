@@ -249,6 +249,7 @@ function selection_alerts_query(solution)
 	
 	var error_alerts = "";
 	var warning_alerts = "";
+	var info_alerts = "";
 	var closed_alerts = "";
 	
 	for (var i = 0; i < solution.length; ++i)
@@ -257,12 +258,14 @@ function selection_alerts_query(solution)
 		
 		error_alerts      += add_alert(row, {levels: ["error"], kind: "active"});
 		warning_alerts += add_alert(row, {levels: ["warning"], kind: "active"});
+		info_alerts += add_alert(row, {levels: ["info"], kind: "active"});
 		closed_alerts    += add_alert(row, {levels: ["error", "warning"], kind: "inactive"});
 	}
 	
 	var html = "";
 	html += add_widget(error_alerts, "Error Alerts", true);
 	html += add_widget(warning_alerts, "Warning Alerts", false);
+	html += add_widget(info_alerts, "Info Alerts", false);
 	html += add_widget(closed_alerts, "Closed Alerts", false);
 	
 	return {selection_alerts: html}
