@@ -7,6 +7,7 @@ GNOS.last_update = undefined;
 GNOS.poll_interval = undefined;
 GNOS.selection_name = null;
 GNOS.opened = {};
+GNOS.loaded_devices = false;
 
 // Thresholds for different meter levels.
 GNOS.good_level		= 0.0;
@@ -32,6 +33,8 @@ window.onload = function()
 	
 	register_selection_query("gnos:map");
 	GNOS.selection_name = "gnos:map";
+	
+	set_loading_label();
 }
 
 function resize_canvas()
@@ -40,10 +43,23 @@ function resize_canvas()
 	var context = map.getContext('2d');
 	
 	size_to_window(context);
-	if (GNOS.sse_model)
-	{
-		map_renderer(map, GNOS.sse_model, []);
-	}
+	if (!GNOS.loaded_devices)
+		set_loading_label();
+	map_renderer(map, GNOS.sse_model, []);
+}
+
+function set_loading_label()
+{
+	var map = document.getElementById('map');
+	var context = map.getContext('2d');
+	
+	var base_styles = ['primary_label', 'xlarger'];
+	var lines = ['Loading...'];
+	var style_names = ['primary_label'];
+	
+	var shape = new TextLinesShape(context, new Point(map.width/2, map.height/2), lines, base_styles, style_names);
+	GNOS.scene.remove_all();
+	GNOS.scene.append(shape);
 }
 
 function handle_canvas_click(event)
@@ -413,6 +429,9 @@ function device_shapes_query(solution)
 		}
 	}
 	
+	if (solution.length > 0)
+		GNOS.loaded_devices = true;
+	
 	var infos = [];
 	var labels = {};
 	
@@ -543,15 +562,18 @@ function device_meters_query(solution)
 // optional fields: last_update
 function poll_interval_query(solution)
 {
-	assert(solution.length == 1, "expected one row but found " + solution.length);
+	assert(solution.length <= 1, "expected one row but found " + solution.length);
 	
-	var row = solution[0];
-	GNOS.last_update = new Date().getTime();
-	GNOS.poll_interval = row.poll_interval;
-	
-	var shape = create_poll_interval_label(GNOS.last_update, GNOS.poll_interval);
-	
-	return {poll_interval: shape}
+	if (solution.length == 1)
+	{
+		var row = solution[0];
+		GNOS.last_update = new Date().getTime();
+		GNOS.poll_interval = row.poll_interval;
+		
+		var shape = create_poll_interval_label(GNOS.last_update, GNOS.poll_interval);
+		
+		return {poll_interval: shape}
+	}
 }
 
 // solution rows have 
@@ -745,37 +767,41 @@ function map_renderer(element, model, model_names)
 	var context = map.getContext('2d');
 	context.clearRect(0, 0, map.width, map.height);
 	
-	GNOS.scene.remove_all();
-	model.device_info.forEach(
-		function (device)
-		{
-			function push_shape(shapes, model, name)
+	if (GNOS.loaded_devices)
+	{
+		GNOS.scene.remove_all();
+		model.device_info.forEach(
+			function (device)
 			{
-				if (model && name in model)
-					model[name].forEach(function (shape) {shapes.push(shape);});
-			}
+				function push_shape(shapes, model, name)
+				{
+					if (model && name in model)
+						model[name].forEach(function (shape) {shapes.push(shape);});
+				}
+				
+				var child_shapes = [];
+				push_shape(child_shapes, model.device_labels, device.name);
+				push_shape(child_shapes, model.device_meters, device.name);
+				push_shape(child_shapes, model.device_alert_labels, device.name);
+				
+				// Unfortunately we can't create this shape until after all the other sub-shapes are created.
+				// So it's simplest just to create the shape here.
+				var center = new Point(device.center_x * context.canvas.width, device.center_y * context.canvas.height);
+				var shape = new DeviceShape(context, device.name, center, device.base_styles, child_shapes);
+				GNOS.scene.append(shape);
+			});
+		if (model.device_relation_infos)
+			add_relations_shapes(context, model.device_relation_infos);
 			
-			var child_shapes = [];
-			push_shape(child_shapes, model.device_labels, device.name);
-			push_shape(child_shapes, model.device_meters, device.name);
-			push_shape(child_shapes, model.device_alert_labels, device.name);
+		if (model.map_alert_label)
+			GNOS.scene.append(model.map_alert_label);
 			
-			// Unfortunately we can't create this shape until after all the other sub-shapes are created.
-			// So it's simplest just to create the shape here.
-			var center = new Point(device.center_x * context.canvas.width, device.center_y * context.canvas.height);
-			var shape = new DeviceShape(context, device.name, center, device.base_styles, child_shapes);
-			GNOS.scene.append(shape);
-		});
-	if (model.device_relation_infos)
-		add_relations_shapes(context, model.device_relation_infos);
-		
-	if (model.map_alert_label)
-		GNOS.scene.append(model.map_alert_label);
-		
-	if (model.poll_interval)								// this must be the last shape (we dynamically swap new shapes in)
-		GNOS.scene.append(model.poll_interval);
-	else
-		GNOS.scene.append(new NoOpShape());
+		if (model.poll_interval)								// this must be the last shape (we dynamically swap new shapes in)
+			GNOS.scene.append(model.poll_interval);
+		else
+			GNOS.scene.append(new NoOpShape());
+	}
+	
 	GNOS.scene.draw(context);
 }
 
