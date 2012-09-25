@@ -6,8 +6,6 @@ use rrdf::rrdf::*;
 use server = rwebserve::rwebserve;
 use rwebserve::imap::ImmutableMap;
 
-export get_query;
-
 /// Used by client code to register server-sent events for SPARQL queries.
 ///
 /// The client EventSource is called when the sse is first registered and
@@ -74,7 +72,7 @@ fn get_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: serve
 	}
 }
 
-fn get_queries(request: &server::Request) -> ~[~str]
+priv fn get_queries(request: &server::Request) -> ~[~str]
 {
 	let mut queries = ~[];
 	vec::push(queries, *request.params.get(@~"expr"));
@@ -97,7 +95,7 @@ fn get_queries(request: &server::Request) -> ~[~str]
 	return queries;
 }
 
-fn solutions_to_json(solutions: &[Solution]) -> std::json::Json
+priv fn solutions_to_json(solutions: &[Solution]) -> std::json::Json
 {
 	if solutions.len() == 1
 	{
@@ -115,7 +113,7 @@ fn solutions_to_json(solutions: &[Solution]) -> std::json::Json
 	}
 }
 
-fn solution_to_json(solution: &Solution) -> std::json::Json
+priv fn solution_to_json(solution: &Solution) -> std::json::Json
 {
 	//info!(" ");
 	std::json::List(@
@@ -128,10 +126,10 @@ fn solution_to_json(solution: &Solution) -> std::json::Json
 	)
 }
 
-fn solution_row_to_json(row: &SolutionRow) -> std::json::Json
+priv fn solution_row_to_json(row: &SolutionRow) -> std::json::Json
 {
 	std::json::Dict(
-		std::map::hash_from_strs(
+		std::map::hash_from_vec(
 			do vec::map(*row)
 			|entry|
 			{
@@ -143,7 +141,7 @@ fn solution_row_to_json(row: &SolutionRow) -> std::json::Json
 }
 
 // TODO: need to escape as html?
-fn object_to_json(obj: Object) -> std::json::Json
+priv fn object_to_json(obj: Object) -> std::json::Json
 {
 	match obj
 	{

@@ -2,10 +2,11 @@ use std::json::ToJson;
 use io::WriterUtil;
 use rrdf::rrdf::*;
 use model::*;
+use Namespace = rrdf::solution::Namespace;
 
-fn check_solutions(actual: Solution, expected: Solution) -> bool
+fn check_solutions(actual: &Solution, expected: &Solution) -> bool
 {
-	fn print_result(value: Solution)
+	fn print_result(value: &Solution)
 	{
 		for vec::eachi(value.rows)
 		|i, row|
@@ -16,7 +17,7 @@ fn check_solutions(actual: Solution, expected: Solution) -> bool
 		};
 	}
 	
-	fn print_failure(mesg: ~str, actual: Solution, expected: Solution)
+	fn print_failure(mesg: ~str, actual: &Solution, expected: &Solution)
 	{
 		io::stderr().write_line(mesg);
 		io::stderr().write_line("Actual:");
@@ -97,7 +98,7 @@ fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
 		}
 	}
 	
-	fn do_update(store: Store, data: ~str) -> bool
+	fn do_update(store: &Store, data: ~str) -> bool
 	{
 		match std::json::from_str(data)
 		{
@@ -107,7 +108,7 @@ fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
 				for items.each
 				|item|
 				{
-					match item
+					match *item
 					{
 						std::json::List(entry) =>
 						{
@@ -160,14 +161,14 @@ WHERE
 	
 	// store starts out empty
 	let solution = query_chan.recv();
-	assert check_solutions(solution, Solution {namespaces: ~[], rows: ~[
+	assert check_solutions(&solution, &Solution {namespaces: ~[], rows: ~[
 	]});
 	
 	// after adding ttl can query for it
 	update(state_chan, ~[(~"ttl", ~"50")]);
 	comm::send(state_chan, QueryMsg(~"primary", query, query_chan));
 	let solution = query_chan.recv();
-	assert check_solutions(solution, Solution {namespaces: ~[], rows: ~[
+	assert check_solutions(&solution, &Solution {namespaces: ~[], rows: ~[
 		~[(~"ttl", StringValue(~"50", ~""))],
 	]});
 	
@@ -175,7 +176,7 @@ WHERE
 	update(state_chan, ~[(~"ttl", ~"75")]);
 	comm::send(state_chan, QueryMsg(~"primary", query, query_chan));
 	let solution = query_chan.recv();
-	assert check_solutions(solution, Solution {namespaces: ~[], rows: ~[
+	assert check_solutions(&solution, &Solution {namespaces: ~[], rows: ~[
 		~[(~"ttl", StringValue(~"75", ~""))],
 	]});
 	
@@ -223,18 +224,18 @@ WHERE
 	
 	// get solutions on registration,
 	let solutions = ttl_chan.recv().get();
-	assert check_solutions(solutions[0], Solution {namespaces: ~[], rows: ~[
+	assert check_solutions(&solutions[0], &Solution {namespaces: ~[], rows: ~[
 	]});
 	
 	let solutions = fwd_chan.recv().get();
-	assert check_solutions(solutions[0], Solution {namespaces: ~[], rows: ~[
+	assert check_solutions(&solutions[0], &Solution {namespaces: ~[], rows: ~[
 	]});
 	
 	// and when the query results change
 	update(state_chan, ~[(~"ttl", ~"50")]);
 	let solutions = ttl_chan.recv().get();
 	assert solutions.len() == 1;
-	assert check_solutions(solutions[0], Solution {namespaces: ~[], rows: ~[
+	assert check_solutions(&solutions[0], &Solution {namespaces: ~[], rows: ~[
 		~[(~"ttl", StringValue(~"50", ~""))],
 	]});
 	
@@ -280,14 +281,14 @@ WHERE
 	
 	// get solutions on registration,
 	let solutions = ttl_chan.recv().get();
-	assert check_solutions(solutions[0], Solution {namespaces: ~[], rows: ~[
+	assert check_solutions(&solutions[0], &Solution {namespaces: ~[], rows: ~[
 	]});
 	
 	// and when the query results change
 	update(state_chan, ~[(~"ttl", ~"50")]);
 	let solutions = ttl_chan.recv().get();
 	assert solutions.len() == 1;
-	assert check_solutions(solutions[0], Solution {namespaces: ~[], rows: ~[
+	assert check_solutions(&solutions[0], &Solution {namespaces: ~[], rows: ~[
 		~[(~"ttl", StringValue(~"50", ~""))],
 	]});
 	
@@ -306,7 +307,7 @@ WHERE
 #[test]
 fn test_alerts()
 {
-	fn check_alerts(store: Store, expected: Solution) -> bool 
+	fn check_alerts(store: &Store, expected: &Solution) -> bool 
 	{
 		let query = ~"PREFIX devices: <http://network/>
 			PREFIX gnos: <http://www.gnos.org/2012/schema#>
@@ -321,11 +322,11 @@ fn test_alerts()
 				}
 				BIND(BOUND(?end) AS ?closed) 
 			}";
-		match eval_query(&store, query)
+		match eval_query(store, query)
 		{
 			result::Ok(actual) =>
 			{
-				check_solutions(actual, expected)
+				check_solutions(&actual, expected)
 			}
 			result::Err(err) =>
 			{
@@ -335,56 +336,56 @@ fn test_alerts()
 	}
 	
 	let namespaces = ~[
-		{prefix: ~"devices", path: ~"http://network/"},
-		{prefix: ~"gnos", path: ~"http://www.gnos.org/2012/schema#"},
-		{prefix: ~"snmp", path: ~"http://snmp/"},
-		{prefix: ~"sname", path: ~"http://snmp-name/"},
+		Namespace {prefix: ~"devices", path: ~"http://network/"},
+		Namespace {prefix: ~"gnos", path: ~"http://www.gnos.org/2012/schema#"},
+		Namespace {prefix: ~"snmp", path: ~"http://snmp/"},
+		Namespace {prefix: ~"sname", path: ~"http://snmp-name/"},
 	];
-	let store = Store(namespaces, &std::map::box_str_hash());
+	let store = Store(namespaces, &std::map::HashMap());
 	
 	// open foo/bar => adds the alert
 	open_alert(&store, Alert {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"fie", resolution: ~""});
-	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
+	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
 	]});
 	
 	// open foo/bar => does nothing
 	open_alert(&store, Alert {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"no-op fie", resolution: ~""});
-	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
+	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
 	]});
 	
 	// open foo/cat => adds alert
 	open_alert(&store, Alert {device: ~"gnos:foo", id: ~"cat", level: ErrorLevel, mesg: ~"meow", resolution: ~""});
-	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
+	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
 	]});
 	
 	// close foo/bar => closes it
 	close_alert(&store, ~"gnos:foo", ~"bar");
-	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
+	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
 	]});
 	
 	// close foo/dog => does nothing
 	close_alert(&store, ~"gnos:foo", ~"dog");
-	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
+	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
 	]});
 	
 	// close foo/bar => does nothing
 	close_alert(&store, ~"gnos:foo", ~"bar");
-	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
+	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
 	]});
 	
 	// open foo/bar => adds a new alert
 	open_alert(&store, Alert {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"fum", resolution: ~""});
-	assert check_alerts(store, Solution {namespaces: ~[], rows: ~[
+	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"fum", ~"")), (~"closed", BoolValue(false))],
 		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],

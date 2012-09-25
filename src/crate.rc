@@ -6,19 +6,18 @@
 #[doc = "Web based network management system"];
 
 // TODO: enable these when rustc shakes out more
-#[warn(non_camel_case_types)];
-#[allow(implicit_copies)];
-#[allow(deprecated_mode)];
+#[forbid(unused_imports)];
+#[allow(deprecated_mode)];	// TODO: enable some of these
 #[allow(non_implicitly_copyable_typarams)];
-#[allow(deprecated_pattern)];
-#[allow(unused_imports)];
 #[allow(structural_records)];
+#[allow(deprecated_pattern)];
+#[allow(implicit_copies)];
 
-use std;
-use mustache (name = "mustache", vers = "0.1");
-use rrdf (name = "rrdf", vers = "0.2");
-use runits (name = "runits", vers = "0.1");
-use rwebserve (name = "rwebserve", vers = "0.2");
+extern mod std;
+extern mod mustache (name = "mustache", vers = "0.1");
+extern mod rrdf (name = "rrdf", vers = "0.2");
+extern mod runits (name = "runits", vers = "0.1");
+extern mod rwebserve (name = "rwebserve", vers = "0.2");
 
 mod db;
 mod gnos;

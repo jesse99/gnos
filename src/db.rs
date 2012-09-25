@@ -4,8 +4,6 @@
 use model::*;
 use rrdf::rrdf::*;
 
-export setup;
-
 // TODO: In the future this should be replaced with a turtle file
 // and --db should take a path to it (and maybe others).
 fn setup(state_chan: comm::Chan<model::Msg>, poll_rate: u16) 
@@ -14,7 +12,7 @@ fn setup(state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 	add_alerts(state_chan);
 }
 
-fn update_got(state_chan: comm::Chan<model::Msg>, winterfell_loyalty: ~str, wl: f64, kings_landing_loyalty: ~str, kl: f64, poll_rate: u16)
+priv fn update_got(state_chan: comm::Chan<model::Msg>, winterfell_loyalty: ~str, wl: f64, kings_landing_loyalty: ~str, kl: f64, poll_rate: u16)
 {
 	libc::funcs::posix88::unistd::sleep(poll_rate as core::libc::types::os::arch::c95::c_uint);
 	
@@ -37,7 +35,7 @@ fn update_got(state_chan: comm::Chan<model::Msg>, winterfell_loyalty: ~str, wl: 
 	update_got(state_chan, winterfell_loyalty, wl, kings_landing_loyalty, kl, poll_rate);
 }
 
-fn add_got(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
+priv fn add_got(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 {
 	// map
 	store.add(~"gnos:map", ~[
@@ -181,7 +179,7 @@ fn add_got(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 	do task::spawn_sched(task::SingleThreaded) {update_got(state_chan, winterfell_loyalty, 0.6f64, kings_landing_loyalty, 0.9f64, poll_rate);}
 }
 
-fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool
+priv fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool
 {
 	// map
 	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _msg|
@@ -214,7 +212,7 @@ fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool
 	true
 }
 
-fn add_relation(store: &Store, lhs: ~str, rhs: ~str, style: ~str, label: ~str)
+priv fn add_relation(store: &Store, lhs: ~str, rhs: ~str, style: ~str, label: ~str)
 {
 	let lhs_relation = get_blank_name(store, ~"lhs");
 	store.add(lhs_relation, ~[

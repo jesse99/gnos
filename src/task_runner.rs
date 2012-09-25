@@ -1,6 +1,3 @@
-export FailurePolicy, IgnoreFailures, NotifyOnFailure, NotifyOnExit,
-	ShutdownOnFailure, ExitFn, JobFn, Job, run, sequence;
-
 /// Actions to take after a job finishes.
 ///
 /// * IgnoreFailures - do nothing.
@@ -46,12 +43,12 @@ fn sequence(+jobs: ~[Job], +cleanup: ~[ExitFn])
 		for jobs.each
 		|job|
 		{
-			do_run(job, cleanup);
+			do_run(*job, cleanup);
 		}
 	}
 }
 
-fn do_run(job: Job, cleanup: ~[ExitFn])
+priv fn do_run(job: Job, cleanup: ~[ExitFn])
 {
 	match job.policy
 	{
@@ -81,7 +78,7 @@ fn do_run(job: Job, cleanup: ~[ExitFn])
 			if err.is_some()
 			{
 				error!("%s", err.get());
-				for cleanup.each |f| {f()};
+				for cleanup.each |f| {(*f)()};
 				libc::exit(3);
 			}
 		}

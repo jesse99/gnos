@@ -12,8 +12,6 @@ use runits::units::*;
 use snmp::*;
 use server = rwebserve::rwebserve;
 
-export put_snmp;
-
 fn put_snmp(options: Options, state_chan: comm::Chan<Msg>, request: &server::Request, response: &server::Response) -> server::Response
 {
 	// Unfortunately we don't send an error back to the modeler if the json was invalid.
@@ -31,7 +29,7 @@ fn put_snmp(options: Options, state_chan: comm::Chan<Msg>, request: &server::Req
 	server::Response {body: ~"", ..*response}
 }
 
-fn updates_snmp(options: Options, remote_addr: ~str, stores: &[@Store], body: ~str, old: &Solution) -> bool
+priv fn updates_snmp(options: Options, remote_addr: ~str, stores: &[@Store], body: ~str, old: &Solution) -> bool
 {
 	match json::from_str(body)
 	{
@@ -61,7 +59,7 @@ fn updates_snmp(options: Options, remote_addr: ~str, stores: &[@Store], body: ~s
 	true
 }
 
-fn query_old_info(state_chan: comm::Chan<Msg>) -> Solution
+priv fn query_old_info(state_chan: comm::Chan<Msg>) -> Solution
 {
 	let po = comm::Port();
 	let ch = comm::Chan(po);
@@ -101,7 +99,7 @@ WHERE
 //    },
 //    ...
 // }
-fn json_to_primary(options: Options, remote_addr: ~str, store: &Store, alerts_store: &Store, data: hashmap<~str, Json>, old: &Solution)
+priv fn json_to_primary(options: Options, remote_addr: ~str, store: &Store, alerts_store: &Store, data: HashMap<~str, Json>, old: &Solution)
 {
 	store.clear();
 	store.add_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:last_update", object: DateTimeValue(std::time::now())});
@@ -145,7 +143,7 @@ fn json_to_primary(options: Options, remote_addr: ~str, store: &Store, alerts_st
 // "sysLocation": "closet", 
 // "sysName": "Router", 
 // "sysUpTime": "5080354"
-fn add_device(store: &Store, alerts_store: &Store, devices: ~[Device], managed_ip: ~str, device: hashmap<~str, Json>, old: &Solution, old_subject: ~str)
+priv fn add_device(store: &Store, alerts_store: &Store, devices: ~[Device], managed_ip: ~str, device: HashMap<~str, Json>, old: &Solution, old_subject: ~str)
 {
 	match devices.find(|d| {d.managed_ip == managed_ip})
 	{
@@ -198,7 +196,7 @@ fn add_device(store: &Store, alerts_store: &Store, devices: ~[Device], managed_i
 	};
 }
 
-fn toggle_device_uptime_alert(alerts_store: &Store, managed_ip: ~str, time: Value)
+priv fn toggle_device_uptime_alert(alerts_store: &Store, managed_ip: ~str, time: Value)
 {
 	let device = fmt!("devices:%s", managed_ip);
 	let id = ~"uptime";
@@ -215,7 +213,7 @@ fn toggle_device_uptime_alert(alerts_store: &Store, managed_ip: ~str, time: Valu
 	}
 }
 
-fn toggle_device_down_alert(alerts_store: &Store, managed_ip: ~str, up: bool)
+priv fn toggle_device_down_alert(alerts_store: &Store, managed_ip: ~str, up: bool)
 {
 	let device = fmt!("devices:%s", managed_ip);
 	let id = ~"down";
@@ -232,7 +230,7 @@ fn toggle_device_down_alert(alerts_store: &Store, managed_ip: ~str, up: bool)
 	}
 }
 
-fn add_device_notes(store: &Store, managed_ip: ~str, _device: hashmap<~str, Json>)
+priv fn add_device_notes(store: &Store, managed_ip: ~str, _device: HashMap<~str, Json>)
 {
 	// summary
 	let html = #fmt["
@@ -254,7 +252,7 @@ fn add_device_notes(store: &Store, managed_ip: ~str, _device: hashmap<~str, Json
 	]);
 }
 
-fn get_device_label(snmp: &Snmp) -> ~str
+priv fn get_device_label(snmp: &Snmp) -> ~str
 {
 	let mut label = ~"";
 	
@@ -270,7 +268,7 @@ fn get_device_label(snmp: &Snmp) -> ~str
 	label
 }
 
-fn add_interfaces(store: &Store, alerts_store: &Store, device: hashmap<~str, Json>, managed_ip: ~str, data: Json, old: &Solution, old_subject: ~str, uptime: Value) -> bool
+priv fn add_interfaces(store: &Store, alerts_store: &Store, device: HashMap<~str, Json>, managed_ip: ~str, data: Json, old: &Solution, old_subject: ~str, uptime: Value) -> bool
 {
 	match data
 	{
@@ -280,7 +278,7 @@ fn add_interfaces(store: &Store, alerts_store: &Store, device: hashmap<~str, Jso
 			for interfaces.each
 			|interface|
 			{
-				match interface
+				match *interface
 				{
 					json::Dict(d) =>
 					{
@@ -345,7 +343,7 @@ fn add_interfaces(store: &Store, alerts_store: &Store, device: hashmap<~str, Jso
 // "ifType": "ethernetCsmacd(6)", 
 // "ipAdEntAddr": "10.101.3.2", 
 // "ipAdEntNetMask": "255.255.255.0"
-fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, device: hashmap<~str, Json>, interface: hashmap<~str, Json>, old: &Solution, old_subject: ~str, uptime: Value) -> (~str, ~str)
+priv fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, device: HashMap<~str, Json>, interface: HashMap<~str, Json>, old: &Solution, old_subject: ~str, uptime: Value) -> (~str, ~str)
 {
 	let mut html = ~"";
 	let name = lookup(interface, ~"ifDescr", ~"eth?");
@@ -402,7 +400,7 @@ fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, device: 
 	return (name, html);
 }
 
-fn add_interface_out_meter(store: &Store, snmp: &Snmp, managed_ip: ~str, name: ~str, out_bps: Value)
+priv fn add_interface_out_meter(store: &Store, snmp: &Snmp, managed_ip: ~str, name: ~str, out_bps: Value)
 {
 	let if_speed = snmp.get_value(~"ifSpeed", Bit/Second);
 	if if_speed.is_some()
@@ -421,7 +419,7 @@ fn add_interface_out_meter(store: &Store, snmp: &Snmp, managed_ip: ~str, name: ~
 	}
 }
 
-fn toggle_interface_uptime_alert(alerts_store: &Store, managed_ip: ~str, snmp: &Snmp, name: ~str, sys_uptime: Value)
+priv fn toggle_interface_uptime_alert(alerts_store: &Store, managed_ip: ~str, snmp: &Snmp, name: ~str, sys_uptime: Value)
 {
 	let device = fmt!("devices:%s", managed_ip);
 	let id = name + ~"-uptime";
@@ -444,7 +442,7 @@ fn toggle_interface_uptime_alert(alerts_store: &Store, managed_ip: ~str, snmp: &
 	}
 }
 
-fn toggle_admin_vs_oper_interface_alert(alerts_store: &Store, managed_ip: ~str, interface: hashmap<~str, Json>, name: ~str, oper_status: ~str)
+priv fn toggle_admin_vs_oper_interface_alert(alerts_store: &Store, managed_ip: ~str, interface: HashMap<~str, Json>, name: ~str, oper_status: ~str)
 {
 	let admin_status = lookup(interface, ~"ifAdminStatus", ~"");
 	
@@ -467,7 +465,7 @@ fn toggle_admin_vs_oper_interface_alert(alerts_store: &Store, managed_ip: ~str, 
 // 5 : dormant			the interface is waiting for external actions (such as a serial line waiting for an incoming connection)
 // 6 : notPresent
 // 7 : lowerLayerDown
-fn toggle_weird_interface_state_alert(alerts_store: &Store, managed_ip: ~str, name: ~str, oper_status: ~str)
+priv fn toggle_weird_interface_state_alert(alerts_store: &Store, managed_ip: ~str, name: ~str, oper_status: ~str)
 {
 	let device = fmt!("devices:%s", managed_ip);
 	let id = name + ~"-weird";
@@ -484,7 +482,7 @@ fn toggle_weird_interface_state_alert(alerts_store: &Store, managed_ip: ~str, na
 
 // Remove "\(\d+\)" from an interface status string.
 // TODO: Should use a regex once rust supports them.
-fn trim_interface_status(status: ~str) -> ~str
+priv fn trim_interface_status(status: ~str) -> ~str
 {
 	let mut result = status;
 	
@@ -497,7 +495,7 @@ fn trim_interface_status(status: ~str) -> ~str
 	return result;
 }
 
-fn is_compound(x: Value) -> bool
+priv fn is_compound(x: Value) -> bool
 {
 	match x.units
 	{
@@ -506,7 +504,7 @@ fn is_compound(x: Value) -> bool
 	}
 }
 
-fn get_subnet(interface: hashmap<~str, Json>) -> ~str
+priv fn get_subnet(interface: HashMap<~str, Json>) -> ~str
 {
 	match lookup(interface, ~"ipAdEntNetMask", ~"")
 	{
@@ -537,7 +535,7 @@ fn get_subnet(interface: hashmap<~str, Json>) -> ~str
 #[test]
 fn test_get_subnet()
 {
-	let interface = str_hash();
+	let interface = HashMap();
 	assert get_subnet(interface) == ~"/?";
 	
 	interface.insert(~"ipAdEntNetMask", json::String(@~"255.255.255.255"));
@@ -553,7 +551,7 @@ fn test_get_subnet()
 	assert get_subnet(interface) == ~"/255.0.1.0";
 }
 
-fn count_leading_ones(mask: uint) -> int
+priv fn count_leading_ones(mask: uint) -> int
 {
 	let mut count = 0;
 	
@@ -574,7 +572,7 @@ fn count_leading_ones(mask: uint) -> int
 	return count;
 }
 
-fn count_trailing_zeros(mask: uint) -> int
+priv fn count_trailing_zeros(mask: uint) -> int
 {
 	let mut count = 0;
 	
@@ -595,7 +593,7 @@ fn count_trailing_zeros(mask: uint) -> int
 	return count;
 }
 
-fn add_value_entries(store: &Store, subject: ~str, entries: &[(~str, option::Option<Value>)])
+priv fn add_value_entries(store: &Store, subject: ~str, entries: &[(~str, option::Option<Value>)])
 {
 	let entries = do entries.filter_map
 	|e|
@@ -614,7 +612,7 @@ fn add_value_entries(store: &Store, subject: ~str, entries: &[(~str, option::Opt
 
 // We store snmp data for various objects in the raw so that views are able to use it
 // and so admins can view the complete raw data.
-fn json_to_snmp(remote_addr: ~str, store: &Store, data: hashmap<~str, Json>)
+priv fn json_to_snmp(remote_addr: ~str, store: &Store, data: HashMap<~str, Json>)
 {
 	store.clear();
 	
@@ -635,12 +633,12 @@ fn json_to_snmp(remote_addr: ~str, store: &Store, data: hashmap<~str, Json>)
 	}
 }
 
-fn device_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, data: hashmap<~str, Json>)
+priv fn device_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, data: HashMap<~str, Json>)
 {
 	let mut entries = ~[];
 	vec::reserve(entries, data.size());
 	
-	for data.each		// unfortunately hashmap doesn't support the base_iter protocol so there's no nice way to do this
+	for data.each		// unfortunately HashMap doesn't support the base_iter protocol so there's no nice way to do this
 	|name, value|
 	{
 		match value
@@ -664,12 +662,12 @@ fn device_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, data: hash
 	store.add(subject, entries);
 }
 
-fn interfaces_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interfaces: @~[Json])
+priv fn interfaces_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interfaces: @~[Json])
 {
 	for interfaces.each
 	|data|
 	{
-		match data
+		match *data
 		{
 			json::Dict(interface) =>
 			{
@@ -683,7 +681,7 @@ fn interfaces_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interf
 	}
 }
 
-fn interface_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interface: hashmap<~str, Json>)
+priv fn interface_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interface: HashMap<~str, Json>)
 {
 	let mut ifname = ~"";
 	let mut entries = ~[];
@@ -721,20 +719,20 @@ fn interface_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interfa
 	}
 }
 
-fn get_value_str(value: option::Option<Value>, format: &str) -> ~str
+priv fn get_value_str(value: option::Option<Value>, format: &str) -> ~str
 {
 	if value.is_some()
 	{
 		let ustr = value.get().units.to_str();
 		let ustr = str::replace(ustr, ~"b/s", ~"bps");
 		let ustr = str::replace(ustr, ~"p/s", ~"pps");
-		match format									// matching is awfully lame, but fmt! requires a string literal and there doesn't appear to be a good alternative
+		match format.to_unique()									// matching is awfully lame, but fmt! requires a string literal and there doesn't appear to be a good alternative
 		{
-			"%.0f"	=> fmt!("%.0f %s", value.get().value, ustr),
-			"%.1f"	=> fmt!("%.1f %s", value.get().value, ustr),
-			"%.2f"	=> fmt!("%.2f %s", value.get().value, ustr),
-			"%.3f"	=> fmt!("%.3f %s", value.get().value, ustr),
-			_		=> fail ~"bad format string: " + format,
+			~"%.0f"	=> fmt!("%.0f %s", value.get().value, ustr),	// TODO: use to_unique to avoid an ICE
+			~"%.1f"	=> fmt!("%.1f %s", value.get().value, ustr),
+			~"%.2f"	=> fmt!("%.2f %s", value.get().value, ustr),
+			~"%.3f"	=> fmt!("%.3f %s", value.get().value, ustr),
+			_			=> fail ~"bad format string: " + format,
 		}
 	}
 	else
@@ -743,7 +741,7 @@ fn get_value_str(value: option::Option<Value>, format: &str) -> ~str
 	}
 }
 
-fn get_si_str(value: option::Option<Value>, format: &str) -> ~str
+priv fn get_si_str(value: option::Option<Value>, format: &str) -> ~str
 {
 	if value.is_some()
 	{
@@ -756,7 +754,7 @@ fn get_si_str(value: option::Option<Value>, format: &str) -> ~str
 	}
 }
 
-fn convert_per_sec(x: option::Option<Value>, to: Unit) -> option::Option<Value>
+priv fn convert_per_sec(x: option::Option<Value>, to: Unit) -> option::Option<Value>
 {
 	do x.chain
 	|value|

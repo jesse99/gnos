@@ -3,8 +3,6 @@ use io::WriterUtil;
 use Path = path::Path;
 use std::getopts::*;
 
-export Options, Device, get_version, validate, parse_command_line;
-
 struct Device
 {
 	pub name: ~str,
@@ -46,6 +44,14 @@ pure fn get_version() -> ~str
 
 fn parse_command_line(args: ~[~str]) -> Options
 {
+	// It's good practice to do this before invoking getopts because getopts
+	// will fail if a required option is missing.
+	if args.contains(~"-h") || args.contains(~"--help")
+	{
+		print_usage();
+		libc::exit(0);
+	}
+	
 	let opts = ~[
 		optflag(~"admin"),
 		optflag(~"db"),			// TODO: maybe only include this if debug (in the future may also want to take a path to a turtle file)
@@ -60,12 +66,7 @@ fn parse_command_line(args: ~[~str]) -> Options
 		result::Ok(m) => {m}
 		result::Err(f) => {io::stderr().write_line(fail_str(f)); libc::exit(1_i32)}
 	};
-	if opt_present(matched, ~"h") || opt_present(matched, ~"help")
-	{
-		print_usage();
-		libc::exit(0);
-	}
-	else if opt_present(matched, ~"version")
+	if opt_present(matched, ~"version")
 	{
 		io::println(fmt!("gnos %s", get_version()));
 		libc::exit(0);
@@ -107,7 +108,7 @@ fn validate(options: Options)
 }
 
 // ---- Internal Functions ----------------------------------------------------
-fn print_usage()
+priv fn print_usage()
 {
 	io::println(fmt!("gnos %s - a web based network management system", get_version()));
 	io::println(~"");
@@ -119,7 +120,7 @@ fn print_usage()
 	io::println(~"--version   prints the gnos version number and exits");
 }
 
-fn load_network_file(path: Path) -> {network: ~str, client: ~str, server: ~str, port: u16, poll_rate: u16, devices: ~[Device]}
+priv fn load_network_file(path: Path) -> {network: ~str, client: ~str, server: ~str, port: u16, poll_rate: u16, devices: ~[Device]}
 {
 	match io::file_reader(&path)
 	{
@@ -158,7 +159,7 @@ fn load_network_file(path: Path) -> {network: ~str, client: ~str, server: ~str, 
 	}
 }
 
-fn get_network_devices(path: Path, data: std::map::hashmap<~str, std::json::Json>, key: ~str) -> ~[Device]
+priv fn get_network_devices(path: Path, data: std::map::HashMap<~str, std::json::Json>, key: ~str) -> ~[Device]
 {
 	match data.find(key)
 	{
@@ -185,7 +186,7 @@ fn get_network_devices(path: Path, data: std::map::hashmap<~str, std::json::Json
 	}
 }
 
-fn get_network_device(path: Path, name: ~str, value: std::json::Json) -> Device
+priv fn get_network_device(path: Path, name: ~str, value: std::json::Json) -> Device
 {
 	match value
 	{
@@ -208,7 +209,7 @@ fn get_network_device(path: Path, name: ~str, value: std::json::Json) -> Device
 	}
 }
 
-fn get_network_str(path: Path, data: std::map::hashmap<~str, std::json::Json>, key: ~str) -> ~str
+priv fn get_network_str(path: Path, data: std::map::HashMap<~str, std::json::Json>, key: ~str) -> ~str
 {
 	match data.find(key)
 	{
@@ -229,7 +230,7 @@ fn get_network_str(path: Path, data: std::map::hashmap<~str, std::json::Json>, k
 	}
 }
 
-fn get_network_u16(path: Path, data: std::map::hashmap<~str, std::json::Json>, key: ~str) -> u16
+priv fn get_network_u16(path: Path, data: std::map::HashMap<~str, std::json::Json>, key: ~str) -> u16
 {
 	match data.find(key)
 	{
@@ -260,7 +261,7 @@ fn get_network_u16(path: Path, data: std::map::hashmap<~str, std::json::Json>, k
 	}
 }
 
-fn get_network_float(path: Path, data: std::map::hashmap<~str, std::json::Json>, key: ~str) -> float
+priv fn get_network_float(path: Path, data: std::map::HashMap<~str, std::json::Json>, key: ~str) -> float
 {
 	match data.find(key)
 	{

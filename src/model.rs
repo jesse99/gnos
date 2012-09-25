@@ -1,10 +1,7 @@
 //use to_str::to_str;
 use std::map::*;
 use rrdf::rrdf::*;
-
-export UpdateFn, Msg, QueryMsg, UpdateMsg, UpdatesMsg, RegisterMsg, DeregisterMsg, manage_state, get_state, eval_query,
-	Alert, AlertLevel, ErrorLevel, WarningLevel, InfoLevel, DebugLevel, open_alert, close_alert, get_standard_store_names,
-	ExitMsg, SyncMsg;
+use Namespace = rrdf::solution::Namespace;
 
 /// Function used to update a store within the model task.
 ///
@@ -92,21 +89,21 @@ pure fn get_standard_store_names() -> ~[~str]
 fn manage_state(port: comm::Port<Msg>)
 {
 	let namespaces = ~[
-		{prefix: ~"devices", path: ~"http://network/"},
-		{prefix: ~"gnos", path: ~"http://www.gnos.org/2012/schema#"},
-		{prefix: ~"snmp", path: ~"http://snmp/"},
-		{prefix: ~"sname", path: ~"http://snmp-name/"},
+		Namespace {prefix: ~"devices", path: ~"http://network/"},
+		Namespace {prefix: ~"gnos", path: ~"http://www.gnos.org/2012/schema#"},
+		Namespace {prefix: ~"snmp", path: ~"http://snmp/"},
+		Namespace {prefix: ~"sname", path: ~"http://snmp-name/"},
 	];
 	
-	let stores = std::map::str_hash();
-	let queries = std::map::str_hash();			// query string => compiled query (cache)
-	let registered = std::map::str_hash();		// store name => {registrar key => (query string, channel<Solution>)}
+	let stores = std::map::HashMap();
+	let queries = std::map::HashMap();		// query string => compiled query (cache)
+	let registered = std::map::HashMap();		// store name => {registrar key => (query string, channel<Solution>)}
 	
 	for get_standard_store_names().each
 	|name|
 	{
-		stores.insert(name,  @Store(namespaces, &std::map::box_str_hash()));
-		registered.insert(name, std::map::str_hash());
+		stores.insert(*name,  @Store(namespaces, &std::map::HashMap()));
+		registered.insert(*name, std::map::HashMap());
 	}
 	
 	loop
@@ -140,7 +137,7 @@ fn manage_state(port: comm::Port<Msg>)
 					for names.each
 					|name|
 					{
-						update_registered(stores, name, queries, registered);
+						update_registered(stores, *name, queries, registered);
 					}
 				}
 			}
@@ -197,7 +194,7 @@ fn open_alert(store: &Store, alert: Alert) -> bool
 		?subject ?end
 	WHERE
 	{
-		?subject gnos:device %s .
+		?subject gnos:target %s .
 		?subject gnos:id \"%s\" .
 		OPTIONAL
 		{
@@ -260,7 +257,7 @@ fn close_alert(store: &Store, device: ~str, id: ~str) -> bool
 		?subject ?level ?end
 	WHERE
 	{
-		?subject gnos:device %s .
+		?subject gnos:target %s .
 		?subject gnos:id \"%s\" .
 		?subject gnos:level ?level .
 		OPTIONAL
@@ -328,7 +325,7 @@ fn eval_query(store: &Store, expr: ~str) -> result::Result<Solution, ~str>
 	}
 }
 // ---- Internal functions ----------------------------------------------------
-fn update_registered(stores: hashmap<~str, @Store>, name: ~str, queries: hashmap<~str, Selector>, registered: hashmap<~str, hashmap<~str, Registration>>)
+priv fn update_registered(stores: HashMap<~str, @Store>, name: ~str, queries: HashMap<~str, Selector>, registered: HashMap<~str, HashMap<~str, Registration>>)
 {
 	let store = stores.find(name);
 	if store.is_some()
@@ -350,7 +347,7 @@ fn update_registered(stores: hashmap<~str, @Store>, name: ~str, queries: hashmap
 	}
 }
 
-fn update_err_count(store: &Store, device: ~str, delta: i64)
+priv fn update_err_count(store: &Store, device: ~str, delta: i64)
 {
 	match store.find_object(device, ~"gnos:num_errors")
 	{
@@ -375,7 +372,7 @@ fn update_err_count(store: &Store, device: ~str, delta: i64)
 
 // In general the same queries will be used over and over again so it will be
 // much more efficient to cache the selectors.
-fn get_selector(queries: hashmap<~str, Selector>, query: ~str) -> result::Result<Selector, ~str>
+priv fn get_selector(queries: HashMap<~str, Selector>, query: ~str) -> result::Result<Selector, ~str>
 {
 	match queries.find(query)
 	{
@@ -402,12 +399,12 @@ fn get_selector(queries: hashmap<~str, Selector>, query: ~str) -> result::Result
 	}
 }
 
-fn eval_queries(store: &Store, queries: hashmap<~str, Selector>, exprs: ~[~str]) -> result::Result<~[Solution], ~str>
+priv fn eval_queries(store: &Store, queries: HashMap<~str, Selector>, exprs: ~[~str]) -> result::Result<~[Solution], ~str>
 {
 	do result::map_vec(exprs)
 	|expr|
 	{
-		match get_selector(queries, expr)
+		match get_selector(queries, *expr)
 		{
 			result::Ok(selector) =>
 			{
@@ -419,7 +416,7 @@ fn eval_queries(store: &Store, queries: hashmap<~str, Selector>, exprs: ~[~str])
 					}
 					result::Err(err) =>
 					{
-						error!("'%s' failed with %s", expr, err);
+						error!("'%s' failed with %s", *expr, err);
 						result::Err(err)
 					}
 				}

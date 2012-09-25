@@ -7,7 +7,7 @@ use handlers::*;
 use rrdf::rrdf::*;
 use task_runner::*;
 
-fn copy_scripts(root: Path, user: ~str, host: ~str) -> option::Option<~str>
+priv fn copy_scripts(root: Path, user: ~str, host: ~str) -> option::Option<~str>
 {
 	let dir = core::os::make_absolute(&root).pop();	// gnos/html => /gnos
 	let dir = dir.push(~"scripts");						// /gnos => /gnos/scripts
@@ -16,12 +16,12 @@ fn copy_scripts(root: Path, user: ~str, host: ~str) -> option::Option<~str>
 	utils::scp_files(files, user, host)
 }
 
-fn run_snmp(user: ~str, host: ~str, script: ~str) -> option::Option<~str>
+priv fn run_snmp(user: ~str, host: ~str, script: ~str) -> option::Option<~str>
 {
 	utils::run_remote_command(user, host, ~"python snmp-modeler.py -vv " + script)
 }
 
-fn snmp_exited(err: option::Option<~str>, state_chan: comm::Chan<model::Msg>)
+priv fn snmp_exited(err: option::Option<~str>, state_chan: comm::Chan<model::Msg>)
 {
 	let mesg = fmt!("snmp-modeler.py exited%s", if err.is_some() {~" with error: " + err.get()} else {~""});
 	error!("%s", mesg);
@@ -30,7 +30,7 @@ fn snmp_exited(err: option::Option<~str>, state_chan: comm::Chan<model::Msg>)
 	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _err| {model::open_alert(store, alert)}, ~""));
 }
 
-fn setup(options: options::Options, state_chan: comm::Chan<model::Msg>) 
+priv fn setup(options: options::Options, state_chan: comm::Chan<model::Msg>) 
 {
 	let root = options.root;
 	let client2 = copy options.client;
@@ -47,14 +47,14 @@ fn setup(options: options::Options, state_chan: comm::Chan<model::Msg>)
 	task_runner::sequence(~[cp, run], cleanup);
 }
 
-fn get_shutdown(options: options::Options) -> !
+priv fn get_shutdown(options: options::Options) -> !
 {
 	info!("received shutdown request");
-	for options.cleanup.each |f| {f()};
+	for options.cleanup.each |f| {(*f)()};
 	libc::exit(0)
 }
 
-fn update_globals(store: &Store, options: options::Options) -> bool
+priv fn update_globals(store: &Store, options: options::Options) -> bool
 {
 	store.add(~"gnos:globals", ~[
 		(~"gnos:admin", BoolValue(true)),		// TODO: get this from a setting

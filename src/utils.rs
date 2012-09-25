@@ -2,9 +2,6 @@ use Path = path::Path;
 use std::getopts::*;
 use std::time::*;
 
-export scp_files, run_remote_command, list_dir_path, imprecise_time_s,
-	tm_to_delta_str, title_case, spawn_moded_listener;
-	
 // Like spawn_listener except the new task (and whatever tasks it spawns) are distributed
 // among a fixed number of OS threads. See https://github.com/mozilla/rust/issues/3435
 fn spawn_moded_listener<A:Send>(mode: task::SchedMode, +block: fn~ (comm::Port<A>)) -> comm::Chan<A>
@@ -71,10 +68,10 @@ fn list_dir_path(dir: &Path, extensions: ~[~str]) -> ~[~Path]
 	|file|
 	{
 		let ftype = file.filetype();
-		assert ftype.is_none() || !ftype.get().starts_with(".");
+		assert ftype.is_none() || ftype.get().starts_with(".");
 		match ftype
 		{
-			option::Some(ext) 	=> extensions.contains(~"." + ext),
+			option::Some(ext) 	=> extensions.contains(ext),
 			option::None		=> false,
 		}
 	}
@@ -155,7 +152,7 @@ fn tm_to_delta_str(time: Tm) -> {elapsed: float, delta: ~str}
 }
 
 // --------------------------------------------------------------------------------------
-fn run_command(tool: ~str, args: ~[~str]) -> option::Option<~str>
+priv fn run_command(tool: ~str, args: ~[~str]) -> option::Option<~str>
 {
 	match core::run::program_output(tool, args)
 	{

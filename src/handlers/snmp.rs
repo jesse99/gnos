@@ -6,11 +6,9 @@ use runits::generated::*;
 use runits::units::*;
 use Option = option::Option;
 
-export Snmp, lookup;
-
 struct Snmp
 {
-	priv data: hashmap<~str, Json>,		// the data from a modeler
+	priv data: HashMap<~str, Json>,		// the data from a modeler
 	pub new_time: Value,					// time (measured on the remote device) for the current snapshot
 	
 	priv old: Solution,						// if non-empty then selected bits of information from the pervious data
@@ -20,7 +18,7 @@ struct Snmp
 	priv delta_time: Option<Value>,		// time between current and previous snapshot
 }
 
-fn Snmp(device: hashmap<~str, Json>, data: hashmap<~str, Json>, old: Solution, old_prefix: ~str, old_subject: Option<Object>) -> Snmp
+fn Snmp(device: HashMap<~str, Json>, data: HashMap<~str, Json>, old: Solution, old_prefix: ~str, old_subject: Option<Object>) -> Snmp
 {
 	let new_time = do get_new_value(device, ~"sysUpTime", Centi*Second).chain |u| {option::Some(u.convert_to(Second))};
 	let old_time = get_old_value(old_subject, ~"gnos:timestamp", &old, Second);
@@ -81,7 +79,7 @@ impl &Snmp
 	}
 }
 
-fn lookup(table: hashmap<~str, Json>, key: ~str, default: ~str) -> ~str
+fn lookup(table: HashMap<~str, Json>, key: ~str, default: ~str) -> ~str
 {
 	match table.find(key)
 	{
@@ -104,7 +102,7 @@ fn lookup(table: hashmap<~str, Json>, key: ~str, default: ~str) -> ~str
 }
 
 // ---- Internal Items ------------------------------------------------------------------
-fn get_new_value(data: hashmap<~str, Json>, key: ~str, units: Unit) -> Option<Value>
+priv fn get_new_value(data: HashMap<~str, Json>, key: ~str, units: Unit) -> Option<Value>
 {
 	match lookup(data, key, ~"")
 	{
@@ -130,7 +128,7 @@ fn get_new_value(data: hashmap<~str, Json>, key: ~str, units: Unit) -> Option<Va
 	}
 }
 
-fn get_old_value(subject: Option<Object>, predicate: ~str, old: &Solution, units: Unit) -> Option<Value>
+priv fn get_old_value(subject: Option<Object>, predicate: ~str, old: &Solution, units: Unit) -> Option<Value>
 {
 	let old_row = old.rows.find(|r| {r.search(~"subject") == subject && r.search(~"name") == option::Some(StringValue(predicate, ~""))});
 	if old_row.is_some()
