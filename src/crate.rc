@@ -8,10 +8,10 @@
 // TODO: enable these when rustc shakes out more
 #[forbid(unused_imports)];
 #[forbid(implicit_copies)];
-#[allow(deprecated_mode)];	// TODO: enable some of these
+#[forbid(deprecated_pattern)];
+#[allow(deprecated_mode)];	// TODO: enable some more of these
 #[allow(non_implicitly_copyable_typarams)];
 #[allow(structural_records)];
-#[forbid(deprecated_pattern)];
 
 extern mod std;
 extern mod mustache (name = "mustache", vers = "0.1");

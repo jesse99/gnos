@@ -98,7 +98,7 @@ fn parse_command_line(args: ~[~str]) -> Options
 	}
 }
 
-fn validate(options: Options)
+fn validate(options: &Options)
 {
 	if !os::path_is_dir(&options.root)
 	{

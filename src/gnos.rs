@@ -30,7 +30,7 @@ priv fn snmp_exited(err: option::Option<~str>, state_chan: comm::Chan<model::Msg
 	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _err| {model::open_alert(store, &alert)}, ~""));
 }
 
-priv fn setup(options: options::Options, state_chan: comm::Chan<model::Msg>) 
+priv fn setup(options: &options::Options, state_chan: comm::Chan<model::Msg>) 
 {
 	let root = copy options.root;
 	let client2 = copy options.client;
@@ -47,14 +47,14 @@ priv fn setup(options: options::Options, state_chan: comm::Chan<model::Msg>)
 	task_runner::sequence(~[cp, run], cleanup);
 }
 
-priv fn get_shutdown(options: options::Options) -> !
+priv fn get_shutdown(options: &options::Options) -> !
 {
 	info!("received shutdown request");
 	for options.cleanup.each |f| {(*f)()};
 	libc::exit(0)
 }
 
-priv fn update_globals(store: &Store, options: options::Options) -> bool
+priv fn update_globals(store: &Store, options: &options::Options) -> bool
 {
 	store.add(~"gnos:globals", ~[
 		(~"gnos:admin", BoolValue(true)),		// TODO: get this from a setting
@@ -81,16 +81,16 @@ fn main(args: ~[~str])
 	}
 	
 	let mut options = options::parse_command_line(args);
-	options::validate(options);
+	options::validate(&options);
 	
 	let state_chan = do utils::spawn_moded_listener(task::ManualThreads(2)) |port| {model::manage_state(port)};
 	if !options.db
 	{
-		let client = options.client;
+		let client = copy options.client;
 		let c1: task_runner::ExitFn = || {utils::run_remote_command(env!("GNOS_USER"), client, ~"pgrep -f snmp-modeler.py | xargs --no-run-if-empty kill -9");};
 		options.cleanup = ~[c1];
 		
-		setup(options, state_chan);
+		setup(&options, state_chan);
 	}
 	else
 	{
@@ -98,7 +98,7 @@ fn main(args: ~[~str])
 	}
 	
 	let options1 = copy options;
-	comm::send(state_chan, model::UpdateMsg(~"globals", |store, _err| {update_globals(store, options1)}, ~""));
+	comm::send(state_chan, model::UpdateMsg(~"globals", |store, _err| {update_globals(store, &options1)}, ~""));
 	
 	let options2 = copy options;
 	let options3 = copy options;
@@ -106,20 +106,20 @@ fn main(args: ~[~str])
 	let options5 = copy options;
 	let options6 = copy options;
 	let options7 = copy options;
-	let models_v: server::ResponseHandler = |_settings, _request: &server::Request, response: &server::Response| {get_models::get_models(options5, response, state_chan)};
-	let subject_v: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {get_subject::get_subject(options6, request, response)};
-	let home_v: server::ResponseHandler = |_settings, _request: &server::Request, response: &server::Response| {get_home::get_home(options2, response)};
-	let modeler_p: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {put_snmp::put_snmp(options4, state_chan, request, response)};
-	let query_store_v: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {get_query_store::get_query_store(options7, request, response)};
+	let models_v: server::ResponseHandler = |_settings, _request: &server::Request, response: &server::Response| {get_models::get_models(copy options5, response, state_chan)};
+	let subject_v: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {get_subject::get_subject(copy options6, request, response)};
+	let home_v: server::ResponseHandler = |_settings, _request: &server::Request, response: &server::Response| {get_home::get_home(copy options2, response)};
+	let modeler_p: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {put_snmp::put_snmp(&options4, state_chan, request, response)};
+	let query_store_v: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {get_query_store::get_query_store(copy options7, request, response)};
 	let query_s: server::OpenSse = |_settings, request: &server::Request, push| {get_query::get_query(state_chan, request, push)};
-	let bail_v: server::ResponseHandler = |_settings, _request: &server::Request, _response: &server::Response| {get_shutdown(options3)};
+	let bail_v: server::ResponseHandler = |_settings, _request: &server::Request, _response: &server::Response| {get_shutdown(&options3)};
 	
 	let config = server::Config
 	{
 		// We need to bind to the server addresses so that we receive modeler PUTs.
 		// We bind to localhost to ensure that we can hit the web server using a local
 		// browser.
-		hosts: if options.db {~[~"localhost"]} else if options.admin {~[options.server, ~"localhost"]} else {~[options.server]},
+		hosts: if options.db {~[~"localhost"]} else if options.admin {~[copy options.server, ~"localhost"]} else {~[copy options.server]},
 		port: options.port,
 		server_info: ~"gnos " + options::get_version(),
 		resources_root: options.root,
