@@ -110,9 +110,9 @@ priv fn get_new_value(data: HashMap<~str, Json>, key: ~str, units: Unit) -> Opti
 		{
 			option::None
 		}
-		text =>
+		ref text =>
 		{
-			match float::from_str(text)
+			match float::from_str(*text)
 			{
 				option::Some(value) =>
 				{
@@ -120,7 +120,7 @@ priv fn get_new_value(data: HashMap<~str, Json>, key: ~str, units: Unit) -> Opti
 				}
 				option::None =>
 				{
-					error!("%s was %s, but expected an int", key, text);
+					error!("%s was %s, but expected an int", key, *text);
 					option::None
 				}
 			}

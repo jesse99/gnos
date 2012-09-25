@@ -60,17 +60,17 @@ priv fn do_run(job: &Job, cleanup: ~[ExitFn])
 				info!("%s", err.get());
 			}
 		}
-		NotifyOnFailure(notify) =>
+		NotifyOnFailure(ref notify) =>
 		{
 			let err = job.action();
 			if err.is_some()
 			{
-				notify(err.get());
+				(*notify)(err.get());
 			}
 		}
-		NotifyOnExit(notify) =>
+		NotifyOnExit(ref notify) =>
 		{
-			notify(job.action())
+			(*notify)(job.action())
 		}
 		ShutdownOnFailure =>
 		{

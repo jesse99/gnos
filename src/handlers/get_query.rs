@@ -42,20 +42,20 @@ fn get_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: serve
 		{
 			match comm::select2(notify_port, control_port)
 			{
-				either::Left(result::Ok(new_solutions)) =>
+				either::Left(result::Ok(ref new_solutions)) =>
 				{
-					if new_solutions != solutions
+					if *new_solutions != solutions
 					{
-						solutions = copy new_solutions;	// TODO: need to escape the json?
+						solutions = copy *new_solutions;	// TODO: need to escape the json?
 						comm::send(push, fmt!("retry: 5000\ndata: %s\n\n", solutions_to_json(solutions).to_str()));
 					}
 					else
 					{
 					}
 				}
-				either::Left(result::Err(err)) =>
+				either::Left(result::Err(ref err)) =>
 				{
-					comm::send(push, fmt!("retry: 5000\ndata: %s\n\n", (~"Expected " + err).to_json().to_str()));
+					comm::send(push, fmt!("retry: 5000\ndata: %s\n\n", (~"Expected " + *err).to_json().to_str()));
 				}
 				either::Right(server::RefreshEvent) =>
 				{
@@ -145,7 +145,7 @@ priv fn object_to_json(obj: Object) -> std::json::Json
 {
 	match obj
 	{
-		IriValue(value) | BlankValue(value) =>
+		IriValue(ref value) | BlankValue(ref value) =>
 		{
 			value.to_json()
 		}
@@ -154,7 +154,7 @@ priv fn object_to_json(obj: Object) -> std::json::Json
 			// TODO: use custom css and render these in red
 			obj.to_str().to_json()
 		}
-		StringValue(value, ~"") =>
+		StringValue(ref value, ~"") =>
 		{
 			value.to_json()
 		}

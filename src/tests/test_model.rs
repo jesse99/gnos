@@ -59,9 +59,9 @@ fn check_solutions(actual: &Solution, expected: &Solution) -> bool
 			let value1 = entry1.second();
 			match row2.search(name1)
 			{
-				option::Some(value2) =>
+				option::Some(ref value2) =>
 				{
-					if value1 != value2
+					if value1 != *value2
 					{
 						print_failure(#fmt["Row %? actual %s was %s but expected %s.",
 							i, name1, value1.to_str(), value2.to_str()], actual, expected);
@@ -324,13 +324,13 @@ fn test_alerts()
 			}";
 		match eval_query(store, query)
 		{
-			result::Ok(actual) =>
+			result::Ok(ref actual) =>
 			{
-				check_solutions(&actual, expected)
+				check_solutions(actual, expected)
 			}
-			result::Err(err) =>
+			result::Err(ref err) =>
 			{
-				fail err;
+				fail *err;
 			}
 		}
 	}

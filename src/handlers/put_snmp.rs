@@ -146,7 +146,7 @@ priv fn add_device(store: &Store, alerts_store: &Store, devices: ~[Device], mana
 {
 	match devices.find(|d| {d.managed_ip == managed_ip})
 	{
-		option::Some(options_device) =>
+		option::Some(ref options_device) =>
 		{
 			let old_url = option::Some(IriValue(~"http://network/" + managed_ip));
 			let snmp = Snmp(device, device, copy *old,  ~"sname:", old_url);
@@ -511,7 +511,7 @@ priv fn get_subnet(interface: HashMap<~str, Json>) -> ~str
 		{
 			~"/?"
 		}
-		s =>
+		ref s =>
 		{
 			let parts = s.split_char('.');
 			let bytes = do parts.map |p| {uint::from_str(p).get()};		// TODO: probably shouldn't fail for malformed json
@@ -525,7 +525,7 @@ priv fn get_subnet(interface: HashMap<~str, Json>) -> ~str
 			else
 			{
 				// Unusual netmask where 0s and 1s are mixed.
-				fmt!("/%s", s)
+				fmt!("/%s", *s)
 			}
 		}
 	}

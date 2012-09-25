@@ -110,28 +110,28 @@ fn manage_state(port: comm::Port<Msg>)
 	{
 		match comm::recv(port)
 		{
-			QueryMsg(name, expr, channel) =>
+			QueryMsg(copy name, copy expr, channel) =>
 			{
-				let solutions = eval_queries(stores.get(copy name), queries, ~[copy expr]).get();		// always a canned query so we want to fail fast on error
+				let solutions = eval_queries(stores.get(name), queries, ~[expr]).get();		// always a canned query so we want to fail fast on error
 				assert solutions.len() == 1;
 				comm::send(channel, copy solutions[0]);
 			}
-			UpdateMsg(name, f, data) =>
+			UpdateMsg(copy name, ref f, ref data) =>
 			{
-				if f(stores.get(copy name), data)
+				if (*f)(stores.get(copy name), *data)
 				{
 					info!("Updated %s store", name);
 					update_registered(stores, name, queries, registered);
 				}
 			}
-			UpdatesMsg(names, f, data) =>
+			UpdatesMsg(copy names, ref f, ref data) =>
 			{
 				// This is a bit of a lame special case, but there are some advantages:
 				// 1) It allows multiple stores to be updated atomically.
 				// 2) At the moment json is not sendable so we can use this message to avoid re-parsing
 				// the (potentially very large) json strings modelers send us.
 				let ss = do names.map |name| {stores.get(copy name)};
-				if f(ss, data)
+				if (*f)(ss, *data)
 				{
 					info!("Updated %s stores", str::connect(names, ~", "));
 					for names.each
@@ -141,26 +141,26 @@ fn manage_state(port: comm::Port<Msg>)
 					}
 				}
 			}
-			RegisterMsg(name, key, exprs, channel) =>
+			RegisterMsg(copy name, copy key, copy exprs, channel) =>
 			{
 				match eval_queries(stores.get(copy name), queries, exprs)
 				{
-					result::Ok(solutions) =>
+					result::Ok(copy solutions) =>
 					{
-						comm::send(channel, result::Ok(copy(solutions)));
+						comm::send(channel, result::Ok(copy solutions));
 						
-						let added = registered[name].insert(copy key, {queries: copy exprs, channel: channel, solutions: @mut copy solutions});
+						let added = registered[name].insert(key, {queries: exprs, channel: channel, solutions: @mut solutions});
 						assert added;
 					}
-					result::Err(err) =>
+					result::Err(copy err) =>
 					{
-						comm::send(channel, result::Err(copy err));
+						comm::send(channel, result::Err(err));
 					}
 				}
 			}
-			DeregisterMsg(name, key) =>
+			DeregisterMsg(ref name, copy key) =>
 			{
-				registered[name].remove(copy key);
+				registered[*name].remove(key);
 			}
 			SyncMsg(channel) =>
 			{
@@ -204,7 +204,7 @@ fn open_alert(store: &Store, alert: &Alert) -> bool
 	
 	match eval_query(store, expr)
 	{
-		result::Ok(solution) =>
+		result::Ok(ref solution) =>
 		{
 			// Add the alert if it doesn't already exist OR it exists but is closed (i.e. if we found rows they must all be closed).
 			if solution.rows.all(|row| {row.search(~"end").is_some()})
@@ -239,9 +239,9 @@ fn open_alert(store: &Store, alert: &Alert) -> bool
 				false
 			}
 		}
-		result::Err(err) =>
+		result::Err(ref err) =>
 		{
-			error!("open_alert> %s", err);
+			error!("open_alert> %s", *err);
 			false
 		}
 	}
@@ -268,7 +268,7 @@ fn close_alert(store: &Store, device: ~str, id: ~str) -> bool
 	
 	match eval_query(store, expr)
 	{
-		result::Ok(solution) =>
+		result::Ok(ref solution) =>
 		{
 			let mut changed = false;
 			let mut added = 0;
@@ -292,9 +292,9 @@ fn close_alert(store: &Store, device: ~str, id: ~str) -> bool
 			}
 			changed
 		}
-		result::Err(err) =>
+		result::Err(ref err) =>
 		{
-			error!("close_alert> %s", err);
+			error!("close_alert> %s", *err);
 			false
 		}
 	}
@@ -308,19 +308,19 @@ fn eval_query(store: &Store, expr: ~str) -> result::Result<Solution, ~str>
 		{
 			match selector(store)
 			{
-				result::Ok(solution) =>
+				result::Ok(copy solution) =>
 				{
-					result::Ok(copy solution)
+					result::Ok(solution)
 				}
-				result::Err(err) =>
+				result::Err(ref err) =>
 				{
-					result::Err(fmt!("query failed to run: %s", err))
+					result::Err(fmt!("query failed to run: %s", *err))
 				}
 			}
 		}
-		result::Err(err) =>
+		result::Err(ref err) =>
 		{
-			result::Err(fmt!("failed to compile query: expected %s", err))
+			result::Err(fmt!("failed to compile query: expected %s", *err))
 		}
 	}
 }
@@ -358,7 +358,7 @@ priv fn update_err_count(store: &Store, device: ~str, delta: i64)
 			// or something that passes the original value to a closure.
 			store.replace_triple(~[], {subject: copy device, predicate: ~"gnos:num_errors", object: IntValue(value + delta)});
 		}
-		option::Some(x) =>
+		option::Some(ref x) =>
 		{
 			fail fmt!("Expected an int value for gnos:num_errors in the alerts store, but found %?", x);
 		}
@@ -389,10 +389,10 @@ priv fn get_selector(queries: HashMap<~str, Selector>, query: ~str) -> result::R
 					queries.insert(copy query, s);
 					result::Ok(s)
 				}
-				result::Err(err) =>
+				result::Err(copy err) =>
 				{
 					error!("Failed to compile: expected %s", err);
-					result::Err(copy err)
+					result::Err(err)
 				}
 			}
 		}
@@ -410,20 +410,20 @@ priv fn eval_queries(store: &Store, queries: HashMap<~str, Selector>, exprs: ~[~
 			{
 				match selector(store)
 				{
-					result::Ok(solution) =>
+					result::Ok(copy solution) =>
 					{
-						result::Ok(copy solution)
+						result::Ok(solution)
 					}
-					result::Err(err) =>
+					result::Err(copy err) =>
 					{
 						error!("'%s' failed with %s", *expr, err);
-						result::Err(copy err)
+						result::Err(err)
 					}
 				}
 			}
-			result::Err(err) =>
+			result::Err(copy err) =>
 			{
-				result::Err(copy err)
+				result::Err(err)
 			}
 		}
 	}

@@ -71,7 +71,7 @@ fn list_dir_path(dir: &Path, extensions: ~[~str]) -> ~[~Path]
 		assert ftype.is_none() || ftype.get().starts_with(".");
 		match ftype
 		{
-			option::Some(ext) 	=> extensions.contains(ext),
+			option::Some(ref ext) 	=> extensions.contains(*ext),
 			option::None		=> false,
 		}
 	}
@@ -164,9 +164,9 @@ priv fn run_command(tool: ~str, args: ~[~str]) -> option::Option<~str>
 		{
 			option::Some(fmt!("result code was %?", code))
 		}
-		{status: code, out: _, err: err} =>
+		{status: code, out: _, err: ref err} =>
 		{
-			option::Some(fmt!("result code was %? (%s)", code, err))
+			option::Some(fmt!("result code was %? (%s)", code, *err))
 		}
 	}
 }

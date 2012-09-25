@@ -63,8 +63,8 @@ fn parse_command_line(args: ~[~str]) -> Options
 	];
 	let matched = match getopts(vec::tail(args), opts)
 	{
-		result::Ok(m) => {copy m}
-		result::Err(f) => {io::stderr().write_line(fail_str(copy f)); libc::exit(1_i32)}
+		result::Ok(copy m) => {m}
+		result::Err(copy f) => {io::stderr().write_line(fail_str(f)); libc::exit(1_i32)}
 	};
 	if opt_present(copy matched, ~"version")
 	{
@@ -151,9 +151,9 @@ priv fn load_network_file(path: &Path) -> {network: ~str, client: ~str, server: 
 				}
 			}
 		}
-		result::Err(err) =>
+		result::Err(ref err) =>
 		{
-			io::stderr().write_line(fmt!("Error reading '%s': %s.", path.to_str(), err));
+			io::stderr().write_line(fmt!("Error reading '%s': %s.", path.to_str(), *err));
 			libc::exit(1)
 		}
 	}
