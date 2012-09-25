@@ -29,7 +29,7 @@ struct Job
 /// Run the job within a task.
 fn run(+job: Job, +cleanup: ~[ExitFn])
 {
-	do task::spawn_sched(task::SingleThreaded)
+	do task::spawn_sched(task::ManualThreads(1))
 	{
 		do_run(&job, cleanup);
 	}
@@ -38,7 +38,7 @@ fn run(+job: Job, +cleanup: ~[ExitFn])
 /// Run the jobs within a task: one after another.
 fn sequence(+jobs: ~[Job], +cleanup: ~[ExitFn])
 {
-	do task::spawn_sched(task::SingleThreaded)
+	do task::spawn_sched(task::ManualThreads(2))
 	{
 		for jobs.each
 		|job|
