@@ -7,9 +7,9 @@ use handlers::*;
 use rrdf::rrdf::*;
 use task_runner::*;
 
-priv fn copy_scripts(root: Path, user: ~str, host: ~str) -> option::Option<~str>
+priv fn copy_scripts(root: &Path, user: ~str, host: ~str) -> option::Option<~str>
 {
-	let dir = core::os::make_absolute(&root).pop();	// gnos/html => /gnos
+	let dir = core::os::make_absolute(root).pop();	// gnos/html => /gnos
 	let dir = dir.push(~"scripts");						// /gnos => /gnos/scripts
 	let files = utils::list_dir_path(&dir, ~[~".json", ~".py"]);
 	
@@ -27,16 +27,16 @@ priv fn snmp_exited(err: option::Option<~str>, state_chan: comm::Chan<model::Msg
 	error!("%s", mesg);
 	
 	let alert = model::Alert {device: ~"gnos:map", id: ~"snmp-modeler.py exited", level: model::ErrorLevel, mesg: mesg, resolution: ~"Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
-	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _err| {model::open_alert(store, alert)}, ~""));
+	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _err| {model::open_alert(store, &alert)}, ~""));
 }
 
 priv fn setup(options: options::Options, state_chan: comm::Chan<model::Msg>) 
 {
-	let root = options.root;
+	let root = copy options.root;
 	let client2 = copy options.client;
 	let cleanup = copy options.cleanup;
 	
-	let action: task_runner::JobFn = || copy_scripts(root, env!("GNOS_USER"), client2);
+	let action: task_runner::JobFn = || copy_scripts(&root, env!("GNOS_USER"), client2);
 	let cp = Job {action: action, policy: task_runner::ShutdownOnFailure};
 	
 	let client3 = copy options.client;
@@ -61,11 +61,11 @@ priv fn update_globals(store: &Store, options: options::Options) -> bool
 		(~"gnos:debug", BoolValue(true)),		// TODO: get this from command line
 	]);
 	
-	let devices = vec::zip(vec::from_elem(options.devices.len(), ~"gnos:device"), do options.devices.map |n| {StringValue(n.managed_ip, ~"")});
+	let devices = vec::zip(vec::from_elem(options.devices.len(), ~"gnos:device"), do options.devices.map |n| {StringValue(copy n.managed_ip, ~"")});
 	store.add(~"gnos:globals", devices);
 	
 	let names = model::get_standard_store_names();
-	let stores = vec::zip(vec::from_elem(names.len(), ~"gnos:store"), do names.map |n| {StringValue(n, ~"")});
+	let stores = vec::zip(vec::from_elem(names.len(), ~"gnos:store"), do names.map |n| {StringValue(copy n, ~"")});
 	store.add(~"gnos:globals", stores);
 	
 	true

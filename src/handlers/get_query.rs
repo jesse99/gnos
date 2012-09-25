@@ -24,7 +24,7 @@ use rwebserve::imap::ImmutableMap;
 /// If a query fails to compile the result will be a string with an error message.
 fn get_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: server::PushChan) -> server::ControlChan
 {
-	let name = *request.params.get(@~"name");
+	let name = copy *request.params.get(@~"name");
 	let queries = get_queries(request);
 	
 	do utils::spawn_moded_listener(task::ManualThreads(2))
@@ -35,7 +35,7 @@ fn get_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: serve
 		let notify_chan = comm::Chan(notify_port);
 		
 		let key = fmt!("query %?", ptr::addr_of(notify_port));
-		comm::send(state_chan, RegisterMsg(name, key, queries, notify_chan));
+		comm::send(state_chan, RegisterMsg(copy name, copy key, copy queries, notify_chan));
 		
 		let mut solutions = ~[];
 		loop
@@ -46,7 +46,7 @@ fn get_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: serve
 				{
 					if new_solutions != solutions
 					{
-						solutions = new_solutions;	// TODO: need to escape the json?
+						solutions = copy new_solutions;	// TODO: need to escape the json?
 						comm::send(push, fmt!("retry: 5000\ndata: %s\n\n", solutions_to_json(solutions).to_str()));
 					}
 					else
@@ -64,7 +64,7 @@ fn get_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: serve
 				either::Right(server::CloseEvent) =>
 				{
 					info!("shutting down query stream");
-					comm::send(state_chan, DeregisterMsg(name, key));
+					comm::send(state_chan, DeregisterMsg(copy name, key));
 					break;
 				}
 			}
@@ -75,7 +75,7 @@ fn get_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: serve
 priv fn get_queries(request: &server::Request) -> ~[~str]
 {
 	let mut queries = ~[];
-	vec::push(queries, *request.params.get(@~"expr"));
+	vec::push(queries, copy *request.params.get(@~"expr"));
 	
 	for uint::iterate(2, 10)
 	|i|
@@ -84,7 +84,7 @@ priv fn get_queries(request: &server::Request) -> ~[~str]
 		{
 			option::Some(expr) =>
 			{
-				vec::push(queries, *expr);
+				vec::push(queries, copy *expr);
 			}
 			option::None =>
 			{
@@ -133,7 +133,7 @@ priv fn solution_row_to_json(row: &SolutionRow) -> std::json::Json
 			do vec::map(*row)
 			|entry|
 			{
-				let (key, value) = entry;
+				let (key, value) = copy entry;
 				(key, object_to_json(value))
 			}
 		)

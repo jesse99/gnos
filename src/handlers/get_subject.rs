@@ -8,7 +8,7 @@ fn get_subject(options: options::Options, request: &server::Request, response: &
 {
 	let name = request.matches.get(@~"name");
 	let subject = request.matches.get(@~"subject");
-	response.context.insert(@~"network-name", mustache::Str(@options.network_name));
+	response.context.insert(@~"network-name", mustache::Str(@copy options.network_name));
 	response.context.insert(@~"name", mustache::Str(name));
 	response.context.insert(@~"subject", mustache::Str(subject));
 	

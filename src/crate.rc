@@ -11,7 +11,7 @@
 #[allow(non_implicitly_copyable_typarams)];
 #[allow(structural_records)];
 #[allow(deprecated_pattern)];
-#[allow(implicit_copies)];
+#[forbid(implicit_copies)];
 
 extern mod std;
 extern mod mustache (name = "mustache", vers = "0.1");

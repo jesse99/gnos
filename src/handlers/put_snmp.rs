@@ -12,19 +12,18 @@ use runits::units::*;
 use snmp::*;
 use server = rwebserve::rwebserve;
 
-fn put_snmp(options: Options, state_chan: comm::Chan<Msg>, request: &server::Request, response: &server::Response) -> server::Response
+fn put_snmp(options: &Options, state_chan: comm::Chan<Msg>, request: &server::Request, response: &server::Response) -> server::Response
 {
 	// Unfortunately we don't send an error back to the modeler if the json was invalid.
 	// Of course that shouldn't happen...
-	let addr = request.remote_addr;
+	let addr = copy request.remote_addr;
 	info!("got new modeler data from %s", addr);
 	
 	// Arguably cleaner to do this inside of json_to_store (or add_device) but we'll deadlock if we try
 	// to do a query inside of an updates_mesg callback.
 	let old = query_old_info(state_chan);
-	
-	let ooo = copy(options);
-	comm::send(state_chan, UpdatesMsg(~[~"primary", ~"snmp", ~"alerts"], |ss, d| {updates_snmp(ooo, addr, ss, d, &old)}, request.body));
+	let ooo = copy *options;
+	comm::send(state_chan, UpdatesMsg(~[~"primary", ~"snmp", ~"alerts"], |ss, d| {updates_snmp(copy ooo, addr, ss, d, &old)}, copy request.body));
 	
 	server::Response {body: ~"", ..*response}
 }
@@ -39,7 +38,7 @@ priv fn updates_snmp(options: Options, remote_addr: ~str, stores: &[@Store], bod
 			{
 				json::Dict(d) =>
 				{
-					json_to_primary(options, remote_addr, stores[0], stores[2], d, old);
+					json_to_primary(&options, remote_addr, stores[0], stores[2], d, old);
 					json_to_snmp(remote_addr, stores[1], d);
 				}
 				_ =>
@@ -99,7 +98,7 @@ WHERE
 //    },
 //    ...
 // }
-priv fn json_to_primary(options: Options, remote_addr: ~str, store: &Store, alerts_store: &Store, data: HashMap<~str, Json>, old: &Solution)
+priv fn json_to_primary(options: &Options, remote_addr: ~str, store: &Store, alerts_store: &Store, data: HashMap<~str, Json>, old: &Solution)
 {
 	store.clear();
 	store.add_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:last_update", object: DateTimeValue(std::time::now())});
@@ -150,23 +149,23 @@ priv fn add_device(store: &Store, alerts_store: &Store, devices: ~[Device], mana
 		option::Some(options_device) =>
 		{
 			let old_url = option::Some(IriValue(~"http://network/" + managed_ip));
-			let snmp = Snmp(device, device, *old,  ~"sname:", old_url);
+			let snmp = Snmp(device, device, copy *old,  ~"sname:", old_url);
 			let time = snmp.new_time;
 			
 			let entries = ~[
 				(~"gnos:center_x", FloatValue(options_device.center_x as f64)),
 				(~"gnos:center_y", FloatValue(options_device.center_y as f64)),
-				(~"gnos:style", StringValue(options_device.style, ~"")),
+				(~"gnos:style", StringValue(copy options_device.style, ~"")),
 				
-				(~"gnos:primary_label", StringValue(options_device.name, ~"")),
-				(~"gnos:secondary_label", StringValue(managed_ip, ~"")),
+				(~"gnos:primary_label", StringValue(copy options_device.name, ~"")),
+				(~"gnos:secondary_label", StringValue(copy managed_ip, ~"")),
 				(~"gnos:tertiary_label", StringValue(get_device_label(&snmp).trim(), ~"")),
 			];
 			let subject = fmt!("devices:%s", managed_ip);
 			store.add(subject, entries);
 			
 			// These are undocumented because they not intended to be used by clients.
-			store.add_triple(~[], {subject: subject, predicate: ~"gnos:internal-info", object: BlankValue(old_subject)});
+			store.add_triple(~[], {subject: subject, predicate: ~"gnos:internal-info", object: BlankValue(copy old_subject)});
 			
 			let entries = [
 				(~"gnos:timestamp", option::Some(snmp.new_time)),
@@ -205,7 +204,7 @@ priv fn toggle_device_uptime_alert(alerts_store: &Store, managed_ip: ~str, time:
 	{
 		// TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
 		let mesg = ~"Device rebooted.";		// we can't add the time here because alerts aren't changed when re-opened (and the mesg doesn't change when they are closed)
-		model::open_alert(alerts_store, model::Alert {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
+		model::open_alert(alerts_store, &model::Alert {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
 	}
 	else
 	{
@@ -226,7 +225,7 @@ priv fn toggle_device_down_alert(alerts_store: &Store, managed_ip: ~str, up: boo
 	{
 		let mesg = ~"Device is down.";
 		let resolution = ~"Check the power cable, power it on if it is off, check the IP address, verify routing.";
-		model::open_alert(alerts_store, model::Alert {device: device, id: id, level: model::ErrorLevel, mesg: mesg, resolution: resolution});
+		model::open_alert(alerts_store, &model::Alert {device: device, id: id, level: model::ErrorLevel, mesg: mesg, resolution: resolution});
 	}
 }
 
@@ -349,7 +348,7 @@ priv fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, dev
 	let name = lookup(interface, ~"ifDescr", ~"eth?");
 	
 	let old_url = option::Some(IriValue(~"http://network/" + managed_ip));
-	let snmp = Snmp(device, interface, *old,  fmt!("sname:%s-", name), old_url);
+	let snmp = Snmp(device, interface, copy *old,  fmt!("sname:%s-", name), old_url);
 	
 	let oper_status = lookup(interface, ~"ifOperStatus", ~"missing");
 	if oper_status.contains(~"(1)")
@@ -410,7 +409,7 @@ priv fn add_interface_out_meter(store: &Store, snmp: &Snmp, managed_ip: ~str, na
 		{
 			let subject = get_blank_name(store, fmt!("%s-meter", managed_ip));
 			store.add(subject, ~[
-				(~"gnos:meter",          StringValue(name, ~"")),
+				(~"gnos:meter",          StringValue(copy name, ~"")),
 				(~"gnos:target",          IriValue(fmt!("devices:%s", managed_ip))),
 				(~"gnos:level",           FloatValue(level.value as f64)),
 				(~"gnos:description",  StringValue(~"Percentage of interface bandwidth used by output packets.", ~"")),
@@ -433,7 +432,7 @@ priv fn toggle_interface_uptime_alert(alerts_store: &Store, managed_ip: ~str, sn
 		{
 			// TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
 			let mesg = fmt!("%s status changed.", name);		// we can't add the time here because alerts aren't changed when re-opened (and the mesg doesn't change when they are closed)
-			model::open_alert(alerts_store, model::Alert {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
+			model::open_alert(alerts_store, &model::Alert {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
 		}
 		else
 		{
@@ -451,7 +450,7 @@ priv fn toggle_admin_vs_oper_interface_alert(alerts_store: &Store, managed_ip: ~
 	if admin_status.is_not_empty() && oper_status != admin_status
 	{
 		let mesg = fmt!("Admin set %s to %s, but operational state is %s.", name, trim_interface_status(admin_status), trim_interface_status(oper_status));
-		model::open_alert(alerts_store, model::Alert {device: device, id: id, level: model::ErrorLevel, mesg: mesg, resolution: ~""});
+		model::open_alert(alerts_store, &model::Alert {device: device, id: id, level: model::ErrorLevel, mesg: mesg, resolution: ~""});
 	}
 	else
 	{
@@ -476,7 +475,7 @@ priv fn toggle_weird_interface_state_alert(alerts_store: &Store, managed_ip: ~st
 	else
 	{
 		let mesg = fmt!("%s operational state is %s.", name, trim_interface_status(oper_status));
-		model::open_alert(alerts_store, model::Alert {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
+		model::open_alert(alerts_store, &model::Alert {device: device, id: id, level: model::WarningLevel, mesg: mesg, resolution: ~""});
 	}
 }
 
@@ -484,7 +483,7 @@ priv fn toggle_weird_interface_state_alert(alerts_store: &Store, managed_ip: ~st
 // TODO: Should use a regex once rust supports them.
 priv fn trim_interface_status(status: ~str) -> ~str
 {
-	let mut result = status;
+	let mut result = copy status;
 	
 	for uint::range(1, 7)
 	|i|
@@ -645,7 +644,7 @@ priv fn device_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, data:
 		{
 			json::String(s) =>
 			{
-				vec::push(entries, (~"sname:" + name, StringValue(*s, ~"")));
+				vec::push(entries, (~"sname:" + name, StringValue(copy *s, ~"")));
 			}
 			json::List(interfaces) =>
 			{
@@ -696,9 +695,9 @@ priv fn interface_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, in
 			{
 				if name == ~"ifDescr"
 				{
-					ifname = *s;
+					ifname = copy *s;
 				}
-				vec::push(entries, (~"sname:" + name, StringValue(*s, ~"")));
+				vec::push(entries, (~"sname:" + name, StringValue(copy *s, ~"")));
 			}
 			_ =>
 			{

@@ -31,7 +31,7 @@ fn run(+job: Job, +cleanup: ~[ExitFn])
 {
 	do task::spawn_sched(task::SingleThreaded)
 	{
-		do_run(job, cleanup);
+		do_run(&job, cleanup);
 	}
 }
 
@@ -43,12 +43,12 @@ fn sequence(+jobs: ~[Job], +cleanup: ~[ExitFn])
 		for jobs.each
 		|job|
 		{
-			do_run(*job, cleanup);
+			do_run(job, cleanup);
 		}
 	}
 }
 
-priv fn do_run(job: Job, cleanup: ~[ExitFn])
+priv fn do_run(job: &Job, cleanup: ~[ExitFn])
 {
 	match job.policy
 	{

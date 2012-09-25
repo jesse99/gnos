@@ -29,7 +29,7 @@ fn title_case(s: ~str) -> ~str
 	}
 	else
 	{
-		s
+		copy s
 	}
 }
 
@@ -52,7 +52,7 @@ fn scp_files(files: ~[~Path], user: ~str, host: ~str) -> option::Option<~str>
 /// Returns an error if the command returned a non-zero result code
 fn run_remote_command(user: ~str, host: ~str, command: ~str) -> option::Option<~str>
 {
-	let args = ~[fmt!("%s@%s", user, host)] + ~[command];
+	let args = ~[fmt!("%s@%s", user, host)] + ~[copy command];
 	
 	info!("ssh %s \"%s\"", args.head(), str::connect(args.tail(), ~" "));
 	run_command(~"ssh", args)
@@ -123,8 +123,8 @@ fn tm_to_delta_str(time: Tm) -> {elapsed: float, delta: ~str}
 	}
 	
 	let current = now();
-	let time_secs = tm_to_secs(time);
-	let current_secs = tm_to_secs(current);
+	let time_secs = tm_to_secs(copy time);
+	let current_secs = tm_to_secs(copy current);
 	let elapsed = float::abs(time_secs - current_secs);
 	
 	if time_secs == current_secs

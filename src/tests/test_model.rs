@@ -44,7 +44,7 @@ fn check_solutions(actual: &Solution, expected: &Solution) -> bool
 	for vec::eachi(actual.rows)
 	|i, row1|
 	{
-		let row2 = expected.rows[i];
+		let row2 = copy expected.rows[i];
 		if vec::len(row1) != vec::len(row2)
 		{
 			print_failure(#fmt["Row %? had size %? but expected %?.",
@@ -89,7 +89,7 @@ fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
 		{
 			std::json::String(value) =>
 			{
-				*value
+				copy *value
 			}
 			x =>
 			{
@@ -114,7 +114,7 @@ fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
 						{
 							let key = get_str(entry, 0);
 							let value = get_str(entry, 1);
-							store.replace_triple(~[], {subject: subject, predicate: ~"sname:" + key, object: StringValue(value, ~"")});
+							store.replace_triple(~[], {subject: copy subject, predicate: ~"sname:" + key, object: StringValue(value, ~"")});
 						}
 						y =>
 						{
@@ -157,7 +157,7 @@ WHERE
 }";
 	let query_port = comm::Port();
 	let query_chan = comm::Chan(query_port);
-	comm::send(state_chan, QueryMsg(~"primary", query, query_chan));
+	comm::send(state_chan, QueryMsg(~"primary", copy query, query_chan));
 	
 	// store starts out empty
 	let solution = query_chan.recv();
@@ -166,7 +166,7 @@ WHERE
 	
 	// after adding ttl can query for it
 	update(state_chan, ~[(~"ttl", ~"50")]);
-	comm::send(state_chan, QueryMsg(~"primary", query, query_chan));
+	comm::send(state_chan, QueryMsg(~"primary", copy query, query_chan));
 	let solution = query_chan.recv();
 	assert check_solutions(&solution, &Solution {namespaces: ~[], rows: ~[
 		~[(~"ttl", StringValue(~"50", ~""))],
@@ -344,19 +344,19 @@ fn test_alerts()
 	let store = Store(namespaces, &std::map::HashMap());
 	
 	// open foo/bar => adds the alert
-	open_alert(&store, Alert {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"fie", resolution: ~""});
+	open_alert(&store, &Alert {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"fie", resolution: ~""});
 	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
 	]});
 	
 	// open foo/bar => does nothing
-	open_alert(&store, Alert {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"no-op fie", resolution: ~""});
+	open_alert(&store, &Alert {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"no-op fie", resolution: ~""});
 	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
 	]});
 	
 	// open foo/cat => adds alert
-	open_alert(&store, Alert {device: ~"gnos:foo", id: ~"cat", level: ErrorLevel, mesg: ~"meow", resolution: ~""});
+	open_alert(&store, &Alert {device: ~"gnos:foo", id: ~"cat", level: ErrorLevel, mesg: ~"meow", resolution: ~""});
 	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
@@ -384,7 +384,7 @@ fn test_alerts()
 	]});
 	
 	// open foo/bar => adds a new alert
-	open_alert(&store, Alert {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"fum", resolution: ~""});
+	open_alert(&store, &Alert {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"fum", resolution: ~""});
 	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"fum", ~"")), (~"closed", BoolValue(false))],
 		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
