@@ -83,7 +83,7 @@ fn main(args: ~[~str])
 	let mut options = options::parse_command_line(args);
 	options::validate(&options);
 	
-	let state_chan = do utils::spawn_moded_listener(task::ManualThreads(2)) |port| {model::manage_state(port)};
+	let state_chan = do task::spawn_listener |port| {model::manage_state(port)};
 	if !options.db
 	{
 		let client = copy options.client;

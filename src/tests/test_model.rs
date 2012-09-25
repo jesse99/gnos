@@ -142,7 +142,7 @@ fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
 #[test]
 fn test_query()
 {
-	let state_chan = do utils::spawn_moded_listener(task::ManualThreads(2)) |port| {model::manage_state(port)};
+	let state_chan = do task::spawn_listener |port| {model::manage_state(port)};
 	let sync_port = comm::Port();
 	let sync_chan = comm::Chan(sync_port);
 	
@@ -191,7 +191,7 @@ WHERE
 #[test]
 fn test_registration()
 {
-	let state_chan = do utils::spawn_moded_listener(task::ManualThreads(2)) |port| {model::manage_state(port)};
+	let state_chan = do task::spawn_listener |port| {model::manage_state(port)};
 	let sync_port = comm::Port();
 	let sync_chan = comm::Chan(sync_port);
 	
@@ -261,7 +261,7 @@ WHERE
 #[test]
 fn test_deregistration()
 {
-	let state_chan = do utils::spawn_moded_listener(task::ManualThreads(2)) |port| {model::manage_state(port)};
+	let state_chan = do task::spawn_listener |port| {model::manage_state(port)};
 	let sync_port = comm::Port();
 	let sync_chan = comm::Chan(sync_port);
 	

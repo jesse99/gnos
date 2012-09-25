@@ -176,7 +176,8 @@ priv fn add_got(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: u1
 		(~"gnos:key",     StringValue(~"d5", ~"")),
 	]);
 	
-	do task::spawn_sched(task::ManualThreads(1)) {update_got(state_chan, winterfell_loyalty, 0.6f64, kings_landing_loyalty, 0.9f64, poll_rate);}
+	// update_got calls libc sleep so it needs its own thread
+	do task::spawn_sched(task::SingleThreaded) {update_got(state_chan, winterfell_loyalty, 0.6f64, kings_landing_loyalty, 0.9f64, poll_rate);}
 }
 
 priv fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool
