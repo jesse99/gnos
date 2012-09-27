@@ -23,6 +23,7 @@ mod db;
 mod gnos;
 mod model;
 mod options;
+mod ring_buffer;
 mod task_runner;
 mod utils;
 mod handlers
