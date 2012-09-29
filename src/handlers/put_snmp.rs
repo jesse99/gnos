@@ -16,6 +16,7 @@ use server = rwebserve::rwebserve;
 use mustache::*;
 use mustache::{Template, TemplateTrait};
 use core::io::{WriterUtil};
+use mustache::{Context, ContextTrait};
 
 type SamplesChan = Chan<samples::Msg>;
 
@@ -122,7 +123,8 @@ priv fn json_to_primary(options: &Options, samples_chan: SamplesChan, remote_add
 	store.add_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:poll_interval", object: IntValue(options.poll_rate as i64)});
 	
 	let path = get_sparkline_script(options);
-	let template = mustache::compile_file(path.to_str());
+	let context = mustache::context(@~".", @~"");
+	let template = context.compile_file(path.to_str());
 	
 	let mut script = ~"";
 	for data.each()
@@ -154,6 +156,12 @@ priv fn json_to_primary(options: &Options, samples_chan: SamplesChan, remote_add
 
 priv fn run_r_script(script: ~str)
 {
+	fn get_output(label: &str, reader: io::Reader) -> ~str
+	{
+		let text = str::from_bytes(reader.read_whole_stream());
+		if text.is_not_empty() {fmt!("%s:\n%s\n", label, text)} else {~""}
+	}
+	
 	let script = ~"library(YaleToolkit)\n\n" + script;
 	let action: JobFn = 
 		||
@@ -165,8 +173,19 @@ priv fn run_r_script(script: ~str)
 				{
 					writer.write_str(script);
 					
-					let result = core::run::run_program("Rscript", [path.to_str()]);
-					if result != 0 {option::Some(fmt!("Rscript %s returned %?", path.to_str(), result))} else {option::None}
+					let program = core::run::start_program("Rscript", [path.to_str()]);
+					let result = program.finish();
+					if result != 0
+					{
+						let mut err = fmt!("Rscript %s returned %?\n", path.to_str(), result);
+						err += get_output("stdout", program.output());
+						err += get_output("stderr", program.err());
+						option::Some(err)
+					}
+					else
+					{
+						option::None
+					}
 				}
 				result::Err(ref err) =>
 				{

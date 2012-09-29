@@ -58,7 +58,8 @@ priv fn do_run(job: &Job, cleanup: ~[ExitFn])
 			let err = job.action();
 			if err.is_some()
 			{
-				info!("%s", err.get());
+				let errors = err.get().split_char('\n');
+				for errors.each |line| {info!("%s", *line)};
 			}
 		}
 		NotifyOnFailure(ref notify) =>
