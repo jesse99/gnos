@@ -540,11 +540,13 @@ priv fn build_sparkline(network: &Network, name: ~str, template: Template) -> (~
 	
 	if (buffer.len() > 1)
 	{
-		let path = fmt!("/Users/jessejones/Source/gnos/html/generated/%s.png", name);	// TODO: need a better directory
+		let mut path = core::os::make_absolute(&network.options.root);
+		path = path.push("generated");
+		path = path.push(fmt!("%s.png", name));
 		
 		let context = HashMap();
 		context.insert(@~"samples", mustache::Str(@str::connect(do iter::map_to_vec(*buffer) |s| {s.to_str()}, ", ")));
-		context.insert(@~"file", mustache::Str(@path));
+		context.insert(@~"file", mustache::Str(@path.to_str()));
 		context.insert(@~"width", mustache::Str(@~"150"));
 		context.insert(@~"height", mustache::Str(@~"50"));
 		context.insert(@~"label", mustache::Str(@~"kbps"));
