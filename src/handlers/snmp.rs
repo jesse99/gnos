@@ -8,7 +8,7 @@ use Option = option::Option;
 
 struct Snmp
 {
-	priv data: HashMap<~str, Json>,		// the data from a modeler, TODO: should use @~str, but that's problematic bacause json doesn't atm
+	priv data: HashMap<~str, Json>,	// the data from a modeler, TODO: should use @~str, but that's problematic bacause json doesn't atm
 	pub new_time: Value,					// time (measured on the remote device) for the current snapshot
 	
 	priv old: Solution,						// if non-empty then selected bits of information from the pervious data

@@ -30,7 +30,7 @@ struct Network
 	store: &Store,
 	alerts_store: &Store,
 	snmp_store: &Store,
-	snmp: &HashMap<~str, Json>,
+	snmp: HashMap<~str, Json>,
 }
 
 fn put_snmp(options: &Options, state_chan: Chan<Msg>, samples_chan: SamplesChan, request: &server::Request, response: &server::Response) -> server::Response
@@ -57,7 +57,7 @@ priv fn updates_snmp(options: &Options, samples_chan: SamplesChan, remote_addr: 
 		{
 			match data
 			{
-				json::Dict(ref d) =>
+				json::Dict(d) =>
 				{
 					let network = Network
 					{
@@ -70,7 +70,7 @@ priv fn updates_snmp(options: &Options, samples_chan: SamplesChan, remote_addr: 
 						snmp: d,
 					};
 					
-					json_to_primary(options, samples_chan, remote_addr, stores[0], stores[2], *d, old);
+					json_to_primary(&network, d, old);
 					json_to_snmp(&network);
 				}
 				_ =>
@@ -138,13 +138,13 @@ priv fn get_sparkline_script(options: &Options) -> Path
 	path
 }
 
-priv fn json_to_primary(options: &Options, samples_chan: SamplesChan, remote_addr: ~str, store: &Store, alerts_store: &Store, data: HashMap<~str, Json>, old: &Solution)
+priv fn json_to_primary(network: &Network, data: HashMap<~str, Json>, old: &Solution)
 {
-	store.clear();
-	store.add_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:last_update", object: DateTimeValue(std::time::now())});
-	store.add_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:poll_interval", object: IntValue(options.poll_rate as i64)});
+	network.store.clear();
+	network.store.add_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:last_update", object: DateTimeValue(std::time::now())});
+	network.store.add_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:poll_interval", object: IntValue(network.options.poll_rate as i64)});
 	
-	let path = get_sparkline_script(options);
+	let path = get_sparkline_script(network.options);
 	let context = mustache::context(@~".", @~"");
 	let template = context.compile_file(path.to_str());
 	
@@ -156,13 +156,13 @@ priv fn json_to_primary(options: &Options, samples_chan: SamplesChan, remote_add
 		{
 			json::Dict(device) =>
 			{
-				let old_subject = get_blank_name(store, ~"old");
-				add_device(store, alerts_store, samples_chan, options.devices, managed_ip, device, old, old_subject, template, &mut script);
-				add_device_notes(store, managed_ip, device);
+				let old_subject = get_blank_name(network.store, ~"old");
+				add_device(network, managed_ip, device, old, old_subject, template, &mut script);
+				add_device_notes(network, managed_ip, device);
 			}
 			_ =>
 			{
-				error!("%s device from %s was expected to be a dict but is a %?", managed_ip, remote_addr, the_device);	// TODO: probably want to add errors to store
+				error!("%s device from %s was expected to be a dict but is a %?", managed_ip, network.remote_addr, the_device);	// TODO: probably want to add errors to store
 			}
 		}
 	};
@@ -172,7 +172,7 @@ priv fn json_to_primary(options: &Options, samples_chan: SamplesChan, remote_add
 		run_r_script(script);
 	}
 	
-	info!("Received data from %s:", remote_addr);
+	info!("Received data from %s:", network.remote_addr);
 	//for store.each |triple| {info!("   %s", triple.to_str());};
 }
 
@@ -235,9 +235,9 @@ priv fn run_r_script(script: ~str)
 // "sysLocation": "closet", 
 // "sysName": "Router", 
 // "sysUpTime": "5080354"
-priv fn add_device(store: &Store, alerts_store: &Store, samples_chan: SamplesChan, devices: ~[Device], managed_ip: ~str, device: HashMap<~str, Json>, old: &Solution, old_subject: ~str, template: mustache::Template, script: &mut ~str)
+priv fn add_device(network: &Network, managed_ip: ~str, device: HashMap<~str, Json>, old: &Solution, old_subject: ~str, template: mustache::Template, script: &mut ~str)
 {
-	match devices.find(|d| {d.managed_ip == managed_ip})
+	match network.options.devices.find(|d| {d.managed_ip == managed_ip})
 	{
 		option::Some(ref options_device) =>
 		{
@@ -255,10 +255,10 @@ priv fn add_device(store: &Store, alerts_store: &Store, samples_chan: SamplesCha
 				(~"gnos:tertiary_label", StringValue(get_device_label(&snmp).trim(), ~"")),
 			];
 			let subject = fmt!("devices:%s", managed_ip);
-			store.add(subject, entries);
+			network.store.add(subject, entries);
 			
 			// These are undocumented because they not intended to be used by clients.
-			store.add_triple(~[], {subject: subject, predicate: ~"gnos:internal-info", object: BlankValue(copy old_subject)});
+			network.store.add_triple(~[], {subject: subject, predicate: ~"gnos:internal-info", object: BlankValue(copy old_subject)});
 			
 			let entries = [
 				(~"gnos:timestamp", option::Some(snmp.new_time)),
@@ -266,19 +266,19 @@ priv fn add_device(store: &Store, alerts_store: &Store, samples_chan: SamplesCha
 				(~"sname:ipForwDatagrams", snmp.get_value(~"ipForwDatagrams", Packet)),
 				(~"sname:ipInDelivers", snmp.get_value(~"ipInDelivers", Packet)),
 			];
-			add_value_entries(store, old_subject, entries);
+			add_value_entries(network.store, old_subject, entries);
 			
-			toggle_device_uptime_alert(alerts_store, managed_ip, time);
+			toggle_device_uptime_alert(network.alerts_store, managed_ip, time);
 			
 			let interfaces = device.find(~"interfaces");
 			if interfaces.is_some()
 			{
-				let has_interfaces = add_interfaces(store, alerts_store, samples_chan, device, managed_ip, interfaces.get(), old, old_subject, time, template, script);
-				toggle_device_down_alert(alerts_store, managed_ip, has_interfaces);
+				let has_interfaces = add_interfaces(network, device, managed_ip, interfaces.get(), old, old_subject, time, template, script);
+				toggle_device_down_alert(network.alerts_store, managed_ip, has_interfaces);
 			}
 			else
 			{
-				toggle_device_down_alert(alerts_store, managed_ip, false);
+				toggle_device_down_alert(network.alerts_store, managed_ip, false);
 			}
 		}
 		option::None =>
@@ -322,7 +322,7 @@ priv fn toggle_device_down_alert(alerts_store: &Store, managed_ip: ~str, up: boo
 	}
 }
 
-priv fn add_device_notes(store: &Store, managed_ip: ~str, _device: HashMap<~str, Json>)
+priv fn add_device_notes(network: &Network, managed_ip: ~str, _device: HashMap<~str, Json>)
 {
 	// summary
 	let html = #fmt["
@@ -333,8 +333,8 @@ priv fn add_device_notes(store: &Store, managed_ip: ~str, _device: HashMap<~str,
 	<a href='http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput=ipInDelivers&translate=Translate&submitValue=SUBMIT&submitClicked=true'>Delivered </a> is the number of packets sent to a local IP protocol.
 </p>", managed_ip];
 	
-	let subject = get_blank_name(store, ~"summary");
-	store.add(subject, ~[
+	let subject = get_blank_name(network.store, ~"summary");
+	network.store.add(subject, ~[
 		(~"gnos:title",       StringValue(~"notes", ~"")),
 		(~"gnos:target",    IriValue(fmt!("devices:%s", managed_ip))),
 		(~"gnos:detail",    StringValue(html, ~"")),
@@ -360,7 +360,7 @@ priv fn get_device_label(snmp: &Snmp) -> ~str
 	label
 }
 
-priv fn add_interfaces(store: &Store, alerts_store: &Store, samples_chan: SamplesChan, device: HashMap<~str, Json>, managed_ip: ~str, data: Json, old: &Solution, old_subject: ~str, uptime: Value, template: mustache::Template, script: &mut ~str) -> bool
+priv fn add_interfaces(network: &Network, device: HashMap<~str, Json>, managed_ip: ~str, data: Json, old: &Solution, old_subject: ~str, uptime: Value, template: mustache::Template, script: &mut ~str) -> bool
 {
 	match data
 	{
@@ -374,7 +374,7 @@ priv fn add_interfaces(store: &Store, alerts_store: &Store, samples_chan: Sample
 				{
 					json::Dict(d) =>
 					{
-						vec::push(rows, add_interface(store, alerts_store, samples_chan, managed_ip, device, d, old, old_subject, uptime, template, script));
+						vec::push(rows, add_interface(network, managed_ip, device, d, old, old_subject, uptime, template, script));
 					}
 					_ =>
 					{
@@ -400,8 +400,8 @@ priv fn add_interfaces(store: &Store, alerts_store: &Store, samples_chan: Sample
 				html += str::connect(hrows, ~"\n");
 			html += ~"</table>\n";
 			
-			let subject = get_blank_name(store, ~"interfaces");
-			store.add(subject, ~[
+			let subject = get_blank_name(network.store, ~"interfaces");
+			network.store.add(subject, ~[
 				(~"gnos:title",       StringValue(~"interfaces", ~"")),
 				(~"gnos:target",    IriValue(fmt!("devices:%s", managed_ip))),
 				(~"gnos:detail",    StringValue(html, ~"")),
@@ -435,7 +435,7 @@ priv fn add_interfaces(store: &Store, alerts_store: &Store, samples_chan: Sample
 // "ifType": "ethernetCsmacd(6)", 
 // "ipAdEntAddr": "10.101.3.2", 
 // "ipAdEntNetMask": "255.255.255.0"
-priv fn add_interface(store: &Store, alerts_store: &Store, samples_chan: SamplesChan, managed_ip: ~str, device: HashMap<~str, Json>, interface: HashMap<~str, Json>, old: &Solution, old_subject: ~str, uptime: Value, template: mustache::Template, script: &mut ~str) -> (~str, ~str)
+priv fn add_interface(network: &Network, managed_ip: ~str, device: HashMap<~str, Json>, interface: HashMap<~str, Json>, old: &Solution, old_subject: ~str, uptime: Value, template: mustache::Template, script: &mut ~str) -> (~str, ~str)
 {
 	let name = lookup(interface, ~"ifDescr", ~"eth?");
 	let mut html = ~"";
@@ -451,16 +451,16 @@ priv fn add_interface(store: &Store, alerts_store: &Store, samples_chan: Samples
 		let out_octets = snmp.get_value_per_sec(~"ifOutOctets", Byte);
 		let out_octets = convert_per_sec(out_octets, Kilo*Bit);
 		let sname = fmt!("%s-%s-out-octets", managed_ip, name);
-		let out_octets_html = make_samples_html(samples_chan, out_octets, sname, template, script);
+		let out_octets_html = make_samples_html(network, out_octets, sname, template, script);
 		if  out_octets.is_some() && is_compound(out_octets.get())
 		{
-			add_interface_out_meter(store, &snmp, managed_ip, name, out_octets.get());
+			add_interface_out_meter(network.store, &snmp, managed_ip, name, out_octets.get());
 		}
 		
 		let in_octets = snmp.get_value_per_sec(~"ifInOctets", Byte);
 		let in_octets = convert_per_sec(in_octets, Kilo*Bit);
 		let sname = fmt!("%s-%s-in-octets", managed_ip, name);
-		let in_octets_html = make_samples_html(samples_chan, in_octets, sname, template, script);
+		let in_octets_html = make_samples_html(network, in_octets, sname, template, script);
 		
 		// TODO: We're not showing ifInUcastPkts and ifOutUcastPkts because bandwidth seems
 		// more important, the table starts to get cluttered when we do, and multicast is at least as
@@ -484,23 +484,23 @@ priv fn add_interface(store: &Store, alerts_store: &Store, samples_chan: Samples
 			(prefix + ~"ifInOctets", snmp.get_value(~"ifInOctets", Byte)),
 			(prefix + ~"ifOutOctets", snmp.get_value(~"ifOutOctets", Byte)),
 		];
-		add_value_entries(store, old_subject, entries);
+		add_value_entries(network.store, old_subject, entries);
 	}
 	
-	toggle_interface_uptime_alert(alerts_store, managed_ip, &snmp, name, uptime);
-	toggle_admin_vs_oper_interface_alert(alerts_store, managed_ip, interface, name, oper_status);
-	toggle_weird_interface_state_alert(alerts_store, managed_ip, name, oper_status);
+	toggle_interface_uptime_alert(network.alerts_store, managed_ip, &snmp, name, uptime);
+	toggle_admin_vs_oper_interface_alert(network.alerts_store, managed_ip, interface, name, oper_status);
+	toggle_weird_interface_state_alert(network.alerts_store, managed_ip, name, oper_status);
 	
 	return (name, html);
 }
 
 // TODO: argument lists are getting out of hand, probably want to introduce a struct or two
-priv fn make_samples_html(samples_chan: SamplesChan, sample: option::Option<Value>, name: ~str, template: mustache::Template, script: &mut ~str) -> ~str
+priv fn make_samples_html(network: &Network, sample: option::Option<Value>, name: ~str, template: mustache::Template, script: &mut ~str) -> ~str
 {
 	if  sample.is_some() && sample.get().units == Kilo*Bit/Second
 	{
-		samples_chan.send(samples::AddSample(copy name, sample.get().value, samples_capacity));
-		let (sub_script, num_adds) = build_sparkline(samples_chan, name, template);
+		network.samples_chan.send(samples::AddSample(copy name, sample.get().value, samples_capacity));
+		let (sub_script, num_adds) = build_sparkline(network, name, template);
 		if sub_script.is_not_empty()
 		{
 			// The home page generates dynamic html and assigns it to innerHTML. Unfortunately in
@@ -531,11 +531,11 @@ priv fn make_samples_html(samples_chan: SamplesChan, sample: option::Option<Valu
 }
 
 // Creates an R script which when run will produce a sparkline chart for the named sample set.
-priv fn build_sparkline(samples_chan: SamplesChan, name: ~str, template: Template) -> (~str, uint)
+priv fn build_sparkline(network: &Network, name: ~str, template: Template) -> (~str, uint)
 {
 	let port = Port();
 	let chan = Chan(port);
-	samples_chan.send(samples::GetSamples(copy name, chan));
+	network.samples_chan.send(samples::GetSamples(copy name, chan));
 	let (buffer, num_adds) = port.recv();
 	
 	if (buffer.len() > 1)
