@@ -24,6 +24,7 @@ mod gnos;
 mod model;
 mod options;
 mod ring_buffer;
+mod samples;
 mod task_runner;
 mod utils;
 mod handlers

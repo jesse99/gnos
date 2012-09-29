@@ -17,7 +17,7 @@ struct Device
 struct Options
 {
 	// these are from the command line
-	pub root: Path,
+	pub root: Path,		// points to the html directory
 	pub admin: bool,
 	pub script: ~str,
 	pub db: bool,

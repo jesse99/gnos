@@ -5,6 +5,10 @@ use model::{Msg, DeregisterMsg, RegisterMsg};
 use rrdf::rrdf::*;
 use server = rwebserve::rwebserve;
 use rwebserve::imap::ImmutableMap;
+use ConnConfig = rwebserve::connection::ConnConfig;
+use Request = rwebserve::rwebserve::Request;
+use Response = rwebserve::rwebserve::Response;
+use ResponseHandler = rwebserve::rwebserve::ResponseHandler;
 
 /// Used by client code to register server-sent events for SPARQL queries.
 ///

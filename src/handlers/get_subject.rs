@@ -4,7 +4,7 @@
 use mustache::*;
 use server = rwebserve::rwebserve;
 
-fn get_subject(options: options::Options, request: &server::Request, response: &server::Response) -> server::Response
+fn get_subject(options: &options::Options, request: &server::Request, response: &server::Response) -> server::Response
 {
 	let name = request.matches.get(@~"name");
 	let subject = request.matches.get(@~"subject");

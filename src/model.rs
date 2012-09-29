@@ -1,4 +1,4 @@
-//use to_str::to_str;
+/// Functions and types used to manage a task responsible for managing RDF stores.
 use std::map::*;
 use rrdf::rrdf::*;
 use Namespace = rrdf::solution::Namespace;

@@ -25,6 +25,23 @@ restful uris: http://redrata.com/restful-uri-design/
 javascript model/view: http://documentcloud.github.com/backbone/
 
 
+* HTML5 apparently does support extending the browser's context menu:
+	- <section contextmenu="mymenu">
+	  <!-- 
+	    For the purpose of cleanliness, 
+	    I'll put my menu inside the element that will use it 
+	  -->
+	
+	  <!-- add the menu -->
+	  <menu type="context" id="mymenu">
+	    <menuitem label="Refresh Post" onclick="window.location.reload();" icon="/images/refresh-icon.png"></menuitem>
+	    <menu label="Share on..." icon="/images/share_icon.gif">
+	      <menuitem label="Twitter" icon="/images/twitter_icon.gif" onclick="goTo('//twitter.com/intent/tweet?text=' + document.title + ':  ' + window.location.href);"></menuitem>
+	      <menuitem label="Facebook" icon="/images/facebook_icon16x16.gif" onclick="goTo('//facebook.com/sharer/sharer.php?u=' + window.location.href);"></menuitem>
+	    </menu>
+	  </menu>
+	</section>
+	- but it's not in chrome yet: http://caniuse.com/#search=contextmenu
 * Need a group relation
 	- group name can stuff "ttnt" or "10.8.0.0/8"
 	- probably need to treat the group as an object
@@ -316,3 +333,4 @@ simple reuseable goo to map rdf to tables and whatnot
 
 /Users/jessejones/Documents/javascript.rtf
 /Users/jessejones/Documents/Developer/rust.rtf
+/Users/jessejones/Documents/Developer/web.rtf

@@ -10,9 +10,18 @@ use rrdf::rrdf::*;
 use runits::generated::*;
 use runits::units::*;
 use snmp::*;
+use task_runner::*;
+use comm::{Chan, Port};
 use server = rwebserve::rwebserve;
+use mustache::*;
+use mustache::{Template, TemplateTrait};
+use core::io::{WriterUtil};
 
-fn put_snmp(options: &Options, state_chan: comm::Chan<Msg>, request: &server::Request, response: &server::Response) -> server::Response
+type SamplesChan = Chan<samples::Msg>;
+
+const samples_capacity: uint = 100;
+
+fn put_snmp(options: &Options, state_chan: Chan<Msg>, samples_chan: SamplesChan, request: &server::Request, response: &server::Response) -> server::Response
 {
 	// Unfortunately we don't send an error back to the modeler if the json was invalid.
 	// Of course that shouldn't happen...
@@ -22,13 +31,13 @@ fn put_snmp(options: &Options, state_chan: comm::Chan<Msg>, request: &server::Re
 	// Arguably cleaner to do this inside of json_to_store (or add_device) but we'll deadlock if we try
 	// to do a query inside of an updates_mesg callback.
 	let old = query_old_info(state_chan);
-	let ooo = copy *options;
-	comm::send(state_chan, UpdatesMsg(~[~"primary", ~"snmp", ~"alerts"], |ss, d| {updates_snmp(copy ooo, addr, ss, d, &old)}, copy request.body));
+	let options = copy *options;
+	comm::send(state_chan, UpdatesMsg(~[~"primary", ~"snmp", ~"alerts"], |ss, d, move options| {updates_snmp(&options, samples_chan, addr, ss, d, &old)}, copy request.body));
 	
-	server::Response {body: ~"", ..*response}
+	server::Response {body: rwebserve::configuration::StringBody(@~""), ..*response}
 }
 
-priv fn updates_snmp(options: Options, remote_addr: ~str, stores: &[@Store], body: ~str, old: &Solution) -> bool
+priv fn updates_snmp(options: &Options, samples_chan: SamplesChan, remote_addr: ~str, stores: &[@Store], body: ~str, old: &Solution) -> bool
 {
 	match json::from_str(body)
 	{
@@ -38,7 +47,7 @@ priv fn updates_snmp(options: Options, remote_addr: ~str, stores: &[@Store], bod
 			{
 				json::Dict(d) =>
 				{
-					json_to_primary(&options, remote_addr, stores[0], stores[2], d, old);
+					json_to_primary(options, samples_chan, remote_addr, stores[0], stores[2], d, old);
 					json_to_snmp(remote_addr, stores[1], d);
 				}
 				_ =>
@@ -58,10 +67,10 @@ priv fn updates_snmp(options: Options, remote_addr: ~str, stores: &[@Store], bod
 	true
 }
 
-priv fn query_old_info(state_chan: comm::Chan<Msg>) -> Solution
+priv fn query_old_info(state_chan: Chan<Msg>) -> Solution
 {
-	let po = comm::Port();
-	let ch = comm::Chan(po);
+	let po = Port();
+	let ch = Chan(po);
 	
 	let query = ~"
 PREFIX gnos: <http://www.gnos.org/2012/schema#>
@@ -98,12 +107,24 @@ WHERE
 //    },
 //    ...
 // }
-priv fn json_to_primary(options: &Options, remote_addr: ~str, store: &Store, alerts_store: &Store, data: HashMap<~str, Json>, old: &Solution)
+priv fn get_sparkline_script(options: &Options) -> Path
+{
+	let path = options.root.pop();				// gnos
+	let path = path.push(~"scripts");
+	let path = path.push(~"sparkline.R");		// gnos/scripts/sparkline.R
+	path
+}
+
+priv fn json_to_primary(options: &Options, samples_chan: SamplesChan, remote_addr: ~str, store: &Store, alerts_store: &Store, data: HashMap<~str, Json>, old: &Solution)
 {
 	store.clear();
 	store.add_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:last_update", object: DateTimeValue(std::time::now())});
 	store.add_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:poll_interval", object: IntValue(options.poll_rate as i64)});
 	
+	let path = get_sparkline_script(options);
+	let template = mustache::compile_file(path.to_str());
+	
+	let mut script = ~"";
 	for data.each()
 	|managed_ip, the_device|
 	{
@@ -112,7 +133,7 @@ priv fn json_to_primary(options: &Options, remote_addr: ~str, store: &Store, ale
 			json::Dict(device) =>
 			{
 				let old_subject = get_blank_name(store, ~"old");
-				add_device(store, alerts_store, options.devices, managed_ip, device, old, old_subject);
+				add_device(store, alerts_store, samples_chan, options.devices, managed_ip, device, old, old_subject, template, &mut script);
 				add_device_notes(store, managed_ip, device);
 			}
 			_ =>
@@ -122,8 +143,39 @@ priv fn json_to_primary(options: &Options, remote_addr: ~str, store: &Store, ale
 		}
 	};
 	
+	if script.is_not_empty()
+	{
+		run_r_script(script);
+	}
+	
 	info!("Received data from %s:", remote_addr);
 	//for store.each |triple| {info!("   %s", triple.to_str());};
+}
+
+priv fn run_r_script(script: ~str)
+{
+	let script = ~"library(YaleToolkit)\n\n" + script;
+	let action: JobFn = 
+		||
+		{
+			let path = path::from_str("/tmp/gnos-sparkline.R");		// TODO use a better path once rust has a better tmp file function
+			match io::file_writer(&path, ~[io::Create, io::Truncate])
+			{
+				result::Ok(writer) =>
+				{
+					writer.write_str(script);
+					
+					let result = core::run::run_program("Rscript", [path.to_str()]);
+					if result != 0 {option::Some(fmt!("Rscript %s returned %?", path.to_str(), result))} else {option::None}
+				}
+				result::Err(ref err) =>
+				{
+					option::Some(fmt!("Failed to create %s: %s", path.to_str(), *err))
+				}
+			}
+		};
+	let cleanup: ExitFn = || {};
+	run(Job {action: action, policy: IgnoreFailures}, ~[cleanup]);
 }
 
 // We save the most important bits of data that we receive from json into gnos statements
@@ -142,7 +194,7 @@ priv fn json_to_primary(options: &Options, remote_addr: ~str, store: &Store, ale
 // "sysLocation": "closet", 
 // "sysName": "Router", 
 // "sysUpTime": "5080354"
-priv fn add_device(store: &Store, alerts_store: &Store, devices: ~[Device], managed_ip: ~str, device: HashMap<~str, Json>, old: &Solution, old_subject: ~str)
+priv fn add_device(store: &Store, alerts_store: &Store, samples_chan: SamplesChan, devices: ~[Device], managed_ip: ~str, device: HashMap<~str, Json>, old: &Solution, old_subject: ~str, template: mustache::Template, script: &mut ~str)
 {
 	match devices.find(|d| {d.managed_ip == managed_ip})
 	{
@@ -180,7 +232,7 @@ priv fn add_device(store: &Store, alerts_store: &Store, devices: ~[Device], mana
 			let interfaces = device.find(~"interfaces");
 			if interfaces.is_some()
 			{
-				let has_interfaces = add_interfaces(store, alerts_store, device, managed_ip, interfaces.get(), old, old_subject, time);
+				let has_interfaces = add_interfaces(store, alerts_store, samples_chan, device, managed_ip, interfaces.get(), old, old_subject, time, template, script);
 				toggle_device_down_alert(alerts_store, managed_ip, has_interfaces);
 			}
 			else
@@ -267,7 +319,7 @@ priv fn get_device_label(snmp: &Snmp) -> ~str
 	label
 }
 
-priv fn add_interfaces(store: &Store, alerts_store: &Store, device: HashMap<~str, Json>, managed_ip: ~str, data: Json, old: &Solution, old_subject: ~str, uptime: Value) -> bool
+priv fn add_interfaces(store: &Store, alerts_store: &Store, samples_chan: SamplesChan, device: HashMap<~str, Json>, managed_ip: ~str, data: Json, old: &Solution, old_subject: ~str, uptime: Value, template: mustache::Template, script: &mut ~str) -> bool
 {
 	match data
 	{
@@ -281,7 +333,7 @@ priv fn add_interfaces(store: &Store, alerts_store: &Store, device: HashMap<~str
 				{
 					json::Dict(d) =>
 					{
-						vec::push(rows, add_interface(store, alerts_store, managed_ip, device, d, old, old_subject, uptime));
+						vec::push(rows, add_interface(store, alerts_store, samples_chan, managed_ip, device, d, old, old_subject, uptime, template, script));
 					}
 					_ =>
 					{
@@ -297,8 +349,8 @@ priv fn add_interfaces(store: &Store, alerts_store: &Store, device: HashMap<~str
 				html += ~"<tr>\n";
 					html += ~"<th>Name</th>\n";
 					html += ~"<th>IP Address</th>\n";
-					html += ~"<th>In Bandwidth</th>\n";
-					html += ~"<th>Out Bandwidth</th>\n";
+					html += ~"<th>In (kbps)</th>\n";
+					html += ~"<th>Out (kbps)</th>\n";
 					html += ~"<th>Speed</th>\n";
 					html += ~"<th>MAC Address</th>\n";
 					html += ~"<th>MTU</th>\n";
@@ -342,10 +394,10 @@ priv fn add_interfaces(store: &Store, alerts_store: &Store, device: HashMap<~str
 // "ifType": "ethernetCsmacd(6)", 
 // "ipAdEntAddr": "10.101.3.2", 
 // "ipAdEntNetMask": "255.255.255.0"
-priv fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, device: HashMap<~str, Json>, interface: HashMap<~str, Json>, old: &Solution, old_subject: ~str, uptime: Value) -> (~str, ~str)
+priv fn add_interface(store: &Store, alerts_store: &Store, samples_chan: SamplesChan, managed_ip: ~str, device: HashMap<~str, Json>, interface: HashMap<~str, Json>, old: &Solution, old_subject: ~str, uptime: Value, template: mustache::Template, script: &mut ~str) -> (~str, ~str)
 {
-	let mut html = ~"";
 	let name = lookup(interface, ~"ifDescr", ~"eth?");
+	let mut html = ~"";
 	
 	let old_url = option::Some(IriValue(~"http://network/" + managed_ip));
 	let snmp = Snmp(device, interface, copy *old,  fmt!("sname:%s-", name), old_url);
@@ -356,16 +408,18 @@ priv fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, dev
 		let prefix = fmt!("sname:%s-", name);
 		
 		let out_octets = snmp.get_value_per_sec(~"ifOutOctets", Byte);
-		let out_octets = convert_per_sec(out_octets, Bit);
+		let out_octets = convert_per_sec(out_octets, Kilo*Bit);
+		let sname = fmt!("%s-%s-out-octets", managed_ip, name);
+		let out_octets_html = make_samples_html(samples_chan, out_octets, sname, template, script);
 		if  out_octets.is_some() && is_compound(out_octets.get())
 		{
 			add_interface_out_meter(store, &snmp, managed_ip, name, out_octets.get());
 		}
-		let out_octets = get_si_str(out_octets, "%.2f");
 		
 		let in_octets = snmp.get_value_per_sec(~"ifInOctets", Byte);
-		let in_octets = convert_per_sec(in_octets, Bit);
-		let in_octets = get_si_str(in_octets, "%.2f");
+		let in_octets = convert_per_sec(in_octets, Kilo*Bit);
+		let sname = fmt!("%s-%s-in-octets", managed_ip, name);
+		let in_octets_html = make_samples_html(samples_chan, in_octets, sname, template, script);
 		
 		// TODO: We're not showing ifInUcastPkts and ifOutUcastPkts because bandwidth seems
 		// more important, the table starts to get cluttered when we do, and multicast is at least as
@@ -376,8 +430,8 @@ priv fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, dev
 		html += ~"<tr>\n";
 			html += fmt!("<td>%s</td>", name);
 			html += fmt!("<td>%s%s</td>", lookup(interface, ~"ipAdEntAddr", ~""), get_subnet(interface));
-			html += fmt!("<td>%s</td>", in_octets);
-			html += fmt!("<td>%s</td>", out_octets);
+			html += fmt!("<td>%s</td>", in_octets_html);
+			html += fmt!("<td>%s</td>", out_octets_html);
 			html += fmt!("<td>%s</td>", 	get_si_str(snmp.get_value(~"ifSpeed", Bit/Second), "%.0f"));
 			html += fmt!("<td>%s</td>", lookup(interface, ~"ifPhysAddress", ~""));
 			html += fmt!("<td>%s</td>", get_value_str(snmp.get_value(~"ifMtu", Byte), "%.0f"));
@@ -397,6 +451,69 @@ priv fn add_interface(store: &Store, alerts_store: &Store, managed_ip: ~str, dev
 	toggle_weird_interface_state_alert(alerts_store, managed_ip, name, oper_status);
 	
 	return (name, html);
+}
+
+// TODO: argument lists are getting out of hand, probably want to introduce a struct or two
+priv fn make_samples_html(samples_chan: SamplesChan, sample: option::Option<Value>, name: ~str, template: mustache::Template, script: &mut ~str) -> ~str
+{
+	if  sample.is_some() && sample.get().units == Kilo*Bit/Second
+	{
+		samples_chan.send(samples::AddSample(copy name, sample.get().value, samples_capacity));
+		let (sub_script, num_adds) = build_sparkline(samples_chan, name, template);
+		if sub_script.is_not_empty()
+		{
+			// The home page generates dynamic html and assigns it to innerHTML. Unfortunately in
+			// this case the browser won't reload images, even if they have expired. So we add this silly
+			// # argument which will be ignored by the server. See http://www.post-hipster.com/2008/10/20/using-javascript-to-refresh-an-image-without-a-cache-busting-parameter/
+			// TODO: is there a better way?
+			let url = fmt!("generated/%s.png#%?", name, num_adds);
+			
+			*script += sub_script;
+			fmt!("<img src = '%s' alt = 'octets'>", url)
+		}
+		else
+		{
+			fmt!("%.2f kbps", sample.get().value)
+		}
+	}
+	else if  sample.is_some() && sample.get().units == Kilo*Bit
+	{
+		// The very first sample is in kb because we need two samples to compute an average over time.
+		// These are the wrong units for our sample set so we don't want to send them to samples_chan.
+		fmt!("%.2f kb", sample.get().value)
+	}
+	else
+	{
+		assert sample.is_none();
+		~"missing"
+	}
+}
+
+// Creates an R script which when run will produce a sparkline chart for the named sample set.
+priv fn build_sparkline(samples_chan: SamplesChan, name: ~str, template: Template) -> (~str, uint)
+{
+	let port = Port();
+	let chan = Chan(port);
+	samples_chan.send(samples::GetSamples(copy name, chan));
+	let (buffer, num_adds) = port.recv();
+	
+	if (buffer.len() > 1)
+	{
+		let path = fmt!("/Users/jessejones/Source/gnos/html/generated/%s.png", name);	// TODO: need a better directory
+		
+		let context = HashMap();
+		context.insert(@~"samples", mustache::Str(@str::connect(do iter::map_to_vec(*buffer) |s| {s.to_str()}, ", ")));
+		context.insert(@~"file", mustache::Str(@path));
+		context.insert(@~"width", mustache::Str(@~"150"));
+		context.insert(@~"height", mustache::Str(@~"50"));
+		context.insert(@~"label", mustache::Str(@~"kbps"));
+		
+		(template.render(context), num_adds)
+	}
+	else
+	{
+		(~"", num_adds)
+	}
 }
 
 priv fn add_interface_out_meter(store: &Store, snmp: &Snmp, managed_ip: ~str, name: ~str, out_bps: Value)
@@ -760,11 +877,11 @@ priv fn convert_per_sec(x: option::Option<Value>, to: Unit) -> option::Option<Va
 	{
 		if is_compound(value)
 		{
-			option::Some(value.convert_to(to/Second).normalize_si())
+			option::Some(value.convert_to(to/Second))
 		}
 		else
 		{
-			option::Some(value.convert_to(to).normalize_si())
+			option::Some(value.convert_to(to))
 		}
 	}
 }

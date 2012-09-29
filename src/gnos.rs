@@ -6,6 +6,10 @@ use server = rwebserve::rwebserve;
 use handlers::*;
 use rrdf::rrdf::*;
 use task_runner::*;
+use ConnConfig = rwebserve::connection::ConnConfig;
+use Request = rwebserve::rwebserve::Request;
+use Response = rwebserve::rwebserve::Response;
+use ResponseHandler = rwebserve::rwebserve::ResponseHandler;
 
 priv fn copy_scripts(root: &Path, user: ~str, host: ~str) -> option::Option<~str>
 {
@@ -71,6 +75,18 @@ priv fn update_globals(store: &Store, options: &options::Options) -> bool
 	true
 }
 
+fn static_view(options: &options::Options, config: &rwebserve::connection::ConnConfig, request: &Request, response: &Response) -> Response
+{
+	let response = rwebserve::configuration::static_view(config, request, response);
+	
+	// Generated images can be cached but, in general, they should expire just before we get new info.
+	if request.path.starts_with("/generated/")
+	{
+		response.headers.insert(@~"Cache-Control", @fmt!("max-age=%?", options.poll_rate - 1));
+	}
+	response
+}
+
 fn main(args: ~[~str])
 {
 	info!("starting up gnos");
@@ -84,6 +100,7 @@ fn main(args: ~[~str])
 	options::validate(&options);
 	
 	let state_chan = do task::spawn_listener |port| {model::manage_state(port)};
+	let samples_chan = do task::spawn_listener |port| {samples::manage_samples(port)};
 	if !options.db
 	{
 		let client = copy options.client;
@@ -100,19 +117,16 @@ fn main(args: ~[~str])
 	let options1 = copy options;
 	comm::send(state_chan, model::UpdateMsg(~"globals", |store, _err| {update_globals(store, &options1)}, ~""));
 	
-	let options2 = copy options;
-	let options3 = copy options;
-	let options4 = copy options;
-	let options5 = copy options;
-	let options6 = copy options;
-	let options7 = copy options;
-	let models_v: server::ResponseHandler = |_settings, _request: &server::Request, response: &server::Response| {get_models::get_models(copy options5, response, state_chan)};
-	let subject_v: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {get_subject::get_subject(copy options6, request, response)};
-	let home_v: server::ResponseHandler = |_settings, _request: &server::Request, response: &server::Response| {get_home::get_home(copy options2, response)};
-	let modeler_p: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {put_snmp::put_snmp(&options4, state_chan, request, response)};
-	let query_store_v: server::ResponseHandler = |_settings, request: &server::Request, response: &server::Response| {get_query_store::get_query_store(copy options7, request, response)};
-	let query_s: server::OpenSse = |_settings, request: &server::Request, push| {get_query::get_query(state_chan, request, push)};
-	let bail_v: server::ResponseHandler = |_settings, _request: &server::Request, _response: &server::Response| {get_shutdown(&options3)};
+	// TODO: Shouldn't need all of these damned explicit types but rustc currently
+	// has problems with type inference woth closures and borrowed pointers.
+	let models_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, response: &Response, copy options| {get_models::get_models(&options, response, state_chan)};
+	let subject_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {get_subject::get_subject(&options, request, response)};
+	let home_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, response: &Response, copy options| {get_home::get_home(&options, response)};
+	let modeler_p: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {put_snmp::put_snmp(&options, state_chan, samples_chan, request, response)};
+	let query_store_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {get_query_store::get_query_store(&options, request, response)};
+	let query_s: server::OpenSse = |_config: &ConnConfig, request: &Request, push| {get_query::get_query(state_chan, request, push)};
+	let bail_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, _response: &Response, copy options| {get_shutdown(&options)};
+	let static_v: ResponseHandler = |config: &ConnConfig, request: &Request, response: &Response, copy options| {static_view(&options, config, request, response)};
 	
 	let config = server::Config
 	{
@@ -139,6 +153,7 @@ fn main(args: ~[~str])
 			(~"subject",  subject_v),
 			(~"modeler",  modeler_p),
 		],
+		static_handler: static_v,
 		sse: ~[(~"/query", query_s)],
 		settings: ~[(~"debug",  ~"true")],		// TODO: make this a command-line option
 		..server::initialize_config()

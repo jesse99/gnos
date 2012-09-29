@@ -21,6 +21,21 @@ impl RingBuffer
 		self.size
 	}
 	
+	pure fn is_empty() -> bool
+	{
+		self.size == 0
+	}
+	
+	pure fn is_not_empty() -> bool
+	{
+		self.size != 0
+	}
+	
+	pure fn buffer() -> uint
+	{
+		self.size
+	}
+	
 	fn clear()
 	{
 		vec::truncate(self.buffer, 0);
@@ -59,6 +74,27 @@ impl RingBuffer : ops::Index<uint, float>
 		{
 			self.buffer[(self.next + index) % self.capacity]
 		}
+	}
+}
+
+impl RingBuffer : BaseIter<float>
+{
+	pure fn each(blk: fn(v: &float) -> bool)
+	{
+		let mut i = 0;
+		while i < self.size
+		{
+			if !blk(&self[i])
+			{
+				break;
+			}
+			i += 1;
+		}
+	}
+	
+	pure fn size_hint() -> option::Option<uint>
+	{
+		option::Some(self.size)
 	}
 }
 

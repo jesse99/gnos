@@ -3,8 +3,12 @@
 // users can inspect the raw data used by the other views.
 use  mustache::*;
 use server = rwebserve::rwebserve;
+use ConnConfig = rwebserve::connection::ConnConfig;
+use Request = rwebserve::rwebserve::Request;
+use Response = rwebserve::rwebserve::Response;
+use ResponseHandler = rwebserve::rwebserve::ResponseHandler;
 
-fn get_models(options: options::Options, response: &server::Response, _state_chan: comm::Chan<model::Msg>) -> server::Response
+fn get_models(options: &options::Options, response: &server::Response, _state_chan: comm::Chan<model::Msg>) -> server::Response
 {
 	response.context.insert(@~"network-name", mustache::Str(@copy options.network_name));
 	
