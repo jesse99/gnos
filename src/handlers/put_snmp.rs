@@ -22,6 +22,17 @@ type SamplesChan = Chan<samples::Msg>;
 
 const samples_capacity: uint = 100;
 
+struct Network
+{
+	options: &Options,
+	samples_chan: SamplesChan,
+	remote_addr: ~str,
+	store: &Store,
+	alerts_store: &Store,
+	snmp_store: &Store,
+	snmp: &HashMap<~str, Json>,
+}
+
 fn put_snmp(options: &Options, state_chan: Chan<Msg>, samples_chan: SamplesChan, request: &server::Request, response: &server::Response) -> server::Response
 {
 	// Unfortunately we don't send an error back to the modeler if the json was invalid.
@@ -46,10 +57,21 @@ priv fn updates_snmp(options: &Options, samples_chan: SamplesChan, remote_addr: 
 		{
 			match data
 			{
-				json::Dict(d) =>
+				json::Dict(ref d) =>
 				{
-					json_to_primary(options, samples_chan, remote_addr, stores[0], stores[2], d, old);
-					json_to_snmp(remote_addr, stores[1], d);
+					let network = Network
+					{
+						options: options,
+						samples_chan: samples_chan,
+						remote_addr: remote_addr,
+						store: &*stores[0],
+						alerts_store: &*stores[2],
+						snmp_store: &*stores[1],
+						snmp: d,
+					};
+					
+					json_to_primary(options, samples_chan, remote_addr, stores[0], stores[2], *d, old);
+					json_to_snmp(&network);
 				}
 				_ =>
 				{
@@ -747,28 +769,28 @@ priv fn add_value_entries(store: &Store, subject: ~str, entries: &[(~str, option
 
 // We store snmp data for various objects in the raw so that views are able to use it
 // and so admins can view the complete raw data.
-priv fn json_to_snmp(remote_addr: ~str, store: &Store, data: HashMap<~str, Json>)
+priv fn json_to_snmp(network: &Network)
 {
-	store.clear();
+	network.snmp_store.clear();
 	
-	for data.each
+	for network.snmp.each
 	|key, value|
 	{
 		match value
 		{
 			json::Dict(d) =>
 			{
-				device_to_snmp(remote_addr, store, key, d);
+				device_to_snmp(network, key, d);
 			}
 			_ =>
 			{
-				error!("%s was expected to have a device map but %s was %?", remote_addr, key, value);
+				error!("%s was expected to have a device map but %s was %?", network.remote_addr, key, value);
 			}
 		}
 	}
 }
 
-priv fn device_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, data: HashMap<~str, Json>)
+priv fn device_to_snmp(network: &Network, managed_ip: ~str, data: HashMap<~str, Json>)
 {
 	let mut entries = ~[];
 	vec::reserve(entries, data.size());
@@ -784,20 +806,20 @@ priv fn device_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, data:
 			}
 			json::List(interfaces) =>
 			{
-				interfaces_to_snmp(remote_addr, store, managed_ip, interfaces);
+				interfaces_to_snmp(network, managed_ip, interfaces);
 			}
 			_ =>
 			{
-				error!("%s device was expected to contain string or list but %s was %?", remote_addr, name, value);
+				error!("%s device was expected to contain string or list but %s was %?", network.remote_addr, name, value);
 			}
 		}
 	};
 	
 	let subject = fmt!("snmp:%s", managed_ip);
-	store.add(subject, entries);
+	network.snmp_store.add(subject, entries);
 }
 
-priv fn interfaces_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interfaces: @~[Json])
+priv fn interfaces_to_snmp(network: &Network, managed_ip: ~str, interfaces: @~[Json])
 {
 	for interfaces.each
 	|data|
@@ -806,17 +828,17 @@ priv fn interfaces_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, i
 		{
 			json::Dict(interface) =>
 			{
-				interface_to_snmp(remote_addr, store, managed_ip, interface);
+				interface_to_snmp(network, managed_ip, interface);
 			}
 			_ =>
 			{
-				error!("%s interfaces was expected to contain string or list but found %?", remote_addr, data);
+				error!("%s interfaces was expected to contain string or list but found %?", network.remote_addr, data);
 			}
 		}
 	}
 }
 
-priv fn interface_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, interface: HashMap<~str, Json>)
+priv fn interface_to_snmp(network: &Network, managed_ip: ~str, interface: HashMap<~str, Json>)
 {
 	let mut ifname = ~"";
 	let mut entries = ~[];
@@ -837,7 +859,7 @@ priv fn interface_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, in
 			}
 			_ =>
 			{
-				error!("%s interfaces was expected to contain a string or dict but %s was %?", remote_addr, name, value);
+				error!("%s interfaces was expected to contain a string or dict but %s was %?", network.remote_addr, name, value);
 			}
 		}
 	};
@@ -845,11 +867,11 @@ priv fn interface_to_snmp(remote_addr: ~str, store: &Store, managed_ip: ~str, in
 	if ifname.is_not_empty()
 	{
 		let subject = fmt!("snmp:%s", managed_ip + "-" + ifname);
-		store.add(subject, entries);
+		network.snmp_store.add(subject, entries);
 	}
 	else
 	{
-		error!("%s interface was missing an ifDescr:", remote_addr);
+		error!("%s interface was missing an ifDescr:", network.remote_addr);
 		for interface.each() |k, v| {error!("   %s => %?", k, v);};
 	}
 }
