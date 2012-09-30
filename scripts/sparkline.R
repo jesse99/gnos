@@ -1,5 +1,11 @@
-# To avoid starting up Rscript multiple times copies of this file are
-# concatenated together. The concatenator will add the library import.
+# Creates a sparkline for a sample set.
+# These are small graphics that can be embedded inline with text content.
+# We use them to show aggregate network bandwidth as well as bandwidths
+# for individual interfaces.
+#
+# When the server has to generate multiple sparklines it will concatenate
+# together multiple copies of this file to avoid starting up Rscript multiple
+# times (which is why the YaleToolkit load is commented out).
 #library(YaleToolkit)
 
 samples = c({{samples}});

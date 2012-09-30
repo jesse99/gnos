@@ -148,16 +148,16 @@ priv fn json_to_primary(network: &Network, data: HashMap<~str, Json>, old: &Solu
 	let context = mustache::context(@~".", @~"");
 	let template = context.compile_file(path.to_str());
 	
+	let mut charts = ~[];
 	let mut script = ~"";
-	for data.each()
-	|managed_ip, the_device|
+	for data.each() |managed_ip, the_device|
 	{
 		match the_device
 		{
 			json::Dict(device) =>
 			{
 				let old_subject = get_blank_name(network.store, ~"old");
-				add_device(network, managed_ip, device, old, old_subject, template, &mut script);
+				add_device(network, managed_ip, device, old, old_subject, template, &mut script, &mut charts);
 				add_device_notes(network, managed_ip, device);
 			}
 			_ =>
@@ -167,6 +167,14 @@ priv fn json_to_primary(network: &Network, data: HashMap<~str, Json>, old: &Solu
 		}
 	};
 	
+	if charts.is_not_empty()
+	{
+		// We always create these charts. That's a bit wasteful because they don't appear on the main page.
+		// However building an URL that encodes all the info neccesary to create them would be rather
+		// awful. TODO: I guess samples could store a Chart struct and then use that to dynamically create
+		// the charts.
+		samples::create_charts(~"devices", charts, network.samples_chan);
+	}
 	if script.is_not_empty()
 	{
 		run_r_script(script);
@@ -235,7 +243,7 @@ priv fn run_r_script(script: ~str)
 // "sysLocation": "closet", 
 // "sysName": "Router", 
 // "sysUpTime": "5080354"
-priv fn add_device(network: &Network, managed_ip: ~str, device: HashMap<~str, Json>, old: &Solution, old_subject: ~str, template: mustache::Template, script: &mut ~str)
+priv fn add_device(network: &Network, managed_ip: ~str, device: HashMap<~str, Json>, old: &Solution, old_subject: ~str, template: mustache::Template, script: &mut ~str, charts: &mut ~[samples::Chart])
 {
 	match network.options.devices.find(|d| {d.managed_ip == managed_ip})
 	{
@@ -273,7 +281,7 @@ priv fn add_device(network: &Network, managed_ip: ~str, device: HashMap<~str, Js
 			let interfaces = device.find(~"interfaces");
 			if interfaces.is_some()
 			{
-				let has_interfaces = add_interfaces(network, device, managed_ip, interfaces.get(), old, old_subject, time, template, script);
+				let has_interfaces = add_interfaces(network, device, managed_ip, interfaces.get(), old, old_subject, time, template, script, charts);
 				toggle_device_down_alert(network.alerts_store, managed_ip, has_interfaces);
 			}
 			else
@@ -360,21 +368,26 @@ priv fn get_device_label(snmp: &Snmp) -> ~str
 	label
 }
 
-priv fn add_interfaces(network: &Network, device: HashMap<~str, Json>, managed_ip: ~str, data: Json, old: &Solution, old_subject: ~str, uptime: Value, template: mustache::Template, script: &mut ~str) -> bool
+priv fn add_interfaces(network: &Network, device: HashMap<~str, Json>, managed_ip: ~str, data: Json, old: &Solution, old_subject: ~str, uptime: Value, template: mustache::Template, script: &mut ~str, charts: &mut ~[samples::Chart]) -> bool
 {
-	match data
+	let mut in_samples = ~[];		// [(sample name, legend)]
+	let mut out_samples = ~[];	// ditto
+	
+	let has_interfaces = match data
 	{
 		json::List(interfaces) =>
 		{
-			let mut rows = ~[];		// [(ifname, html)]
-			for interfaces.each
-			|interface|
+			let mut rows = ~[];			// [(ifname, html)]
+			for interfaces.each |interface|
 			{
 				match *interface
 				{
 					json::Dict(d) =>
 					{
-						vec::push(rows, add_interface(network, managed_ip, device, d, old, old_subject, uptime, template, script));
+						let (name, html, in_sample, out_sample) = add_interface(network, managed_ip, device, d, old, old_subject, uptime, template, script);
+						vec::push(rows, (copy name, html));
+						if in_sample.is_not_empty()   {vec::push(in_samples, (in_sample, copy name))}
+						if out_sample.is_not_empty() {vec::push(out_samples, (out_sample, copy name))}
 					}
 					_ =>
 					{
@@ -417,7 +430,45 @@ priv fn add_interfaces(network: &Network, device: HashMap<~str, Json>, managed_i
 			error!("interfaces from device %s was expected to be a list but is %?", managed_ip, data);
 			false
 		}
+	};
+	
+	let path = core::os::make_absolute(&network.options.root);
+	let path = path.push("generated");
+	if in_samples.is_not_empty()
+	{
+		let in_samples = std::sort::merge_sort(|x, y| {x.second() <= y.second()}, in_samples);;
+		
+		let path = path.push(fmt!("%s-in-interfaces.png", managed_ip));
+		let in_chart = samples::Chart
+		{
+			path: path.to_str(),
+			sample_sets: do in_samples.map |s| {s.first()},
+			legends: do in_samples.map |s| {s.second()},
+			interval: network.options.poll_rate as float,
+			units: Kilo*Bit/Second,
+			title: fmt!("%s In Bandwidth", managed_ip),
+			y_label: ~"Bandwidth",
+		};
+		vec::push(*charts, in_chart);
 	}
+	if out_samples.is_not_empty()
+	{
+		let out_samples = std::sort::merge_sort(|x, y| {x.second() <= y.second()}, out_samples);;
+		
+		let path = path.push(fmt!("%s-out-interfaces.png", managed_ip));
+		let out_chart = samples::Chart
+		{
+			path: path.to_str(),
+			sample_sets: do out_samples.map |s| {s.first()},
+			legends: do out_samples.map |s| {s.second()},
+			interval: network.options.poll_rate as float,
+			units: Kilo*Bit/Second,
+			title: fmt!("%s Out Bandwidth", managed_ip),
+			y_label: ~"Bandwidth",
+		};
+		vec::push(*charts, out_chart);
+	}
+	has_interfaces
 }
 
 // "ifAdminStatus": "up(1)", 
@@ -435,10 +486,12 @@ priv fn add_interfaces(network: &Network, device: HashMap<~str, Json>, managed_i
 // "ifType": "ethernetCsmacd(6)", 
 // "ipAdEntAddr": "10.101.3.2", 
 // "ipAdEntNetMask": "255.255.255.0"
-priv fn add_interface(network: &Network, managed_ip: ~str, device: HashMap<~str, Json>, interface: HashMap<~str, Json>, old: &Solution, old_subject: ~str, uptime: Value, template: mustache::Template, script: &mut ~str) -> (~str, ~str)
+priv fn add_interface(network: &Network, managed_ip: ~str, device: HashMap<~str, Json>, interface: HashMap<~str, Json>, old: &Solution, old_subject: ~str, uptime: Value, template: mustache::Template, script: &mut ~str) -> (~str, ~str, ~str, ~str)
 {
 	let name = lookup(interface, ~"ifDescr", ~"eth?");
 	let mut html = ~"";
+	let mut in_sample = ~"";
+	let mut out_sample = ~"";
 	
 	let old_url = option::Some(IriValue(~"http://network/" + managed_ip));
 	let snmp = Snmp(device, interface, copy *old,  fmt!("sname:%s-", name), old_url);
@@ -450,8 +503,8 @@ priv fn add_interface(network: &Network, managed_ip: ~str, device: HashMap<~str,
 		
 		let out_octets = snmp.get_value_per_sec(~"ifOutOctets", Byte);
 		let out_octets = convert_per_sec(out_octets, Kilo*Bit);
-		let sname = fmt!("%s-%s-out-octets", managed_ip, name);
-		let out_octets_html = make_samples_html(network, out_octets, sname, template, script);
+		let sample_name = fmt!("%s-%s-out-octets", managed_ip, name);
+		let out_octets_html = make_samples_html(network, out_octets, sample_name, template, script, &mut in_sample);
 		if  out_octets.is_some() && is_compound(out_octets.get())
 		{
 			add_interface_out_meter(network.store, &snmp, managed_ip, name, out_octets.get());
@@ -459,8 +512,8 @@ priv fn add_interface(network: &Network, managed_ip: ~str, device: HashMap<~str,
 		
 		let in_octets = snmp.get_value_per_sec(~"ifInOctets", Byte);
 		let in_octets = convert_per_sec(in_octets, Kilo*Bit);
-		let sname = fmt!("%s-%s-in-octets", managed_ip, name);
-		let in_octets_html = make_samples_html(network, in_octets, sname, template, script);
+		let sample_name = fmt!("%s-%s-in-octets", managed_ip, name);
+		let in_octets_html = make_samples_html(network, in_octets, sample_name, template, script, &mut out_sample);
 		
 		// TODO: We're not showing ifInUcastPkts and ifOutUcastPkts because bandwidth seems
 		// more important, the table starts to get cluttered when we do, and multicast is at least as
@@ -491,11 +544,11 @@ priv fn add_interface(network: &Network, managed_ip: ~str, device: HashMap<~str,
 	toggle_admin_vs_oper_interface_alert(network.alerts_store, managed_ip, interface, name, oper_status);
 	toggle_weird_interface_state_alert(network.alerts_store, managed_ip, name, oper_status);
 	
-	return (name, html);
+	return (name, html, in_sample, out_sample);
 }
 
 // TODO: argument lists are getting out of hand, probably want to introduce a struct or two
-priv fn make_samples_html(network: &Network, sample: option::Option<Value>, name: ~str, template: mustache::Template, script: &mut ~str) -> ~str
+priv fn make_samples_html(network: &Network, sample: option::Option<Value>, name: ~str, template: mustache::Template, script: &mut ~str, sample_name: &mut ~str) -> ~str
 {
 	if  sample.is_some() && sample.get().units == Kilo*Bit/Second
 	{
@@ -509,6 +562,7 @@ priv fn make_samples_html(network: &Network, sample: option::Option<Value>, name
 			// TODO: is there a better way?
 			let url = fmt!("generated/%s.png#%?", name, num_adds);
 			
+			*sample_name = copy name;
 			*script += sub_script;
 			fmt!("<img src = '%s' alt = 'octets'>", url)
 		}
@@ -535,7 +589,7 @@ priv fn build_sparkline(network: &Network, name: ~str, template: Template) -> (~
 {
 	let port = Port();
 	let chan = Chan(port);
-	network.samples_chan.send(samples::GetSamples(copy name, chan));
+	network.samples_chan.send(samples::GetSampleSet(copy name, chan));
 	let (buffer, num_adds) = port.recv();
 	
 	if (buffer.len() > 1)
