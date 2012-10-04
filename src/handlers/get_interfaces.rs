@@ -1,4 +1,4 @@
-// Displays details about either in or out bandwidth for a device.
+/// Displays details about either in or out bandwidth for a device.
 use mustache::*;
 use server = rwebserve::rwebserve;
 

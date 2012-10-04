@@ -1,4 +1,4 @@
-// Uses Server Sent Events to send solutions for a query after the model is updated.
+/// Uses Server Sent Events to send solutions for a query after the model is updated.
 use std::json::ToJson;
 use std::json::to_str;
 use model::{Msg, DeregisterMsg, RegisterMsg};

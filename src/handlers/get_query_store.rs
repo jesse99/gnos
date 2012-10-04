@@ -1,4 +1,4 @@
-// Form that allows users to run an arbitrary SPARQL query against a store. 
+/// Form that allows users to run an arbitrary SPARQL query against a store. 
 use  mustache::*;
 use server = rwebserve::rwebserve;
 use ConnConfig = rwebserve::connection::ConnConfig;

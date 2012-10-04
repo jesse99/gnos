@@ -1,5 +1,5 @@
-// This is the code that handles PUTs from the snmp-modeler script. It parses the
-// incoming json, converts it into triplets, and updates the model.
+/// This is the code that handles PUTs from the snmp-modeler script. It parses the
+/// incoming json, converts it into triplets, and updates the model.
 use core::dvec::*;
 use std::json::{Json};
 use json = std::json;

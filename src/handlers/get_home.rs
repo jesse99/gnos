@@ -1,4 +1,4 @@
-// This is the entry point into gnos web sites. 
+/// This is the entry point into gnos web sites. 
 use  mustache::*;
 use server = rwebserve::rwebserve;
 use ConnConfig = rwebserve::connection::ConnConfig;

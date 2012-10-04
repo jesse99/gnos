@@ -1,6 +1,6 @@
-// Provides a view of the predicates owned by a particular subject. This is not 
-// intended to be something used very often: it's just a convenient mechanism 
-// by which users can inspect the raw data used by the other views.
+/// Provides a view of the predicates owned by a particular subject. This is not 
+/// intended to be something used very often: it's just a convenient mechanism 
+/// by which users can inspect the raw data used by the other views.
 use mustache::*;
 use server = rwebserve::rwebserve;
 

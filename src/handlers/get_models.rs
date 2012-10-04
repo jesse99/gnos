@@ -1,6 +1,6 @@
-// Displays the subjects used by the various gnos stores. This is not intended
-// to be something used very often: it's just a convenient mechanism by which
-// users can inspect the raw data used by the other views.
+/// Displays the subjects used by the various gnos stores. This is not intended
+/// to be something used very often: it's just a convenient mechanism by which
+/// users can inspect the raw data used by the other views.
 use  mustache::*;
 use server = rwebserve::rwebserve;
 use ConnConfig = rwebserve::connection::ConnConfig;

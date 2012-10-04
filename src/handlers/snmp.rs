@@ -1,4 +1,4 @@
-// Helpers to extract information from the JSON sent back by modelers.
+/// Helpers to extract information from the JSON sent back by modelers.
 use std::json::*;
 use std::map::*;
 use rrdf::rrdf::*;
