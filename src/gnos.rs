@@ -124,11 +124,12 @@ fn main(args: ~[~str])
 	let home_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, response: &Response, copy options| {get_home::get_home(&options, response)};
 	let modeler_p: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {put_snmp::put_snmp(&options, state_chan, samples_chan, request, response)};
 	let query_store_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {get_query_store::get_query_store(&options, request, response)};
-	let query_s: server::OpenSse = |_config: &ConnConfig, request: &Request, push| {get_query::get_query(state_chan, request, push)};
 	let bail_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, _response: &Response, copy options| {get_shutdown(&options)};
 	let interfaces_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response| {get_interfaces::get_interfaces(request, response)};
 	let static_v: ResponseHandler = |config: &ConnConfig, request: &Request, response: &Response, copy options| {static_view(&options, config, request, response)};
 	
+	let query_s: server::OpenSse = |_config: &ConnConfig, request: &Request, push| {sse_query::sse_query(state_chan, request, push)};
+
 	let config = server::Config
 	{
 		// We need to bind to the server addresses so that we receive modeler PUTs.

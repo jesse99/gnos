@@ -26,7 +26,7 @@ use ResponseHandler = rwebserve::rwebserve::ResponseHandler;
 /// of JSON encoded solutions.
 ///
 /// If a query fails to compile the result will be a string with an error message.
-fn get_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: server::PushChan) -> server::ControlChan
+fn sse_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: server::PushChan) -> server::ControlChan
 {
 	let name = copy *request.params.get(@~"name");
 	let queries = get_queries(request);
