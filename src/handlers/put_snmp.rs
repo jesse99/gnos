@@ -504,7 +504,7 @@ priv fn add_interface(network: &Network, managed_ip: ~str, device: HashMap<~str,
 		let out_octets = snmp.get_value_per_sec(~"ifOutOctets", Byte);
 		let out_octets = convert_per_sec(out_octets, Kilo*Bit);
 		let sample_name = fmt!("%s-%s-out-octets", managed_ip, name);
-		let out_octets_html = make_samples_html(network, out_octets, sample_name, template, script, &mut in_sample);
+		let out_octets_html = make_samples_html(network, out_octets, sample_name, template, script, &mut in_sample, managed_ip, "out");
 		if  out_octets.is_some() && is_compound(out_octets.get())
 		{
 			add_interface_out_meter(network.store, &snmp, managed_ip, name, out_octets.get());
@@ -513,7 +513,7 @@ priv fn add_interface(network: &Network, managed_ip: ~str, device: HashMap<~str,
 		let in_octets = snmp.get_value_per_sec(~"ifInOctets", Byte);
 		let in_octets = convert_per_sec(in_octets, Kilo*Bit);
 		let sample_name = fmt!("%s-%s-in-octets", managed_ip, name);
-		let in_octets_html = make_samples_html(network, in_octets, sample_name, template, script, &mut out_sample);
+		let in_octets_html = make_samples_html(network, in_octets, sample_name, template, script, &mut out_sample, managed_ip, "in");
 		
 		// TODO: We're not showing ifInUcastPkts and ifOutUcastPkts because bandwidth seems
 		// more important, the table starts to get cluttered when we do, and multicast is at least as
@@ -548,7 +548,7 @@ priv fn add_interface(network: &Network, managed_ip: ~str, device: HashMap<~str,
 }
 
 // TODO: argument lists are getting out of hand, probably want to introduce a struct or two
-priv fn make_samples_html(network: &Network, sample: option::Option<Value>, name: ~str, template: mustache::Template, script: &mut ~str, sample_name: &mut ~str) -> ~str
+priv fn make_samples_html(network: &Network, sample: option::Option<Value>, name: ~str, template: mustache::Template, script: &mut ~str, sample_name: &mut ~str, managed_ip: ~str, direction: &str) -> ~str
 {
 	if  sample.is_some() && sample.get().units == Kilo*Bit/Second
 	{
@@ -564,7 +564,7 @@ priv fn make_samples_html(network: &Network, sample: option::Option<Value>, name
 			
 			*sample_name = copy name;
 			*script += sub_script;
-			fmt!("<img src = '%s' alt = 'octets'>", url)
+			fmt!("<a href='interfaces/%s/%s'><img src = '%s' alt = 'octets'></a>", managed_ip, direction, url)
 		}
 		else
 		{

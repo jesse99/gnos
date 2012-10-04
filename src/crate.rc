@@ -30,6 +30,7 @@ mod utils;
 mod handlers
 {
 	mod get_home;
+	mod get_interfaces;
 	mod get_query;
 	mod get_models;
 	mod get_query_store;
