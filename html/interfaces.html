@@ -4,11 +4,17 @@
 
 <html lang="en">
 	<head>
+		<script defer="true" src="/javascript/common.js"></script>
+		<script defer="true" src="/javascript/scene/utils.js"></script>
+		<script defer="true" src="/javascript/sse.js"></script>
+		<script defer="true" src="/javascript/interfaces.js"></script>
 		<title><{{title}}</title>
 		<link rel="stylesheet" type="text/css" href="/interfaces.css"/>
 	</head>
 	
-	<body id='body'>
-		<img src = '/generated/{{ip}}-{{direction}}-interfaces.png' alt = '{{direction}} bandwidth'>
+	<body id='body' data-owner='{{ip}}-{{direction}}'>
+		<img id='chart' src = '/generated/{{ip}}-{{direction}}-interfaces.png' alt = '{{direction}} bandwidth'>
+		<section id='stats'>
+		</section>
 	</body>
 <html>

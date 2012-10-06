@@ -37,6 +37,7 @@ mod handlers
 	mod put_snmp;
 	mod snmp;
 	mod sse_query;
+	mod sse_samples;
 }
 
 #[cfg(test)]

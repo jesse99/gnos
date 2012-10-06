@@ -72,6 +72,7 @@ priv fn updates_snmp(options: &Options, samples_chan: SamplesChan, remote_addr: 
 					
 					json_to_primary(&network, d, old);
 					json_to_snmp(&network);
+					samples_chan.send(samples::SyncMsg);
 				}
 				_ =>
 				{
@@ -552,7 +553,8 @@ priv fn make_samples_html(network: &Network, sample: option::Option<Value>, name
 {
 	if  sample.is_some() && sample.get().units == Kilo*Bit/Second
 	{
-		network.samples_chan.send(samples::AddSample(copy name, sample.get().value, samples_capacity));
+		let owner = fmt!("%s-%s", managed_ip, direction);
+		network.samples_chan.send(samples::AddSample(owner, copy name, sample.get().value, samples_capacity));
 		let (sub_script, num_adds) = build_sparkline(network, name, template);
 		if sub_script.is_not_empty()
 		{
@@ -599,7 +601,7 @@ priv fn build_sparkline(network: &Network, name: ~str, template: Template) -> (~
 		path = path.push(fmt!("%s.png", name));
 		
 		let context = HashMap();
-		context.insert(@~"samples", mustache::Str(@str::connect(do iter::map_to_vec(*buffer) |s| {s.to_str()}, ", ")));
+		context.insert(@~"samples", mustache::Str(@str::connect(do iter::map_to_vec(buffer) |s| {s.to_str()}, ", ")));
 		context.insert(@~"file", mustache::Str(@path.to_str()));
 		context.insert(@~"width", mustache::Str(@~"150"));
 		context.insert(@~"height", mustache::Str(@~"50"));

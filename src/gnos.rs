@@ -129,7 +129,8 @@ fn main(args: ~[~str])
 	let static_v: ResponseHandler = |config: &ConnConfig, request: &Request, response: &Response, copy options| {static_view(&options, config, request, response)};
 	
 	let query_s: server::OpenSse = |_config: &ConnConfig, request: &Request, push| {sse_query::sse_query(state_chan, request, push)};
-
+	let samples_s: server::OpenSse = |_config: &ConnConfig, request: &Request, push| {sse_samples::sse_query(samples_chan, request, push)};
+	
 	let config = server::Config
 	{
 		// We need to bind to the server addresses so that we receive modeler PUTs.
@@ -158,7 +159,7 @@ fn main(args: ~[~str])
 			(~"modeler",  modeler_p),
 		],
 		static_handler: static_v,
-		sse: ~[(~"/query", query_s)],
+		sse: ~[(~"/query", query_s), (~"/samples", samples_s)],
 		settings: ~[(~"debug",  ~"true")],		// TODO: make this a command-line option
 		..server::initialize_config()
 	};

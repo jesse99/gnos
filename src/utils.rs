@@ -1,3 +1,4 @@
+use std::map::{HashMap};
 use Path = path::Path;
 use std::getopts::*;
 use std::time::*;

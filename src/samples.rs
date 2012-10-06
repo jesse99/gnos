@@ -1,6 +1,7 @@
 /// Functions and types used to manage a task responsible for managing sample data.
 use comm::{Chan, Port};
 use core::io::{WriterUtil};
+use std::map::{HashMap};
 use RingBuffer = ring_buffer::RingBuffer;
 use runits::generated::*;
 use runits::units::*;
@@ -8,42 +9,74 @@ use task_runner::*;
 
 pub enum Msg
 {
-	AddSample(~str, float, uint),							// sample set name + sample value, number of samples to retain
-	GetSampleSet(~str, Chan<(~RingBuffer, uint)>),		// sample set name + channel which receives a copy of the buffer and num (global) adds
-	GetSampleSets(~[~str], Chan<~[~RingBuffer]>),	// sample set names + channel which receives a copy of the buffers
+	AddSample(~str, ~str, float, uint),					// owner + sample set name + sample value + number of samples to retain
+	GetSampleSet(~str, Chan<(RingBuffer, uint)>),	// sample set name + channel which receives a copy of the buffer and num (global) adds
+	GetSampleSets(~[~str], Chan<~[RingBuffer]>),	// sample set names + channel which receives a copy of the buffers
+	
+	RegisterMsg(~str, ~str, Chan<~[Detail]>),		// key + owner + channel to receive updates
+	DeregisterMsg(~str),								// key
+	
+	SyncMsg,
 	ExitMsg,
+}
+
+pub struct Detail
+{
+	sample_name: ~str,
+	min: float,
+	mean: float,
+	max: float,
+	units: ~str,
 }
 
 pub fn manage_samples(port: comm::Port<Msg>)
 {
-	let sample_sets = std::map::HashMap();
-	let mut num_adds = 0;	// this is for a hack in build_sparkline
+	let sample_sets = HashMap();		// sample name => (owner, RingBuffer)
+	let registered = HashMap();		// key => (owner, Chan<[Detail]>)
+	let mut num_adds = 0;			// this is for a hack in build_sparkline
 	
 	loop
 	{
 		match comm::recv(port)
 		{
-			AddSample(copy name, value, capacity) =>
+			AddSample(copy owner, copy name, value, capacity) =>
 			{
 				let name = @name;
 				if !sample_sets.contains_key(name)
 				{
-					sample_sets.insert(name, @~RingBuffer(capacity));
+					sample_sets.insert(name, (@owner, @RingBuffer(capacity)));
 				}
 				
-				let buffer = sample_sets[name];
+				let buffer = sample_sets[name].second();
 				buffer.push(value);
 				num_adds += 1;
 			}
 			GetSampleSet(copy name, ch) =>
 			{
-				let buffer = sample_sets[@name];
+				let buffer = sample_sets[@name].second();
 				ch.send((copy *buffer, num_adds));
 			}
 			GetSampleSets(ref names, ch) =>
 			{
-				let buffers = do names.map |n| {copy *sample_sets[@copy n]};
+				let buffers = do names.map |n| {copy *sample_sets[@copy n].second()};
 				ch.send(buffers);
+			}
+			RegisterMsg(copy key, copy owner, channel) =>
+			{
+				let added = registered.insert(@key, (@copy owner, channel));
+				assert added;
+				send_update(sample_sets, owner, channel);
+			}
+			DeregisterMsg(copy key) =>
+			{
+				registered.remove(@key);
+			}
+			SyncMsg =>
+			{
+				for registered.each_value |value|
+				{
+					send_update(sample_sets, *value.first(), value.second());
+				}
 			}
 			ExitMsg =>
 			{
@@ -125,9 +158,9 @@ priv fn get_time_interval(interval: float, num_samples: uint) -> (float, ~str)
 // represent all of our sample values. Note that this assumes that the samples
 // were originaly in kbps. TODO: seems a bit error prone to make that
 // assumption.
-priv fn get_value_scaling(samples: ~[~RingBuffer]) -> (float, ~str)
+priv fn get_value_scaling(samples: ~[RingBuffer]) -> (float, ~str)
 {
-	let max_values = do samples.map |s| {iter::max(*s)};
+	let max_values = do samples.map |s| {iter::max(s)};
 	let max_value = max_values.max();
 	
 	let x = from_units(max_value, Kilo*Bit/Second).normalize_si();
@@ -166,7 +199,7 @@ priv fn get_value_scaling(samples: ~[~RingBuffer]) -> (float, ~str)
 // grid()
 // 
 // dev.off()
-priv fn append_r_script(chart: &Chart, samples: ~[~RingBuffer], script: &mut ~str)
+priv fn append_r_script(chart: &Chart, samples: ~[RingBuffer], script: &mut ~str)
 {
 	let num_lines = samples.len();
 	let num_samples = samples[0].len();
@@ -190,7 +223,7 @@ priv fn append_r_script(chart: &Chart, samples: ~[~RingBuffer], script: &mut ~st
 	for samples.eachi |i, buffer|
 	{
 		assert buffer.len() == num_samples;
-		let values = do iter::map_to_vec(*buffer) |x| {(scaling*x).to_str()};
+		let values = do iter::map_to_vec(buffer) |x| {(scaling*x).to_str()};
 		*script += fmt!("samples%? = c(%s)\n", i+1, str::connect(values, ", "));
 	}
 	
@@ -246,4 +279,35 @@ priv fn run_script(path: &Path) -> option::Option<~str>
 	{
 		option::None
 	}
+}
+
+priv fn send_update(sample_sets: HashMap<@~str, (@~str, @RingBuffer)>, owner: ~str, channel: Chan<~[Detail]>)
+{
+	let mut details = ~[];
+	
+	for sample_sets.each |sample_name, value|
+	{
+		if *value.first() == owner
+		{
+			vec::push(details, get_detail(*sample_name, value.second()));
+		}
+	}
+	
+	channel.send(details);
+}
+
+priv fn get_detail(sample_name: ~str, buffer: &RingBuffer) -> Detail
+{
+	let mut min = float::infinity;
+	let mut mean = 0.0;
+	let mut max = 0.0;
+	
+	for buffer.each |x|
+	{
+		if *x < min {min = *x}
+		if *x > max {max = *x}
+		mean += *x;
+	}
+	mean /= buffer.len() as float;
+	Detail {sample_name: sample_name, min: min, mean: mean, max: max, units: ~"kbps"}	// TODO: use better units
 }

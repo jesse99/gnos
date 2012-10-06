@@ -1,5 +1,5 @@
 /// Functions and types used to manage a task responsible for managing RDF stores.
-use std::map::*;
+use std::map::{HashMap};
 use rrdf::rrdf::*;
 use Namespace = rrdf::solution::Namespace;
 
@@ -95,15 +95,15 @@ fn manage_state(port: comm::Port<Msg>)
 		Namespace {prefix: ~"sname", path: ~"http://snmp-name/"},
 	];
 	
-	let stores = std::map::HashMap();
-	let queries = std::map::HashMap();		// query string => compiled query (cache)
-	let registered = std::map::HashMap();		// store name => {registrar key => (query string, channel<Solution>)}
+	let stores = HashMap();
+	let queries = HashMap();			// query string => compiled query (cache)
+	let registered = HashMap();		// store name => {registrar key => (query string, Chan<Solution>)}
 	
 	for get_standard_store_names().each
 	|name|
 	{
-		stores.insert(copy *name,  @Store(namespaces, &std::map::HashMap()));
-		registered.insert(copy *name, std::map::HashMap());
+		stores.insert(copy *name,  @Store(namespaces, &HashMap()));
+		registered.insert(copy *name, HashMap());
 	}
 	
 	loop
