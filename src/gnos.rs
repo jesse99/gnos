@@ -163,7 +163,17 @@ fn main(args: ~[~str])
 		settings: ~[(~"debug",  ~"true")],		// TODO: make this a command-line option
 		..server::initialize_config()
 	};
-	server::start(&config);
 	
+	// There is a bit of a chicken and egg problem here: ideally we'd start up the web page after the server
+	// starts but before it exits. For a while I was starting up the browser in the make file before launching
+	// the server. This worked fine for a while but Chrome started timing out as the server began to do
+	// more work on startup. Hopefully this will work better.
+	if options.browse.is_not_empty()
+	{
+		let url = copy options.browse;
+		do task::spawn {core::run::program_output("git", ~[~"web--browse", copy url]);}
+	}
+	
+	server::start(&config);
 	info!("exiting gnos");						// won't normally land here
 }

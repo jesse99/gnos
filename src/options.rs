@@ -21,6 +21,7 @@ struct Options
 	pub admin: bool,
 	pub script: ~str,
 	pub db: bool,
+	pub browse: ~str,
 	
 	// these are from the network.json file
 	pub network_name: ~str,
@@ -59,6 +60,7 @@ fn parse_command_line(args: ~[~str]) -> Options
 		optflag(~"h"),
 		optflag(~"help"),
 		optopt(~"port"),
+		optopt(~"browse"),		// TODO: not sure we always want to have this, maybe debug only?
 		optflag(~"version")
 	];
 	let matched = match getopts(vec::tail(args), opts)
@@ -85,7 +87,8 @@ fn parse_command_line(args: ~[~str]) -> Options
 		root: path::from_str(opt_str(copy matched, ~"root")),
 		admin: opt_present(copy matched, ~"admin"),
 		script: path.filename().get(),
-		db: opt_present(matched, ~"db"),
+		db: opt_present(copy matched, ~"db"),
+		browse: opt_str(copy matched, ~"browse"),
 		
 		network_name: network.network,
 		client: network.client,

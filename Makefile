@@ -8,13 +8,11 @@ all: bin/gnos check-js
 
 # gnos doesn't return so we start the client before the browser.
 run: bin/gnos check-js
-	git web--browse 'http://localhost:8080'
-	export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace && export GNOS_USER && ./bin/gnos --admin --root=html scripts/fat.json
+	export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace && export GNOS_USER && ./bin/gnos --admin --root=html --browse='http://localhost:8080' scripts/fat.json
 	#export RUST_LOG=gnos=2,rwebserve=2,socket=1 && export GNOS_USER && ./bin/gnos --admin --root=html scripts/sat.json
 
 run-db: bin/gnos check-js
-	git web--browse 'http://localhost:8080'
-	export RUST_LOG=gnos=2,rwebserve=1,socket=1,rrdf=0 && export GNOS_USER && ./bin/gnos --admin --root=html --db scripts/sat.json
+	export RUST_LOG=gnos=2,rwebserve=1,socket=1,rrdf=0 && export GNOS_USER && ./bin/gnos --admin --root=html --db scripts/sat.json --browse='http://localhost:8080'
 
 run-snmp:
 	scp scripts/fat.json scripts/snmp-modeler.py jjones@10.8.0.179: && ssh jjones@10.8.0.179 "python snmp-modeler.py -vvv --stdout  --duration=1 fat.json"
