@@ -4,6 +4,8 @@ use std::map::{HashMap};
 use samples::{Msg, RegisterMsg, DeregisterMsg, Detail};
 use server = rwebserve::rwebserve;
 use rwebserve::imap::ImmutableMap;
+use runits::units::*;
+use runits::generated::*;
 
 // Sends a list of json objects where each object is of the form: 
 // {"sample_name": "eth1", "min": 1.0, "mean": 1.0, "max": 1.0, "units": "kbps"}.
@@ -57,12 +59,18 @@ priv fn details_to_json(details: &[Detail]) -> std::json::Json
 
 priv fn detail_to_json(detail: &Detail) -> std::json::Json
 {
+	let value = from_units(detail.max, Kilo*Bit/Second);
+	let value = value.normalize_si();
+	
+	let unit = from_units(1.0, Kilo*Bit/Second);
+	let unit = unit.convert_to(value.units);
+	
 	let map = HashMap();
 	map.insert(~"sample_name", std::json::String(@copy detail.sample_name));
-	map.insert(~"min", std::json::Num(detail.min));
-	map.insert(~"mean", std::json::Num(detail.mean));
-	map.insert(~"max", std::json::Num(detail.max));
-	map.insert(~"units", std::json::String(@copy detail.units));
+	map.insert(~"min", std::json::Num(detail.min*unit.value));
+	map.insert(~"mean", std::json::Num(detail.mean*unit.value));
+	map.insert(~"max", std::json::Num(detail.max*unit.value));
+	map.insert(~"units", std::json::String(@value.units.to_str()));
 	
 	std::json::Dict(map)
 }
