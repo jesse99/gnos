@@ -26,7 +26,7 @@ WHERE 																\
 	register_query("subject", ["subject"], store, [query], [subject_query]);
 	
 	register_renderer("subject", ["subject"], "subject", subject_renderer);
-}
+};
 
 function subject_query(solution)
 {
@@ -40,7 +40,7 @@ function subject_query(solution)
 		html += '<tr class="{0}">'.format(klass);
 		
 		html += '	<td class="predicate">';
-		if (row.predicate_label.indexOf("sname:") == 0)
+		if (row.predicate_label.indexOf("sname:") === 0)
 		{
 			var name = row.predicate_label.slice("sname:".length);
 			var url = "http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput={0}&translate=Translate&submitValue=SUBMIT&submitClicked=true".format(name);

@@ -9,7 +9,7 @@ function Scene()
 Scene.prototype.append = function (shape)
 {
 	this.shapes.push(shape);
-}
+};
 
 Scene.prototype.append_all = function (shapes)
 {
@@ -17,7 +17,7 @@ Scene.prototype.append_all = function (shapes)
 	{
 		this.shapes.push(shapes[i]);
 	}
-}
+};
 
 Scene.prototype.find = function (predicate)
 {
@@ -28,12 +28,12 @@ Scene.prototype.find = function (predicate)
 	}
 	
 	return null;
-}
+};
 
 Scene.prototype.remove_all = function ()
 {
 	this.shapes = [];
-}
+};
 
 Scene.prototype.remove_if = function (predicate)
 {
@@ -42,7 +42,7 @@ Scene.prototype.remove_if = function (predicate)
 		{
 			return !predicate(shape);
 		});
-}
+};
 
 Scene.prototype.draw = function (context)
 {
@@ -66,7 +66,7 @@ Scene.prototype.draw = function (context)
 		// If not then the shape didn't restore the context.
 		assert(context.strokeStyle === '#ff00ff' && context.fillStyle === '#ff00ff' && context.lineWidth === 10, shape + " didn't restore context");
 	}
-}
+};
 
 // Note that this will only return shapes which have a true clickable property.
 Scene.prototype.hit_test = function (pt)
@@ -81,9 +81,9 @@ Scene.prototype.hit_test = function (pt)
 	}
 	
 	return null;
-}
+};
 
 Scene.prototype.toString = function ()
 {
 	return "Scene with {0} shapes".format(this.shapes.length);
-}
+};

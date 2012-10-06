@@ -16,7 +16,7 @@ WHERE 													\
 } ORDER BY ?name';
 	register_query("models", ["models"], "globals", [query], [models_query]);
 	register_renderer("models", ["models"], "body", models_renderer);
-}
+};
 
 function models_query(solution)
 {
@@ -51,7 +51,6 @@ function models_renderer(element, model, model_names)
 		register_store_query(store);
 		
 		var name = "{0}-store".format(store);
-		var element = document.getElementById(name);
 		register_renderer(name, [name], name, store_renderer);
 		GNOS.store_renderer_ids.push(name);
 	}
@@ -95,7 +94,7 @@ WHERE 													\
 	
 	var id = "models-" + store;
 	var model_name = "{0}-store".format(store);
-	register_query(id, [model_name], store, [query], [function (solution) {return store_query(store, solution)}]);
+	register_query(id, [model_name], store, [query], [function (solution) {return store_query(store, solution);}]);
 	GNOS.store_query_ids.push(id);
 }
 

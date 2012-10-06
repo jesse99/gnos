@@ -35,7 +35,7 @@ window.onload = function()
 	GNOS.selection_name = "gnos:map";
 	
 	set_loading_label();
-}
+};
 
 function resize_canvas()
 {
@@ -64,7 +64,7 @@ function set_loading_label()
 
 function handle_canvas_click(event)
 {
-	if (event.button == 0)
+	if (event.button === 0)
 	{
 		var pos = findPosRelativeToViewport(this);
 		var pt = new Point(event.clientX - pos[0], event.clientY - pos[1]);
@@ -197,7 +197,7 @@ function device_selection_query(solution)
 		details.push(content);
 	}
 	
-	return {selection_details: details}
+	return {selection_details: details};
 }
 
 // solution rows have 
@@ -284,7 +284,7 @@ function selection_alerts_query(solution)
 	html += add_widget(info_alerts, "Info Alerts", false);
 	html += add_widget(closed_alerts, "Closed Alerts", false);
 	
-	return {selection_alerts: html}
+	return {selection_alerts: html};
 }
 
 function details_renderer(element, model, model_names)
@@ -466,7 +466,7 @@ function device_shapes_query(solution)
 		labels[device.name] = device_labels;
 	}
 	
-	return {device_info: infos, device_labels: labels}
+	return {device_info: infos, device_labels: labels};
 }
 
 // solution rows have 
@@ -517,7 +517,7 @@ function relations_query(solution)
 	
 	// Returns object mapping src/dst device subjects to objects of the form:
 	//     {r: relation, broken: bool, from_arrow: arrow, to_arrow}
-	return {device_relation_infos: lines}
+	return {device_relation_infos: lines};
 }
 
 // solution rows have 
@@ -554,7 +554,7 @@ function device_meters_query(solution)
 		}
 	}
 	
-	return {device_meters: meters}
+	return {device_meters: meters};
 }
 
 // solution rows have 
@@ -572,7 +572,7 @@ function poll_interval_query(solution)
 		
 		var shape = create_poll_interval_label(GNOS.last_update, GNOS.poll_interval);
 		
-		return {poll_interval: shape}
+		return {poll_interval: shape};
 	}
 }
 
@@ -699,8 +699,8 @@ function add_relations_shapes(context, infos)
 		else
 			var style_names = [style];
 		
-		var src = GNOS.scene.find(function (shape) {return shape.name === info.r.src});
-		var dst = GNOS.scene.find(function (shape) {return shape.name === info.r.dst});
+		var src = GNOS.scene.find(function (shape) {return shape.name === info.r.src;});
+		var dst = GNOS.scene.find(function (shape) {return shape.name === info.r.dst;});
 		
 		var line = discs_to_line(src.disc.geometry, dst.disc.geometry);
 		line = line.shrink(src.disc.stroke_width/2, dst.disc.stroke_width/2);	// path strokes are centered on the path
@@ -849,14 +849,14 @@ DeviceShape.prototype.draw = function (context)
 		dy += shape.height;
 		context.restore();
 	}
-}
+};
 
 DeviceShape.prototype.hit_test = function (pt)
 {
 	return this.disc.hit_test(pt);
-}
+};
 
 DeviceShape.prototype.toString = function ()
 {
 	return "DeviceShape for " + this.name;
-}
+};

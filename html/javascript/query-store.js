@@ -58,14 +58,14 @@ function save_solution(root, solution)
 	var html = "";
 	html += "<table border='1'>\n";
 	html += "	<tr>\n";
-	html += (headers.map(function (h) {return "<th>{0}</th>".format(escapeHtml(h || ""))})).join('\n');
+	html += (headers.map(function (h) {return "<th>{0}</th>".format(escapeHtml(h || ""));})).join('\n');
 	html += "	</tr>\n";
 	for (var i = 0; i < rows.length; ++i)
 	{
 		var row = rows[i];
 		
 		html += "	<tr>\n";
-		html += (row.map(function (r) {return "<td>{0}</td>".format(escapeHtml(r || ""))})).join('\n');
+		html += (row.map(function (r) {return "<td>{0}</td>".format(escapeHtml(r || ""));})).join('\n');
 		html += "	</tr>\n";
 	}
 	html += "</table>\n";
@@ -88,8 +88,8 @@ function analyze_solution(headers, rows, solution)
 		// order we grep the query string for the variables in the order the user wanted them.
 		var selection = matches[1].trim();
 		var variables = selection.split(/\s+/);
-		var names = variables.map(function (v) {return v.slice(1)});
-		names.forEach(function (n) {headers.push(n)});
+		var names = variables.map(function (v) {return v.slice(1);});
+		names.forEach(function (n) {headers.push(n);});
 		
 		for (var i = 0; i < solution.length; ++i)
 		{

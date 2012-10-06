@@ -6,7 +6,7 @@ window.onload = function()
 	var body = document.getElementById('body');
 	var owner = body.getAttribute("data-owner");
 	register_query(owner);
-}
+};
 
 function register_query(owner)
 {
@@ -59,7 +59,7 @@ function do_update(details)
 		
 		html += "	<tr>{0}</tr>\n".format(escapeHtml(detail.sample_name));
 		html += "	<tr>{0} {1}</tr>\n".format(escapeHtml(detail.min), escapeHtml(detail.units));
-		html += "	<tr>{0} {1}</tr>\n".format(escapeHtml(detail.mean), escapeHtml)detail.units));
+		html += "	<tr>{0} {1}</tr>\n".format(escapeHtml(detail.mean), escapeHtml(detail.units));
 		html += "	<tr>{0} {1}</tr>\n".format(escapeHtml(detail.max), escapeHtml(detail.units));
 	}
 	html += "</table>\n";

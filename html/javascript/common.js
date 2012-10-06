@@ -3,7 +3,7 @@
 
 // We tuck away all of our global variables into this object to minimize the
 // risk of name clashes with other libraries or new versions of javascript.
-var GNOS = {}
+var GNOS = {};
 
 Array.prototype.intersect = function(rhs)
 {
@@ -16,7 +16,7 @@ Array.prototype.intersect = function(rhs)
 	}
 	
 	return result;
-}
+};
 
 Array.prototype.intersects = function(rhs)
 {
@@ -27,7 +27,7 @@ Array.prototype.intersects = function(rhs)
 	}
 	
 	return false;
-}
+};
 
 Array.prototype.push_all = function(rhs)
 {
@@ -35,7 +35,7 @@ Array.prototype.push_all = function(rhs)
 	{
 		this.push(rhs[i]);
 	}
-}
+};
 
 // Replaces {0} with argument 0, {1} with argument 1, etc.
 // Argument index can be appended with ":j" to print the argument as json.
@@ -61,7 +61,7 @@ function AssertException(message)
 AssertException.prototype.toString = function ()
 {
 	return 'assert: ' + this.message;
-}
+};
 
 function assert(predicate, message)
 {
@@ -78,8 +78,7 @@ function clone(obj)
 // Based on a similar function from JavaScript: The Definitive Guide.
 function freezeProps(object /*, names*/)
 {
-	var props = arguments.length === 1
-		? Object.getOwnPropertyNames(object) : Array.prototype.splice.call(arguments, 1);
+	var props = arguments.length === 1 ? Object.getOwnPropertyNames(object) : Array.prototype.splice.call(arguments, 1);
 		
 	// Make each configurable property read-only and permanent.
 	props.forEach(function (name)
@@ -96,7 +95,7 @@ function escapeHtml(str)
 	var div = document.createElement('div');
 	div.appendChild(document.createTextNode(str));
 	return div.innerHTML;
-};
+}
 
 // Returns a string like "Wednesday 18:06".
 function dateToStr(date)
@@ -162,8 +161,9 @@ function findPos(obj)
 		{
 			curleft += obj.offsetLeft;
 			curtop += obj.offsetTop;
+			obj = obj.offsetParent;
 		}
-		while (obj = obj.offsetParent);
+		while (obj);
 	}
 	
 	return [curleft, curtop];
@@ -173,9 +173,9 @@ function findPos(obj)
 // From http://blog.stannard.net.au/2010/05/22/find-the-position-of-an-element-with-javascript/
 function findPosRelativeToViewport(obj)
 {
-	var objPos = findPos(obj)
-	var scroll = getPageScroll()
-	return [objPos[0] - scroll[0], objPos[1] - scroll[1]]
+	var objPos = findPos(obj);
+	var scroll = getPageScroll();
+	return [objPos[0] - scroll[0], objPos[1] - scroll[1]];
 }
 
 // getPageScroll() by quirksmode.org
@@ -198,7 +198,7 @@ function getPageScroll()
 		yScroll = document.body.scrollTop;
 		xScroll = document.body.scrollLeft;
 	}
-	return [xScroll, yScroll]
+	return [xScroll, yScroll];
 }
 
 // Fades the element out, calls render, and fades in.

@@ -26,7 +26,7 @@ function register_query(id, model_names, store, queries, callbacks)
 	{
 		var candidate = GNOS.sse_queries[qid];
 		var common = model_names.intersect(candidate.model_names);
-		assert(common.length == 0, "{0:j} was found in {1}".format(common, qid));
+		assert(common.length === 0, "{0:j} was found in {1}".format(common, qid));
 	}
 	
 	// Start the model off in a well known state.
@@ -42,7 +42,7 @@ function register_query(id, model_names, store, queries, callbacks)
 	var expressions = queries.map(
 		function (query, index)
 		{
-			if (index == 0)
+			if (index === 0)
 				return "expr={0}".format(encodeURIComponent(query));
 			else
 				return "expr{0}={1}".format(index+1, encodeURIComponent(query));
@@ -65,7 +65,7 @@ function register_query(id, model_names, store, queries, callbacks)
 				assert(model_names.indexOf(name) >= 0, "{0} returned {1} which is not in {2:j}".format(id, name, model_names));
 				assert(keys.indexOf(name) < 0, "{0} returned {1} which is was already returned".format(id, name));
 				
-				GNOS.sse_model[name] = result[name]
+				GNOS.sse_model[name] = result[name];
 				keys.push(name);
 			}
 		}
@@ -132,7 +132,7 @@ function register_renderer(id, model_names, element_id, callback)
 		{
 			model_names: model_names,
 			element_id: element_id,
-			callback: callback,
+			callback: callback
 		};
 }
 
@@ -152,7 +152,7 @@ function create_callback(candidate, element, model_names)
 {
 	return function (x, y, z)
 	{
-		candidate.callback(element, GNOS.sse_model, model_names)
+		candidate.callback(element, GNOS.sse_model, model_names);
 	};
 }
 

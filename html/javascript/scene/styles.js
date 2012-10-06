@@ -13,7 +13,7 @@ GNOS.styles =
 		
 		lineWidth: 1,
 		strokeStyle: "black",
-		fillStyle: "black",
+		fillStyle: "black"
 	},
 	
 	'map':					{fontSize: xlarger},
@@ -46,7 +46,7 @@ GNOS.styles =
 	'smaller':				{fontSize: smaller},
 	'xsmaller':				{fontSize: xsmaller},
 	'larger':					{fontSize: larger},
-	'xlarger':				{fontSize: xlarger},
+	'xlarger':				{fontSize: xlarger}
 };
 
 // Applies cascading styles to the current canvas context.

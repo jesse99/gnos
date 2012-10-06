@@ -1,3 +1,5 @@
+/*jsl:ignoreall*/
+
 /*
  * color.js
  * Version 0.2.1.2
