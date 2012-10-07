@@ -11,7 +11,7 @@ It depends upon:
 * The [rust-mustache](https://github.com/erickt/rust-mustache) template library.
 * The [rparse](https://github.com/jesse99/rparse) parser combinator library.
 * [jsl](http://www.javascriptlint.com/) is used by the Makefile to perform syntax (and other) checks before running.
-* [R](http://www.r-project.org/) is used to generate server-side charts (on Linux install r-base).
+* [R](http://www.r-project.org/) is used to generate server-side charts (on Linux install `r-base`).
 
 Server side testing has been mostly done on a Mac. Linux should work as well. Windows will likely require some 
 work (mostly in rust-socket).
