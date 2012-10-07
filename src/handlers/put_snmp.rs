@@ -413,6 +413,7 @@ priv fn add_interfaces(network: &Network, device: HashMap<~str, Json>, managed_i
 				html += ~"</tr>\n";
 				html += str::connect(hrows, ~"\n");
 			html += ~"</table>\n";
+			html += ~"<p class='note'>The shaded area in the sparklines is the inter-quartile range: the bounds within which half the samples fall.</p>";
 			
 			let subject = get_blank_name(network.store, ~"interfaces");
 			network.store.add(subject, ~[

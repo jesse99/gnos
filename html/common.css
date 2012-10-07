@@ -27,6 +27,13 @@ tr.even
 	background-color: azure;
 }
 
+.note
+{
+	font-size: x-small;
+	font-weight: normal;
+	font-style: italic;
+}
+
 ul.sequence, ol.sequence
 {
 	list-style: none;
