@@ -39,6 +39,8 @@ function register_query(owner)
 	});
 }
 
+// TODO: Should be able to toggle between the chart and a table via a click.
+// Chart could perhaps contain timestamps.
 function do_update(details)
 {
 	// See http://www.post-hipster.com/2008/10/20/using-javascript-to-refresh-an-image-without-a-cache-busting-parameter/
