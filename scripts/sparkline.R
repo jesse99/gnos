@@ -22,7 +22,8 @@ sparkline(
 	ptopts = list(labels = 'min.max'),			# add labels for the min and max samples
 	IQR = gpar(fill = 'cornsilk', col = 'cornsilk'),	# show inter-quartile range
 	buffer = unit(4, 'points'),
-	new = FALSE
+	new = FALSE,
+	ylim = c(0.0, max(samples))
 )
 
 popViewport()
