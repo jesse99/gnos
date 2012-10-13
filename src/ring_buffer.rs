@@ -1,4 +1,4 @@
-/// Fixed size buffer: when it is at capacity pushs drop the first element.
+/// Fixed size buffer: when it is at capacity pushs drop the oldest element.
 struct RingBuffer
 {
 	priv mut buffer: ~[float],
@@ -168,6 +168,6 @@ fn test_ring_buffer()
 	
 	buffer.push(3.0);
 	assert buffer.len() == 2;
-	assert buffer[0] == 3.0;
+	assert buffer[0] == 2.0;
 	assert buffer[1] == 3.0;
 }
