@@ -34,6 +34,11 @@ tr.even
 	font-style: italic;
 }
 
+.indent
+{
+	text-indent: 15pt;
+}
+
 ul.sequence, ol.sequence
 {
 	list-style: none;

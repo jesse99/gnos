@@ -184,7 +184,7 @@ function device_selection_query(solution)
 			html += '{0}\n'.format(details.detail);
 			html += '</details>\n';
 		}
-			
+		
 		return html;
 	}
 	
@@ -229,16 +229,31 @@ function selection_alerts_query(solution)
 			else
 				var target = "";
 				
-			var classes = '{0}-alert'.format(row.level);
-			var attributes = '';
-			if (row.resolution)
+			var lines = row.mesg.split("\n");
+			for (var i = 0; i < lines.length; ++i)
 			{
-				classes += ' tooltip';
-				attributes += ' data-tooltip=" {0}"'.format(escapeHtml(row.resolution));
+				var attributes = '';
+				var classes = '{0}-alert'.format(row.level);
+				if (i === 0)
+				{
+					var targets = escapeHtml(target);
+					if (row.resolution)
+					{
+						classes += ' tooltip';
+						attributes += ' data-tooltip=" {0}"'.format(escapeHtml(row.resolution));
+					}
+					var dates = " ({0})".format(dateToStr(date));
+				}
+				else
+				{
+					var targets = "";
+					classes += ' indent';
+					var dates = "";
+				}
+				
+				html += '<li class="{0}"{1}">{2}{3}{4}</li>\n'.format(
+					classes, attributes, targets, escapeHtml(lines[i]), dates);
 			}
-			
-			html = '<li class="{0}"{1}">{2}{3} ({4})</li>\n'.format(
-				classes, attributes, escapeHtml(target), escapeHtml(row.mesg), dateToStr(date));
 		}
 		return html;
 	}

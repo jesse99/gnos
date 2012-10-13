@@ -27,8 +27,18 @@ priv fn run_snmp(user: ~str, host: ~str, script: ~str) -> option::Option<~str>
 
 priv fn snmp_exited(err: option::Option<~str>, state_chan: comm::Chan<model::Msg>)
 {
-	let mesg = fmt!("snmp-modeler.py exited%s", if err.is_some() {~" with error: " + err.get()} else {~""});
-	error!("%s", mesg);
+	let mesg =
+		if err.is_some()
+		{
+			~"snmp-modeler.py exited with stderr:\n" + err.get()
+		}
+		else
+		{
+			~"snmp-modeler.py exited with no stderr"
+		};
+	
+	let lines = mesg.split_char('\n');
+	for lines.each |line| {error!("%s", *line)};
 	
 	let alert = model::Alert {device: ~"gnos:map", id: ~"snmp-modeler.py exited", level: model::ErrorLevel, mesg: mesg, resolution: ~"Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
 	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _err| {model::open_alert(store, &alert)}, ~""));
@@ -36,6 +46,12 @@ priv fn snmp_exited(err: option::Option<~str>, state_chan: comm::Chan<model::Msg
 
 priv fn setup(options: &options::Options, state_chan: comm::Chan<model::Msg>) 
 {
+	let path = options.root.push(~"generated");				// html/generated
+	if !os::path_is_dir(&path)
+	{
+		os::make_dir(&path, 7*8*8 + 7*8 + 7);
+	}
+	
 	let root = copy options.root;
 	let client2 = copy options.client;
 	let cleanup = copy options.cleanup;

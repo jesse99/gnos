@@ -25,6 +25,46 @@ restful uris: http://redrata.com/restful-uri-design/
 javascript model/view: http://documentcloud.github.com/backbone/
 
 
+* Probably want to start using jquery.
+* Work on new architecture
+	- agents: python, snmp/vtysh/etc, json
+	- server: rdf
+	- client: canvas, html
+	- how do multiple stores work?
+		perhaps one store: on new data clear out subjects with a matching source id
+	- entity + content + relations
+	- conteent can be labels, tables, lists, images, urls, markdown, etc
+	- content has a zoom in level
+	- content can be tagged left, middle, right (probably top and bottom to)
+		` for relations content is rendered at the appropiate place along the line
+		` for entities flexible box layout is used
+	- entity id is an url? or a hash?
+	- is there a way to get aspects/views?
+		maybe relations can have an optional filter?
+	- tools:
+		pointer	?
+		hand	drag stuff, overlays?
+		zoom in/out
+		navigate up and in
+	- search
+	- maybe use grid lines to show magnification
+	- may be some stuff on tufte's site
+	- attach custom info
+* UI
+	- widget at upper left in window shows how deep naved in, click navs out
+	- widget at entity upper right shows how far can nav in
+	- widget at bottom left shows how far can zoom out
+	- widget at bottom right shows how far can zoom in
+	- can we have two names for in and out?
+	- some entires could be just a label so maybe only show widgets when hover over
+* Maps
+	- snmp
+	- rust docs
+	- rust project
+	- rust compiler
+	- rust web site
+	- coco dashboard
+	- programmig tips
 * HTML5 apparently does support extending the browser's context menu:
 	- <section contextmenu="mymenu">
 	  <!-- 
