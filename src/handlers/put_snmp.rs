@@ -20,7 +20,9 @@ use mustache::{Context, ContextTrait};
 
 type SamplesChan = Chan<samples::Msg>;
 
-const samples_capacity: uint = 100;
+// This is equivalent to an hours worth of data at a fast poll rate (20s). Slower poll rates (which
+// are expected to me more likely) will retain correspondingly longer time spans.
+const samples_capacity: uint = 180;
 
 struct Network
 {
