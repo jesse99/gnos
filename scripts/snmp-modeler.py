@@ -165,7 +165,7 @@ class QueryDevice(object):
 		except:
 			logger.error("Error walking IF-MIB", exc_info = True)
 		return result
-			
+	
 	def __walkIP(self):
 		result = []
 		try:
@@ -198,7 +198,8 @@ class QueryDevice(object):
 	
 	def __processResult(self, errorIndication, errorStatus, errorIndex, table):
 		if errorIndication:
-			return errorIndication
+			# These used to be strings and are now some lame old-style class instance.
+			return str(errorIndication)
 		elif errorStatus:
 			return '%s at %s\n' % (errorStatus.prettyPrint(), errorIndex and table[int(errorIndex)-1] or '?')
 		else:
