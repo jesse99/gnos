@@ -114,19 +114,19 @@ priv fn add_entities(store: &Store)
 	let wall = ~"map:primary/entities/wall";
 	store.add(wall, ~[
 		(~"gnos:entity",	StringValue(~"The Wall", ~"")),
-		(~"gnos:style",		StringValue(~"font-weight:bolder", ~"")),
+		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
 	]);
 	
 	let winterfell = ~"map:primary/entities/winterfell";
 	store.add(winterfell, ~[
 		(~"gnos:entity",	StringValue(~"Winterfell", ~"")),
-		(~"gnos:style",		StringValue(~"font-weight:bolder", ~"")),
+		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
 	]);
 	
 	let kings_landing = ~"map:primary/entities/kings_landing";
 	store.add(kings_landing, ~[
 		(~"gnos:entity",		StringValue(~"King's Landing", ~"")),
-		(~"gnos:style",			StringValue(~"frame-width:4 font-size:x-large font-weight:bolder", ~"")),
+		(~"gnos:style",			StringValue(~"font-size:x-large font-weight:bolder frame-blur:5", ~"")),
 	]);
 }
 
@@ -148,7 +148,7 @@ priv fn add_infos(store: &Store)
 	
 	store.add(get_blank_name(store, ~"winterfell-label"), ~[
 		(~"gnos:target",	IriValue(~"map:primary/entities/winterfell")),
-		(~"gnos:label",	StringValue(~"constructed by Brandon the ", ~"")),
+		(~"gnos:label",	StringValue(~"constructed by Brandon the Builder", ~"")),
 		(~"gnos:level",	IntValue(2)),
 	]);
 	

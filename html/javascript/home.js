@@ -167,7 +167,7 @@ function map_renderer(element, model, model_names)
 				
 				// Unfortunately we can't create this shape until after all the other sub-shapes are created.
 				// So it's simplest just to create the shape here.
-				var center = new Point(50 + 200*i, 50 + 200*i);
+				var center = new Point(200 + 200*i, 50 + 200*i);
 //				var center = new Point(50 + 50*i * context.canvas.width, 50 + 50*i * context.canvas.height);
 				var shape = new EntityShape(context, entity.target, center, entity.styles, child_shapes);
 				GNOS.scene.append(shape);
@@ -183,21 +183,19 @@ function map_renderer(element, model, model_names)
 }
 
 // ---- EntityShape class -------------------------------------------------------
-// Used to draw a device consisting of a DiscShape and an array of arbitrary shapes.
+// Used to draw a device consisting of a RectShape and an array of arbitrary shapes.
 function EntityShape(context, name, center, entity_styles, shapes)
 {
-	var width = shapes.reduce(function(value, shape)
+	var width = 1.07*shapes.reduce(function(value, shape)
 	{
 		return Math.max(value, shape.width);
 	}, 0);
-	this.total_height = shapes.reduce(function(value, shape)
+	this.total_height = 1.2*shapes.reduce(function(value, shape)
 	{
 		return value + shape.height;
 	}, 0);
-	var radius = 1.1 * Math.max(this.total_height, width)/2;
-	assert(radius > 0.0, "{0} radius is {1}".format(name, radius));
 	
-	this.disc = new DiscShape(context, new Disc(center, radius), entity_styles);
+	this.rect = new RectShape(context, new Rect(center.x - width/2, center.y - this.total_height/2, width, this.total_height), entity_styles);
 	this.shapes = shapes;
 	this.name = name;
 	this.clickable = true;
@@ -206,14 +204,14 @@ function EntityShape(context, name, center, entity_styles, shapes)
 
 EntityShape.prototype.draw = function (context)
 {
-	if (GNOS.selection_name == this.name)
-		this.disc.extra_styles = ['selection'];
-	else
-		this.disc.extra_styles = [];
-	this.disc.draw(context);
+//	if (GNOS.selection_name == this.name)
+//		this.rect.extra_styles = ['selection'];
+//	else
+//		this.rect.extra_styles = [];
+	this.rect.draw(context);
 	
-	var dx = this.disc.geometry.center.x;
-	var dy = this.disc.geometry.center.y - this.total_height/2;
+	var dx = this.rect.geometry.left + this.rect.width/2;
+	var dy = this.rect.geometry.top + this.rect.height/2 - this.total_height/2 + 0.2*this.shapes[0].height;	// TODO: hopefully when text metrics work a bit better we can get rid of that last term (think we need leading)
 	for (var i = 0; i < this.shapes.length; ++i)
 	{
 		context.save();
@@ -230,7 +228,7 @@ EntityShape.prototype.draw = function (context)
 
 EntityShape.prototype.hit_test = function (pt)
 {
-	return this.disc.hit_test(pt);
+	return this.rect.hit_test(pt);
 };
 
 EntityShape.prototype.toString = function ()

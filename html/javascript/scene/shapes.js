@@ -49,6 +49,13 @@ LineShape.prototype.draw = function (context)
 	var to_x = this.geometry.to.x - this.to_arrow.stem_height * unit.x;
 	var to_y = this.geometry.to.y - this.to_arrow.stem_height * unit.y;
 	
+	if (context.frameBlur)
+	{
+		context.shadowBlur = context.frameBlur;
+		context.shadowColor = context.strokeStyle;
+		context.shadowOffsetX = context.lineWidth;
+		context.shadowOffsetY = context.lineWidth;
+	}
 	context.beginPath();
 		context.moveTo(from_x, from_y);
 		context.lineTo(to_x, to_y);
@@ -138,7 +145,6 @@ function DiscShape(context, disc, styles)
 	context.restore();
 	
 	freezeProps(this);
-	this.extra_styles = [];
 }
 
 DiscShape.prototype.draw = function (context)
@@ -148,8 +154,16 @@ DiscShape.prototype.draw = function (context)
 	apply_styles(context, this.styles);
 	//console.log("drawing disc with {0:j} and {1:j}".format(this.style_names, compose_styles(this.style_names)));
 	
+	if (context.frameBlur)
+	{
+		context.shadowBlur = context.frameBlur;
+		context.shadowColor = context.strokeStyle;
+		context.shadowOffsetX = context.lineWidth;
+		context.shadowOffsetY = context.lineWidth;
+	}
+	
 	context.beginPath();
-	context.arc(this.geometry.center.x, this.geometry.center.y, this.geometry.radius, 0, 2*Math.PI);
+		context.arc(this.geometry.center.x, this.geometry.center.y, this.geometry.radius, 0, 2*Math.PI);
 	context.closePath();
 	
 	context.fill();
@@ -168,6 +182,110 @@ DiscShape.prototype.hit_test = function (pt)
 DiscShape.prototype.toString = function ()
 {
 	return "DiscShape at " + this.geometry.toString();
+};
+
+// ---- RectShape class -------------------------------------------------------
+// Draws a filled rectangle. If context.lineWidth is non-zero a border is also added.
+function RectShape(context, rect, styles)
+{
+	this.geometry = rect;
+	this.styles = ['frame-color:black', 'back-color:white'].concat(styles);
+	this.width = rect.width;
+	this.height = rect.height;
+	
+	context.save();
+	apply_styles(context, this.styles);
+	this.stroke_width = context.lineWidth;
+	context.restore();
+	
+	freezeProps(this);
+}
+
+RectShape.prototype.draw = function (context)
+{
+	function fill_rect(context, rect)
+	{
+		context.beginPath();
+			// left
+			context.moveTo(rect.left, rect.top + rect.height);
+			context.lineTo(rect.left, rect.top);
+			
+			// top
+			context.moveTo(rect.left, rect.top);
+			context.lineTo(rect.left + rect.width, rect.top);
+			
+			// right
+			context.moveTo(rect.left + rect.width, rect.top);
+			context.lineTo(rect.left + rect.width, rect.top + rect.height);
+			
+			// bottom
+			context.moveTo(rect.left + rect.width, rect.top + rect.height);
+			context.lineTo(rect.left, rect.top + rect.height);
+		context.fill();
+	}
+	
+	function stroke_left_top(context, rect)
+	{
+		context.beginPath();
+			// left
+			context.moveTo(rect.left, rect.top + rect.height);
+			context.lineTo(rect.left, rect.top);
+			
+			// top
+			context.moveTo(rect.left, rect.top);
+			context.lineTo(rect.left + rect.width, rect.top);
+		context.stroke();
+	}
+	
+	function stroke_right_bottom(context, rect)
+	{
+		context.beginPath();
+			// right
+			context.moveTo(rect.left + rect.width, rect.top);
+			context.lineTo(rect.left + rect.width, rect.top + rect.height);
+			
+			// bottom
+			context.moveTo(rect.left + rect.width, rect.top + rect.height);
+			context.lineTo(rect.left, rect.top + rect.height);
+		context.stroke();
+	}
+	
+	context.save();
+	apply_styles(context, this.styles);
+	
+	fill_rect(context, this.geometry);
+	if (context.lineWidth !== 0)
+	{
+		stroke_left_top(context, this.geometry);
+		
+		if (context.frameBlur)
+		{
+			context.shadowBlur = context.frameBlur;
+			context.shadowColor = context.strokeStyle;
+			context.shadowOffsetX = context.lineWidth;
+			context.shadowOffsetY = context.lineWidth;
+		}
+		stroke_right_bottom(context, this.geometry);
+	}
+	
+	context.restore();
+};
+
+RectShape.prototype.hit_test = function (pt)
+{
+	if (pt.x >= this.geometry.left && pt.x < this.geometry.left + this.geometry.width)
+	{
+		if (pt.y >= this.geometry.top && pt.y < this.geometry.top + this.geometry.height)
+		{
+			return true;
+		}
+	}
+	return false;
+};
+
+RectShape.prototype.toString = function ()
+{
+	return "RectShape at " + this.geometry.toString();
 };
 
 // ---- TextLineShape class ----------------------------------------------------

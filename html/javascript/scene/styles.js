@@ -12,7 +12,8 @@ GNOS.handlers =
 	
 	'frame-width': frame_width,
 	'frame-color': stroke_color,
-	'back-color': fill_color
+	'back-color': fill_color,
+	'frame-blur': frame_blur
 };
 
 // Applies cascading styles to the current canvas context.
@@ -22,6 +23,7 @@ function apply_styles(context, styles)
 	context.lineWidth = 1;
 	context.strokeStyle = 'black';
 	context.fillStyle = 'black';
+	context.frameBlur = undefined;
 	
 	styles.forEach(
 		function (style)
@@ -161,6 +163,11 @@ function fill_color(context, value)
 	var color = Color.get(value).hexTriplet();
 	
 	context.fillStyle = color;
+}
+
+function frame_blur(context, value)
+{
+	context.frameBlur = parseInt(value, 10);
 }
 
 // This is a very common way to adjust the lightness of a color, but it's not a very
