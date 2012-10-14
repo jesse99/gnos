@@ -44,7 +44,7 @@ function set_loading_label()
 	var map = document.getElementById('map');
 	var context = map.getContext('2d');
 	
-	var shape = new TextLineShape(context, new Point(map.width/2, map.height/2), 'Loading...', ["font-size:xxxx-large"]);
+	var shape = new TextLineShape(context, new Point(map.width/2, map.height/2), 'Loading...', ["font-size:xx-large", "font-size:larger", "font-size:larger"]);
 	GNOS.scene.remove_all();
 	GNOS.scene.append(shape);
 }
@@ -199,11 +199,11 @@ function map_renderer(element, model, model_names)
 // Used to draw a device consisting of a RectShape and an array of arbitrary shapes.
 function EntityShape(context, name, center, entity_styles, shapes)
 {
-	var width = 1.07*shapes.reduce(function(value, shape)
+	var width = 14 + shapes.reduce(function(value, shape)
 	{
 		return Math.max(value, shape.width);
 	}, 0);
-	this.total_height = 1.2*shapes.reduce(function(value, shape)
+	this.total_height = 8 + shapes.reduce(function(value, shape)
 	{
 		return value + shape.height;
 	}, 0);
