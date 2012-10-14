@@ -2,9 +2,9 @@
 "use strict";
 
 GNOS.scene = new Scene();
-//GNOS.timer_id = undefined;
-//GNOS.last_update = undefined;
-//GNOS.poll_interval = undefined;
+GNOS.timer_id = undefined;
+GNOS.last_update = undefined;
+GNOS.poll_interval = undefined;
 //GNOS.selection_name = null;
 //GNOS.opened = {};
 GNOS.entity_detail= undefined;
@@ -18,12 +18,12 @@ window.onload = function()
 	
 	GNOS.entity_detail = document.getElementById('entity_detail');
 
-	var model_names = ["entities", "labels", "gauges"];
+	var model_names = ["poll_interval", "entities", "labels", "gauges"];
 	GNOS.entity_detail.onchange = function () {do_model_changed(model_names, false);};
 	register_renderer("map renderer", model_names, "map", map_renderer);
 	
 	register_primary_map_query();
-//	GNOS.timer_id = setInterval(update_time, 1000);
+	GNOS.timer_id = setInterval(update_time, 1000);
 	
 	set_loading_label();
 };
@@ -49,12 +49,39 @@ function set_loading_label()
 	GNOS.scene.append(shape);
 }
 
+function update_time()
+{
+	if (GNOS.scene.shapes.length > 0 && GNOS.poll_interval)
+	{
+		var shape = create_poll_interval_label(GNOS.last_update, GNOS.poll_interval);
+		GNOS.scene.shapes[GNOS.scene.shapes.length-1] = shape;
+		
+		var map = document.getElementById('map');
+		var context = map.getContext('2d');
+		context.clearRect(0, 0, map.width, map.height);
+		GNOS.scene.draw(context);
+	}
+}
+
 function register_primary_map_query()
 {
 	// It's rather awkward to have all these OPTIONAL clauses, but according
 	// to the spec the entire OPTIONAL block must match in order to affect 
 	// the solution.
-	var queries = ['											\
+	var queries = [	'											\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
+SELECT 														\
+	?poll_interval ?last_update								\
+WHERE 														\
+{																\
+	?map gnos:poll_interval ?poll_interval .					\
+	OPTIONAL												\
+	{															\
+		?map gnos:last_update ?last_update .					\
+	}															\
+}',
+'																\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 														\
@@ -112,9 +139,81 @@ WHERE 														\
 		?gauge gnos:predicate ?predicate .					\
 	}															\
 }'];
-	var model_names = ["entities", "labels", "gauges"];
-	var callbacks = [entities_query, labels_query, gauges_query];
+	var model_names = ["poll_interval", "entities", "labels", "gauges"];
+	var callbacks = [poll_interval_query, entities_query, labels_query, gauges_query];
 	register_query("primary map query", model_names, "primary", queries, callbacks);
+}
+
+// solution rows have 
+// required fields: poll_interval
+// optional fields: last_update
+function poll_interval_query(solution)
+{
+	assert(solution.length <= 1, "expected one row but found " + solution.length);
+	
+	if (solution.length == 1)
+	{
+		var row = solution[0];
+		GNOS.last_update = new Date().getTime();
+		GNOS.poll_interval = row.poll_interval;
+		
+		var shape = create_poll_interval_label(GNOS.last_update, GNOS.poll_interval);
+		
+		return {poll_interval: shape};
+	}
+}
+
+function create_poll_interval_label(last, poll_interval)
+{
+	function get_updated_label(last, poll_interval)
+	{
+		var current = new Date().getTime();
+		var last_delta = interval_to_time(current - last);
+		
+		if (poll_interval)
+		{
+			var next = last + 1000*poll_interval;
+			if (current <= next)
+			{
+				var next_delta = interval_to_time(next - current);	
+				var label = "updated {0} ago (next due in {1})".format(last_delta, next_delta);
+				var style = "";
+			}
+			else if (current < next + 60*1000)		// next will be when modeler starts grabbing new data so there will be a bit of a delay before it makes it all the way to the client
+			{
+				var label = "updated {0} ago (next is due)".format(last_delta);
+				var style = "";
+			}
+			else
+			{
+				var next_delta = interval_to_time(current - next);	
+				var label = "updated {0} ago (next was due {1} ago)".format(last_delta, next_delta);
+				var style = " font-color:red font-weight:bolder";
+			}
+		}
+		else
+		{
+			// No longer updating (server has gone down or lost connection).
+			var label = "updated {0} ago (not connected)".format(last_delta);
+			var style = " font-color:red font-weight:bolder";
+		}
+		
+		return [label, style];
+	}
+	
+	var map = document.getElementById('map');
+	var context = map.getContext('2d');
+	
+	var labels = get_updated_label(last, poll_interval);
+	var styles = ('font-size:smaller font-size:smaller' + labels[1]).split(' ');
+	
+	var shape = new TextLineShape(context,
+		function (self)
+		{
+			return new Point(context.canvas.width/2, self.stats.height/2);
+		}, labels[0], styles, 0);
+	
+	return shape;
 }
 
 // solution rows have 
