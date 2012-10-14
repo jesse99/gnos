@@ -18,7 +18,7 @@ window.onload = function()
 	
 	GNOS.entity_detail = document.getElementById('entity_detail');
 
-	var model_names = ["entities", "labels"];
+	var model_names = ["entities", "labels", "gauges"];
 	GNOS.entity_detail.onchange = function () {do_model_changed(model_names, false);};
 	register_renderer("map renderer", model_names, "map", map_renderer);
 	
@@ -75,7 +75,7 @@ WHERE 														\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 														\
-	?label ?target ?level ?style	?predicate						\
+	?label ?target ?level ?style ?predicate						\
 WHERE 														\
 {																\
 	?info gnos:label ?label .									\
@@ -89,9 +89,29 @@ WHERE 														\
 	{															\
 		?info gnos:predicate ?predicate .						\
 	}															\
+}',
+	'															\
+PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
+SELECT 														\
+	?value ?target ?title ?level ?style ?predicate				\
+WHERE 														\
+{																\
+	?gauge gnos:gauge ?value .								\
+	?gauge gnos:target ?target .								\
+	?gauge gnos:title ?title .									\
+	?gauge gnos:level ?level .									\
+	OPTIONAL												\
+	{															\
+		?gauge gnos:style ?style .								\
+	}															\
+	OPTIONAL												\
+	{															\
+		?gauge gnos:predicate ?predicate .					\
+	}															\
 }'];
-	var model_names = ["entities", "labels"];
-	var callbacks = [entities_query, labels_query];
+	var model_names = ["entities", "labels", "gauges"];
+	var callbacks = [entities_query, labels_query, gauges_query];
 	register_query("primary map query", model_names, "primary", queries, callbacks);
 }
 
@@ -138,10 +158,33 @@ function labels_query(solution)
 		var styles = style.split(' ');
 		var label = new TextLineShape(context, Point.zero, row.label, styles);
 		
-		labels.push({target: row.target, label: label, level: row.level, predicate: row.predicate || ""});
+		labels.push({target: row.target, shape: label, level: row.level, predicate: row.predicate || ""});
 	}
 	
 	return {labels: labels};
+}
+
+// solution rows have 
+// required fields: value, target, title, level
+// optional fields: style, predicate
+function gauges_query(solution)
+{
+	var gauges = [];
+	
+	var map = document.getElementById('map');
+	var context = map.getContext('2d');
+	for (var i = 0; i < solution.length; ++i)
+	{
+		var row = solution[i];
+		
+		var style = row.style || "";
+		var styles = style.split(' ');
+		var gauge = new GaugeShape(context, Point.zero, row.value, row.title, styles);
+		
+		gauges.push({target: row.target, shape: gauge, level: row.level, predicate: row.predicate || ""});
+	}
+	
+	return {gauges: gauges};
 }
 
 function map_renderer(element, model, model_names)
@@ -159,17 +202,30 @@ function map_renderer(element, model, model_names)
 			function (entity, i)
 			{
 				var child_shapes = [];
-				child_shapes.push(entity.title);
+				child_shapes.push(entity.title);	
 				
+				var max_width = entity.title.width;
 				model.labels.forEach(
 					function (label)
 					{
 						if (label.target === entity.target && label.level <= GNOS.entity_detail.value)
 						{
-							child_shapes.push(label.label);
+							child_shapes.push(label.shape);
+							max_width = Math.max(label.shape.width, max_width);
 						}
 						
 						max_entity = Math.max(label.level, max_entity);
+					});
+				model.gauges.forEach(
+					function (gauge)
+					{
+						if (gauge.target === entity.target && gauge.level <= GNOS.entity_detail.value)
+						{
+							gauge.shape.adjust_width(context, max_width);
+							child_shapes.push(gauge.shape);
+						}
+						
+						max_entity = Math.max(gauge.level, max_entity);
 					});
 				
 				// Unfortunately we can't create this shape until after all the other sub-shapes are created.

@@ -160,54 +160,53 @@ priv fn add_infos(store: &Store)
 		(~"gnos:base_style",	StringValue(~"font-size:x-large", ~"")),
 	]);
 	
-	// gauges
-//	let wall_mf = get_blank_name(store, ~"meter");
-//	store.add(wall_mf, ~[
-//		(~"gnos:meter",        StringValue(~"MF", ~"")),
-//		(~"gnos:target",        IriValue(copy wall)),
-//		(~"gnos:level",          FloatValue(1.0f64)),
-//		(~"gnos:description", StringValue(~"male/female ratio", ~"")),
-//	]);
-//	
-//	let wall_loyalty = get_blank_name(store, ~"meter");
-//	store.add(wall_loyalty, ~[
-//		(~"gnos:meter",        StringValue(~"loyalty", ~"")),
-//		(~"gnos:target",        IriValue(copy wall)),
-//		(~"gnos:level",          FloatValue(0.0f64)),
-//		(~"gnos:description", StringValue(~"loyalty to the crown", ~"")),
-//	]);
-//	
-//	let winterfell_mf = get_blank_name(store, ~"meter");
-//	store.add(winterfell_mf, ~[
-//		(~"gnos:meter",        StringValue(~"MF", ~"")),
-//		(~"gnos:target",        IriValue(copy winterfell)),
-//		(~"gnos:level",          FloatValue(0.7f64)),
-//		(~"gnos:description", StringValue(~"male/female ratio", ~"")),
-//	]);
-//	
-//	let winterfell_loyalty = get_blank_name(store, ~"meter");
-//	store.add(winterfell_loyalty, ~[
-//		(~"gnos:meter",        StringValue(~"loyalty", ~"")),
-//		(~"gnos:target",        IriValue(copy winterfell)),
-//		(~"gnos:level",          FloatValue(0.6f64)),
-//		(~"gnos:description", StringValue(~"loyalty to the crown", ~"")),
-//	]);
-//	
-//	let kings_landing_mf = get_blank_name(store, ~"meter");
-//	store.add(kings_landing_mf, ~[
-//		(~"gnos:meter",        StringValue(~"MF", ~"")),
-//		(~"gnos:target",        IriValue(copy kings_landing)),
-//		(~"gnos:level",          FloatValue(0.5f64)),
-//		(~"gnos:description", StringValue(~"male/female ratio", ~"")),
-//	]);
-//	
-//	let kings_landing_loyalty = get_blank_name(store, ~"meter");
-//	store.add(kings_landing_loyalty, ~[
-//		(~"gnos:meter",        StringValue(~"loyalty", ~"")),
-//		(~"gnos:target",        IriValue(copy kings_landing)),
-//		(~"gnos:level",          FloatValue(0.9f64)),
-//		(~"gnos:description", StringValue(~"loyalty to the crown", ~"")),
-//	]);
+	// wall gauges
+	store.add(get_blank_name(store, ~"wall-gauge"), ~[
+		(~"gnos:target",	IriValue(~"map:primary/entities/wall")),
+		(~"gnos:gauge",	FloatValue(1.0f64)),
+		(~"gnos:title",		StringValue(~"m/f ratio", ~"")),
+		(~"gnos:level",	IntValue(2)),
+	]);
+	
+	store.add(get_blank_name(store, ~"wall-gauge"), ~[
+		(~"gnos:target",	IriValue(~"map:primary/entities/wall")),
+		(~"gnos:gauge",	FloatValue(0.3f64)),
+		(~"gnos:title",		StringValue(~"loyalty", ~"")),
+		(~"gnos:level",	IntValue(2)),
+		(~"gnos:style",		StringValue(~"gauge-bar-color:orange", ~"")),
+	]);
+	
+	// winterfell gauges
+	store.add(get_blank_name(store, ~"wall-gauge"), ~[
+		(~"gnos:target",	IriValue(~"map:primary/entities/winterfell")),
+		(~"gnos:gauge",	FloatValue(0.7f64)),
+		(~"gnos:title",		StringValue(~"m/f ratio", ~"")),
+		(~"gnos:level",	IntValue(2)),
+	]);
+	
+	store.add(get_blank_name(store, ~"wall-gauge"), ~[
+		(~"gnos:target",	IriValue(~"map:primary/entities/winterfell")),
+		(~"gnos:gauge",	FloatValue(0.1f64)),
+		(~"gnos:title",		StringValue(~"loyalty", ~"")),
+		(~"gnos:level",	IntValue(2)),
+		(~"gnos:style",		StringValue(~"gauge-bar-color:crimson", ~"")),
+	]);
+	
+	// king's landing gauges
+	store.add(get_blank_name(store, ~"wall-gauge"), ~[
+		(~"gnos:target",	IriValue(~"map:primary/entities/kings_landing")),
+		(~"gnos:gauge",	FloatValue(0.5f64)),
+		(~"gnos:title",		StringValue(~"m/f ratio", ~"")),
+		(~"gnos:level",	IntValue(2)),
+	]);
+	
+	store.add(get_blank_name(store, ~"wall-gauge"), ~[
+		(~"gnos:target",	IriValue(~"map:primary/entities/kings_landing")),
+		(~"gnos:gauge",	FloatValue(0.9f64)),
+		(~"gnos:title",		StringValue(~"loyalty", ~"")),
+		(~"gnos:level",	IntValue(2)),
+		(~"gnos:style",		StringValue(~"gauge-bar-color:lime", ~"")),
+	]);
 }
 
 //priv fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool

@@ -91,43 +91,57 @@ LineShape.prototype.do_draw_arrow = function(context, unit, tip, x, y, arrow)
 	context.fill();
 };
 
-// ---- ProgressBarShape class ------------------------------------------------
-// bar_width should be in [0, 1].
-function ProgressBarShape(context, center, bar_width, bar_styles, label, label_styles)
+// ---- GaugeShape class ------------------------------------------------
+// value should be in [0, 1].
+function GaugeShape(context, center, value, title, styles)
 {
-	assert(bar_width >= 0 && bar_width <= 1, "bar_width is oor");
+	assert(value >= 0 && value <= 1, "value is oor");
+	this.base_styles = styles;
 	
-	this.label = new TextLinesShape(context, center, [label], label_styles.slice(0, label_styles.length-1), label_styles.slice(label_styles.length-1));
-	
-	this.geometry = center;
-	this.bar_styles = bar_styles;
-	this.bar_width = bar_width;
-	this.width = 1.3*this.label.width;
+	this.label = new TextLineShape(context, center, title, ['font-size:small'].concat(styles));
+	this.base_width = 1.3*this.label.width;
+	this.width = this.base_width;
 	this.height = 1.1*this.label.height;
-	freezeProps(this);
+	
+	var rect = new Rect(center.x - this.width/2, center.y - this.height/2, this.width, this.height);
+	this.frame = new RectShape(context, rect, ['frame-width:1', 'frame-color:silver'].concat(styles));
+	
+	this.styles = ['gauge-bar-color:lightblue'].concat(styles).filter(function (s) {return s.indexOf('gauge-') === 0;});
+	this.geometry = center;
+	this.value = value;
 }
 
-ProgressBarShape.prototype.draw = function (context)
+GaugeShape.prototype.adjust_width = function (context, width)
 {
+	this.width = Math.max(width, this.base_width);
+	var rect = new Rect(this.geometry.x - this.width/2, this.geometry.y - this.height/2, this.width, this.height);
+	this.frame = new RectShape(context, rect, ['frame-width:1', 'frame-color:silver'].concat(this.base_styles));
+};
+
+GaugeShape.prototype.draw = function (context)
+{
+	this.frame.draw(context);
+	
 	context.save();
-	
-	apply_styles(context, this.bar_styles);
-	context.clearRect(this.geometry.x - this.width/2, this.geometry.y - this.height/2, this.width, this.height);
-	context.fillRect(this.geometry.x - this.width/2, this.geometry.y - this.height/2, this.bar_width*this.width, this.height);
-	
+		var width = this.width - 2*this.frame.stroke_width;
+		var height = this.height - 2*this.frame.stroke_width;
+		
+		apply_styles(context, this.styles);
+		context.clearRect(this.geometry.x - width/2, this.geometry.y - height/2, width, height);
+		context.fillRect(this.geometry.x - width/2, this.geometry.y - height/2, this.value*width, height);
 	context.restore();
 	
 	this.label.draw(context);
 };
 
-ProgressBarShape.prototype.hit_test = function (pt)
+GaugeShape.prototype.hit_test = function (pt)
 {
 	return false;		// TODO: not implemented
 };
 
-ProgressBarShape.prototype.toString = function ()
+GaugeShape.prototype.toString = function ()
 {
-	return "ProgressBarShape at " + this.geometry.toString();
+	return "GaugeShape at " + this.geometry.toString();
 };
 
 // ---- DiscShape class -------------------------------------------------------

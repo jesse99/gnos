@@ -13,7 +13,9 @@ GNOS.handlers =
 	'frame-width': frame_width,
 	'frame-color': stroke_color,
 	'frame-back-color': fill_color,
-	'frame-blur': frame_blur
+	'frame-blur': frame_blur,
+	
+	'gauge-bar-color': fill_color
 };
 
 // Applies cascading styles to the current canvas context.
