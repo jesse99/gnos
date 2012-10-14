@@ -217,7 +217,7 @@ function animated_draw(element, render)
 		return min + p*(max - min);
 	};
 	
-	var max = parseFloat(element.style.opacity) || 1.0;
+	var max = 1.0;
 	var min = 0.1;
 	if (min < max)
 	{
