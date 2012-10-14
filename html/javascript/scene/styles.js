@@ -12,7 +12,7 @@ GNOS.handlers =
 	
 	'frame-width': frame_width,
 	'frame-color': stroke_color,
-	'back-color': fill_color,
+	'frame-back-color': fill_color,
 	'frame-blur': frame_blur
 };
 
@@ -74,7 +74,6 @@ function font_weight(context, value)
 	}
 }
 
-
 function font_size(context, value)
 {
 	if (value === 'xx-small')
@@ -108,14 +107,6 @@ function font_size(context, value)
 	else if (value === 'xx-large')
 	{
 		context.font_parts[2] = 24;
-	}
-	else if (value === 'xxx-large')
-	{
-		context.font_parts[2] = 28;
-	}
-	else if (value === 'xxxx-large')
-	{
-		context.font_parts[2] = 32;
 	}
 	else if (value === 'larger')
 	{

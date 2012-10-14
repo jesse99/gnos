@@ -29,7 +29,7 @@ NoOpShape.prototype.toString = function ()
 function LineShape(line, styles, from_arrow, to_arrow)
 {
 	this.geometry = line;
-	this.styles = ['frame-color:black'].concat(styles);
+	this.styles = ['line-color:black'].concat(styles).filter(function (s) {return s.indexOf('line-') === 0;});
 	this.from_arrow = from_arrow;
 	this.to_arrow = to_arrow;
 	this.width = Math.abs(this.geometry.from.x - this.geometry.to.x);
@@ -135,7 +135,7 @@ ProgressBarShape.prototype.toString = function ()
 function DiscShape(context, disc, styles)
 {
 	this.geometry = disc;
-	this.styles = ['frame-color:black', 'back-color:white'].concat(styles);
+	this.styles = ['frame-color:black', 'frame-back-color:white'].concat(styles).filter(function (s) {return s.indexOf('frame-') === 0;});
 	this.width = disc.radius;
 	this.height = disc.radius;
 	
@@ -189,7 +189,7 @@ DiscShape.prototype.toString = function ()
 function RectShape(context, rect, styles)
 {
 	this.geometry = rect;
-	this.styles = ['frame-color:black', 'back-color:white'].concat(styles);
+	this.styles = ['frame-color:black', 'frame-back-color:white'].concat(styles).filter(function (s) {return s.indexOf('frame-') === 0;});
 	this.width = rect.width;
 	this.height = rect.height;
 	
@@ -298,7 +298,7 @@ function TextLineShape(context, center, text, styles)
 {
 	this.geometry = Point.zero;
 	this.text = text;
-	this.styles = ['font-color:black'].concat(styles);
+	this.styles = ['font-color:black'].concat(styles).filter(function (s) {return s.indexOf('font-') === 0;});
 	
 	this.stats = this.do_prep_center_text(context);
 	this.width = this.stats.width;
