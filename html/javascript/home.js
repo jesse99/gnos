@@ -75,12 +75,13 @@ WHERE 														\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 														\
-	?label ?target ?level ?style ?predicate						\
+	?label ?target ?level ?priority ?style ?predicate			\
 WHERE 														\
 {																\
 	?info gnos:label ?label .									\
 	?info gnos:target ?target .									\
 	?info gnos:level ?level .									\
+	?info gnos:priority ?priority .								\
 	OPTIONAL												\
 	{															\
 		?info gnos:style ?style .								\
@@ -94,13 +95,14 @@ WHERE 														\
 PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 														\
-	?value ?target ?title ?level ?style ?predicate				\
+	?value ?target ?title ?level ?priority ?style ?predicate		\
 WHERE 														\
 {																\
 	?gauge gnos:gauge ?value .								\
 	?gauge gnos:target ?target .								\
 	?gauge gnos:title ?title .									\
 	?gauge gnos:level ?level .									\
+	?gauge gnos:priority ?priority .							\
 	OPTIONAL												\
 	{															\
 		?gauge gnos:style ?style .								\
@@ -133,7 +135,7 @@ function entities_query(solution)
 		
 		var style = row.style || "";
 		var styles = style.split(' ');
-		var label = new TextLineShape(context, Point.zero, row.title, styles);	// TODO: only include font styles
+		var label = new TextLineShape(context, Point.zero, row.title, styles, 0);
 		
 		entities.push({target: row.target, title: label, styles: styles, predicate: row.predicate || ""});
 	}
@@ -142,7 +144,7 @@ function entities_query(solution)
 }
 
 // solution rows have 
-// required fields: label, target, level
+// required fields: label, target, level, priority
 // optional fields: style, predicate
 function labels_query(solution)
 {
@@ -156,7 +158,7 @@ function labels_query(solution)
 		
 		var style = row.style || "";
 		var styles = style.split(' ');
-		var label = new TextLineShape(context, Point.zero, row.label, styles);
+		var label = new TextLineShape(context, Point.zero, row.label, styles, row.priority);
 		
 		labels.push({target: row.target, shape: label, level: row.level, predicate: row.predicate || ""});
 	}
@@ -165,7 +167,7 @@ function labels_query(solution)
 }
 
 // solution rows have 
-// required fields: value, target, title, level
+// required fields: value, target, title, level, priority
 // optional fields: style, predicate
 function gauges_query(solution)
 {
@@ -179,7 +181,7 @@ function gauges_query(solution)
 		
 		var style = row.style || "";
 		var styles = style.split(' ');
-		var gauge = new GaugeShape(context, Point.zero, row.value, row.title, styles);
+		var gauge = new GaugeShape(context, Point.zero, row.value, row.title, styles, row.priority);
 		
 		gauges.push({target: row.target, shape: gauge, level: row.level, predicate: row.predicate || ""});
 	}
@@ -226,6 +228,18 @@ function map_renderer(element, model, model_names)
 						}
 						
 						max_entity = Math.max(gauge.level, max_entity);
+					});
+				
+				// Ensure that info shapes appear in the same order on each entity.
+				child_shapes.sort(
+					function (x, y)
+					{
+						if (x.priority < y.priority)
+							return -1;
+						else if (x.priority > y.priority)
+							return 1;
+						else
+							return 0;
 					});
 				
 				// Unfortunately we can't create this shape until after all the other sub-shapes are created.

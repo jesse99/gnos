@@ -12,34 +12,71 @@ fn setup(state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 //	add_alerts(state_chan);
 }
 
-//priv fn update_got(state_chan: comm::Chan<model::Msg>, winterfell_loyalty: ~str, wl: f64, kings_landing_loyalty: ~str, kl: f64, poll_rate: u16)
-//{
-//	libc::funcs::posix88::unistd::sleep(poll_rate as core::libc::types::os::arch::c95::c_uint);
-//	
-//	let delta = if wl > 0.4f64 && kl > 0.4f64 {-0.01f64} else {0.01f64};
-//	let wl = wl + delta;
-//	let kl = kl + delta;
-//	
-//	// TODO:
-//	// get the loyalties updating
-//	// be sure to use the info subject
-//	// change level and style at certain thresholds
-//	comm::send(state_chan, model::UpdateMsg(~"primary",
-//		|store, _data, copy winterfell_loyalty, copy kings_landing_loyalty|
-//		{
-//			store.replace_triple(~[], {subject: winterfell_loyalty, predicate: ~"gnos:level", object: FloatValue(wl)});
-//			store.replace_triple(~[], {subject: kings_landing_loyalty, predicate: ~"gnos:level", object: FloatValue(kl)});
-//			true
-//		}, ~""));
-//		
-//	update_got(state_chan, winterfell_loyalty, wl, kings_landing_loyalty, kl, poll_rate);
-//}
+priv fn update_got(state_chan: comm::Chan<model::Msg>, winterfell_loyalty_subject: ~str, winterfell_loyalty_value: f64, kings_landing_loyalty_subject: ~str, kings_landing_loyalty_value: f64, poll_rate: u16)
+{
+	fn degrade_loyalty(value: f64, delta: f64) -> f64
+	{
+		if value >= delta
+		{
+			value - delta
+		}
+		else
+		{
+			1.0f64
+		}
+	}
+	
+	fn gauge_state(value: f64) -> (~str, i64)
+	{
+		if value >= 0.8f64
+		{
+			(~"gauge-bar-color:lime", 2)
+		}
+		else if value >= 0.7f64
+		{
+			(~"gauge-bar-color:deepskyblue", 2)
+		}
+		else if value >= 0.5f64
+		{
+			(~"gauge-bar-color:lightsalmon", 1)
+		}
+		else
+		{
+			(~"gauge-bar-color:red", 0)
+		}
+	}
+	
+	libc::funcs::posix88::unistd::sleep(poll_rate as core::libc::types::os::arch::c95::c_uint);
+	
+	let winterfell_loyalty_value = degrade_loyalty(winterfell_loyalty_value, 0.2f64);
+	let kings_landing_loyalty_value = degrade_loyalty(kings_landing_loyalty_value, 0.1f64);
+	error!("winterfell_loyalty_value = %?", winterfell_loyalty_value);
+	error!("kings_landing_loyalty_value = %?", kings_landing_loyalty_value);
+	
+	comm::send(state_chan, model::UpdateMsg(~"primary",
+		|store, _data, copy winterfell_loyalty_subject, copy kings_landing_loyalty_subject|
+		{
+			store.replace_triple(~[], {subject: copy winterfell_loyalty_subject, predicate: ~"gnos:gauge", object: FloatValue(winterfell_loyalty_value)});
+			store.replace_triple(~[], {subject: copy kings_landing_loyalty_subject, predicate: ~"gnos:gauge", object: FloatValue(kings_landing_loyalty_value)});
+			
+			let (style, level) = gauge_state(winterfell_loyalty_value);
+			store.replace_triple(~[], {subject: copy winterfell_loyalty_subject, predicate: ~"gnos:level", object: IntValue(level)});
+			store.replace_triple(~[], {subject: copy winterfell_loyalty_subject, predicate: ~"gnos:style", object: StringValue(style, ~"")});
+			
+			let (style, level) = gauge_state(kings_landing_loyalty_value);
+			store.replace_triple(~[], {subject: copy kings_landing_loyalty_subject, predicate: ~"gnos:level", object: IntValue(level)});
+			store.replace_triple(~[], {subject: copy kings_landing_loyalty_subject, predicate: ~"gnos:style", object: StringValue(style, ~"")});
+			true
+		}, ~""));
+		
+	update_got(state_chan, winterfell_loyalty_subject, winterfell_loyalty_value, kings_landing_loyalty_subject, kings_landing_loyalty_value, poll_rate);
+}
 
-priv fn add_got(store: &Store, _state_chan: comm::Chan<model::Msg>, poll_rate: u16)
+priv fn add_got(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 {
 	add_globals(store, poll_rate);
 	add_entities(store);
-	add_infos(store);
+	add_infos(store, state_chan, poll_rate);
 	
 	// relations
 //	add_relation(store, wall, winterfell, ~"link", ~"road");
@@ -95,9 +132,6 @@ priv fn add_got(store: &Store, _state_chan: comm::Chan<model::Msg>, poll_rate: u
 //		(~"gnos:open",     StringValue(~"no", ~"")),
 //		(~"gnos:key",     StringValue(~"d5", ~"")),
 //	]);
-	
-	// update_got calls libc sleep so it needs its own thread
-//	do task::spawn_sched(task::SingleThreaded) {update_got(state_chan, winterfell_loyalty, 0.6f64, kings_landing_loyalty, 0.9f64, poll_rate);}
 }
 
 priv fn add_globals(store: &Store, poll_rate: u16)
@@ -130,13 +164,14 @@ priv fn add_entities(store: &Store)
 	]);
 }
 
-priv fn add_infos(store: &Store)
+priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 {
 	// wall labels
 	store.add(get_blank_name(store, ~"wall-label"), ~[
 		(~"gnos:target",	IriValue(~"map:primary/entities/wall")),
 		(~"gnos:label",	StringValue(~"guards the realms of men", ~"")),
 		(~"gnos:level",	IntValue(2)),
+		(~"gnos:priority",	IntValue(1)),
 	]);
 	
 	// winterfell labels
@@ -144,12 +179,14 @@ priv fn add_infos(store: &Store)
 		(~"gnos:target",	IriValue(~"map:primary/entities/winterfell")),
 		(~"gnos:label",	StringValue(~"House Stark", ~"")),
 		(~"gnos:level",	IntValue(1)),
+		(~"gnos:priority",	IntValue(1)),
 	]);
 	
 	store.add(get_blank_name(store, ~"winterfell-label"), ~[
 		(~"gnos:target",	IriValue(~"map:primary/entities/winterfell")),
 		(~"gnos:label",	StringValue(~"constructed by Brandon the Builder", ~"")),
 		(~"gnos:level",	IntValue(2)),
+		(~"gnos:priority",	IntValue(2)),
 	]);
 	
 	// kings_landing labels
@@ -157,7 +194,7 @@ priv fn add_infos(store: &Store)
 		(~"gnos:target",	IriValue(~"map:primary/entities/kings_landing")),
 		(~"gnos:label",	StringValue(~"Capitol of Westoros", ~"")),
 		(~"gnos:level",	IntValue(1)),
-		(~"gnos:base_style",	StringValue(~"font-size:x-large", ~"")),
+		(~"gnos:priority",	IntValue(1)),
 	]);
 	
 	// wall gauges
@@ -166,6 +203,7 @@ priv fn add_infos(store: &Store)
 		(~"gnos:gauge",	FloatValue(1.0f64)),
 		(~"gnos:title",		StringValue(~"m/f ratio", ~"")),
 		(~"gnos:level",	IntValue(2)),
+		(~"gnos:priority",	IntValue(3)),
 	]);
 	
 	store.add(get_blank_name(store, ~"wall-gauge"), ~[
@@ -173,40 +211,52 @@ priv fn add_infos(store: &Store)
 		(~"gnos:gauge",	FloatValue(0.3f64)),
 		(~"gnos:title",		StringValue(~"loyalty", ~"")),
 		(~"gnos:level",	IntValue(2)),
+		(~"gnos:priority",	IntValue(4)),
 		(~"gnos:style",		StringValue(~"gauge-bar-color:orange", ~"")),
 	]);
 	
 	// winterfell gauges
-	store.add(get_blank_name(store, ~"wall-gauge"), ~[
+	store.add(get_blank_name(store, ~"winterfell-gauge"), ~[
 		(~"gnos:target",	IriValue(~"map:primary/entities/winterfell")),
 		(~"gnos:gauge",	FloatValue(0.7f64)),
 		(~"gnos:title",		StringValue(~"m/f ratio", ~"")),
 		(~"gnos:level",	IntValue(2)),
+		(~"gnos:priority",	IntValue(3)),
 	]);
 	
-	store.add(get_blank_name(store, ~"wall-gauge"), ~[
+	let winterfell_loyalty_subject = get_blank_name(store, ~"winterfell-gauge");
+	let winterfell_loyalty_value = 0.8f64;
+	store.add(winterfell_loyalty_subject, ~[
 		(~"gnos:target",	IriValue(~"map:primary/entities/winterfell")),
-		(~"gnos:gauge",	FloatValue(0.1f64)),
+		(~"gnos:gauge",	FloatValue(winterfell_loyalty_value)),
 		(~"gnos:title",		StringValue(~"loyalty", ~"")),
 		(~"gnos:level",	IntValue(2)),
-		(~"gnos:style",		StringValue(~"gauge-bar-color:crimson", ~"")),
+		(~"gnos:priority",	IntValue(4)),
+		(~"gnos:style",		StringValue(~"gauge-bar-color:lime", ~"")),
 	]);
 	
 	// king's landing gauges
-	store.add(get_blank_name(store, ~"wall-gauge"), ~[
+	store.add(get_blank_name(store, ~"kings_landing-gauge"), ~[
 		(~"gnos:target",	IriValue(~"map:primary/entities/kings_landing")),
 		(~"gnos:gauge",	FloatValue(0.5f64)),
 		(~"gnos:title",		StringValue(~"m/f ratio", ~"")),
 		(~"gnos:level",	IntValue(2)),
+		(~"gnos:priority",	IntValue(3)),
 	]);
 	
-	store.add(get_blank_name(store, ~"wall-gauge"), ~[
+	let kings_landing_loyalty_subject = get_blank_name(store, ~"kings_landing-gauge");
+	let kings_landing_loyalty_value = 0.9f64;
+	store.add(kings_landing_loyalty_subject, ~[
 		(~"gnos:target",	IriValue(~"map:primary/entities/kings_landing")),
-		(~"gnos:gauge",	FloatValue(0.9f64)),
+		(~"gnos:gauge",	FloatValue(kings_landing_loyalty_value)),
 		(~"gnos:title",		StringValue(~"loyalty", ~"")),
 		(~"gnos:level",	IntValue(2)),
+		(~"gnos:priority",	IntValue(4)),
 		(~"gnos:style",		StringValue(~"gauge-bar-color:lime", ~"")),
 	]);
+	
+	// update_got calls libc sleep so it needs its own thread
+	do task::spawn_sched(task::SingleThreaded) {update_got(state_chan, winterfell_loyalty_subject, winterfell_loyalty_value, kings_landing_loyalty_subject, kings_landing_loyalty_value, poll_rate);}
 }
 
 //priv fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool
