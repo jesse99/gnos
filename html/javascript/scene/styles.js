@@ -1,135 +1,166 @@
 // Cascading style sheets sort of thing applied to shapes.
 "use strict";
 
-// Table mapping names to styles.
-GNOS.styles =
+// Table mapping style names to callbacks applying the style.
+GNOS.handlers =
 {
-	'default':
-	{
-		fontStyle: 'normal',		// or italic, oblique
-		fontWeight: 400,		// 100 to 900 where normal is 400 and 700 is bold
-		fontSize: 10,			// in points
-		fontFamily: 'arial',		// font name (TODO: add web safe fonts) or serif, sans-serif, cursive, monospace
-		
-		lineWidth: 1,
-		strokeStyle: "black",
-		fillStyle: "black"
-	},
+	'font-size': font_size,
+	'font-family': font_family,
+	'font-style': font_style,
+	'font-weight': font_weight,
+	'font-color': colors,
 	
-	'map':					{fontSize: xlarger},
-	'host':					{lineWidth: 1, strokeStyle: scale_lightness('lavender', 0.8), fillStyle: 'lavender', fontSize: smaller},
-	'router':					{lineWidth: 1, strokeStyle: scale_lightness('PapayaWhip', 0.4), fillStyle: 'PapayaWhip'},
-	'switch':				{lineWidth: 1, strokeStyle: scale_lightness('mistyrose', 0.8), fillStyle: 'mistyrose'},
-	'selection':				{lineWidth: 6, strokeStyle: 'dodgerblue'},
-	
-	'identity':				{},
-	'link':					{},
-	'route':					{lineWidth: 4, strokeStyle: 'royalblue'},
-	'broken_relation':		{strokeStyle: 'red'},
-	
-	'relation_label':			{clearRect: true},		// currently clearRect is only used by TextLinesShape
-	'primary_relation':		{},
-	'secondary_relation':	{fontSize: smaller},
-	'tertiary_relation':		{fontSize: smaller},
-	
-	'label':					{strokeStyle: 'black', fillStyle: 'black'},
-	'primary_label':		{fontWeight: bolder, fontSize: xlarger},
-	'secondary_label':		{},
-	'tertiary_label':			{fontSize: xsmaller},
-	'error_label':			{strokeStyle: 'red', fillStyle: 'red', fontWeight: bolder},
-	
-	'good_level':			{strokeStyle: 'black', fillStyle: 'green'},
-	'ok_level':				{strokeStyle: 'black', fillStyle: 'deepskyblue'},
-	'warn_level':			{strokeStyle: 'black', fillStyle: 'lightsalmon'},
-	'danger_level':			{strokeStyle: 'black', fillStyle: 'red'},
-	
-	'smaller':				{fontSize: smaller},
-	'xsmaller':				{fontSize: xsmaller},
-	'larger':					{fontSize: larger},
-	'xlarger':				{fontSize: xlarger}
+	'frame-width': frame_width,
+	'frame-color': stroke_color,
+	'back-color': fill_color
 };
 
 // Applies cascading styles to the current canvas context.
-function apply_styles(context, names)
+function apply_styles(context, styles)
 {
-	var style = compose_styles(names);
+	context.font_parts = ['normal', 400, 12, 'Arial'];	// font-style, font-weight, font-size, font-family
+	context.lineWidth = 1;
+	context.strokeStyle = 'black';
+	context.fillStyle = 'black';
 	
-	var font = '';
-	font += style.fontStyle + " ";
-	font += style.fontWeight + " ";
-	font += style.fontSize + "pt ";
-	font += style.fontFamily + " ";
-	context.font = font;
-	
-	context.lineWidth = style.lineWidth;
-	context.strokeStyle = style.strokeStyle;
-	context.fillStyle = style.fillStyle;
-	
-	return style;
-}
-
-function compose_styles(names)
-{
-	var style = clone(GNOS.styles['default']);
-	
-	for (var i=0; i < names.length; ++i)
-	{
-		var name = names[i];
-		if (name in GNOS.styles)
+	styles.forEach(
+		function (style)
 		{
-			var rhs = GNOS.styles[name];
-			for (var key in rhs)
+			if (style)
 			{
-				if (rhs[key] instanceof Function)
-					style = rhs[key](style);
-				else
-					style[key] = rhs[key];
+				var i = style.indexOf(':');
+				assert(i > 0, "failed to find ':' in " + style);
+				
+				var name = style.slice(0, i);
+				var value = style.slice(i+1);
+				
+				var handler = GNOS.handlers[name];
+				assert(handler, "failed to find a style handler for " + name);
+				handler(context, value);
 			}
-		}
-		else
-		{
-			console.log("'{0}' is not a known style".format(name));
-		}
-	}
+		});
 	
-	return style;
+	context.font_parts[1] = context.font_parts[1].toFixed();
+	context.font_parts[2] = context.font_parts[2].toFixed() + 'pt';
+	context.font = context.font_parts.join(' ');
 }
 
-function bolder(style)
+function font_style(context, value)
 {
-	var result = clone(style);
-	result.fontWeight += 300;
-	if (result.fontWeight > 900)
-		result.fontWeight = 900;
-	return result;
+	context.font_parts[0] = value;
 }
 
-function xlarger(style)
+function font_weight(context, value)
 {
-	var result = clone(style);
-	result.fontSize = Math.round(1.4*result.fontSize);
-	return result;
+	if (value === 'bolder')
+	{
+		var weight = context.font_parts[1] + 300;
+		if (weight > 900)
+			weight = 900;
+		context.font_parts[1] = weight;
+	}
+	else if (value == 'lighter')
+	{
+		var weight = context.font_parts[1] - 300;
+		if (weight < 100)
+			weight = 100;
+		context.font_parts[1] = weight;
+	}
+	else
+	{
+		context.font_parts[1] = parseInt(value, 10);
+	}
 }
 
-function larger(style)
+
+function font_size(context, value)
 {
-	var result = clone(style);
-	result.fontSize = Math.round(1.2*result.fontSize);
-	return result;
+	if (value === 'xx-small')
+	{
+		context.font_parts[2] = 8;
+	}
+	else if (value === 'x-small')
+	{
+		context.font_parts[2] = 9;
+	}
+	else if (value === 'small')
+	{
+		context.font_parts[2] = 10;
+	}
+	else if (value === 'normal')
+	{
+		context.font_parts[2] = 12;
+	}
+	else if (value === 'medium')
+	{
+		context.font_parts[2] = 12;
+	}
+	else if (value === 'large')
+	{
+		context.font_parts[2] = 16;
+	}
+	else if (value === 'x-large')
+	{
+		context.font_parts[2] = 20;
+	}
+	else if (value === 'xx-large')
+	{
+		context.font_parts[2] = 24;
+	}
+	else if (value === 'xxx-large')
+	{
+		context.font_parts[2] = 28;
+	}
+	else if (value === 'xxxx-large')
+	{
+		context.font_parts[2] = 32;
+	}
+	else if (value === 'larger')
+	{
+		var size = Math.round(1.2*context.font_parts[2]);
+		context.font_parts[2] = size;
+	}
+	else if (value == 'smaller')
+	{
+		var size = Math.max(Math.round(0.8*context.font_parts[2]), 8);
+		context.font_parts[2] = size;
+	}
+	else
+	{
+		assert(false, "bad font-size: " + value);
+	}
 }
 
-function smaller(style)
+function font_family(context, value)
 {
-	var result = clone(style);
-	result.fontSize = Math.max(Math.round(0.8*result.fontSize), 8);
-	return result;
+	context.font_parts[3] = value;
 }
 
-function xsmaller(style)
+function frame_width(context, value)
 {
-	var result = clone(style);
-	result.fontSize = Math.max(Math.round(0.6*result.fontSize), 8);
-	return result;
+	context.lineWidth = parseFloat(value);
+}
+
+function colors(context, value)
+{
+	var color = Color.get(value).hexTriplet();
+	
+	context.strokeStyle = color;
+	context.fillStyle = color;
+}
+
+function stroke_color(context, value)
+{
+	var color = Color.get(value).hexTriplet();
+	
+	context.strokeStyle = color;
+}
+
+function fill_color(context, value)
+{
+	var color = Color.get(value).hexTriplet();
+	
+	context.fillStyle = color;
 }
 
 // This is a very common way to adjust the lightness of a color, but it's not a very

@@ -115,7 +115,7 @@ fn main(args: ~[~str])
 	let mut options = options::parse_command_line(args);
 	options::validate(&options);
 	
-	let state_chan = do task::spawn_listener |port| {model::manage_state(port)};
+	let state_chan = do task::spawn_listener |port, copy options| {model::manage_state(port, &options)};
 	let samples_chan = do task::spawn_listener |port| {samples::manage_samples(port)};
 	if !options.db
 	{

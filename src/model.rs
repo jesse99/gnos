@@ -86,13 +86,11 @@ pure fn get_standard_store_names() -> ~[~str]
 /// Runs within a task and manages triple stores holding gnos state.
 ///
 /// Other tasks (e.g. views) can query or update the state this function manages.
-fn manage_state(port: comm::Port<Msg>)
+fn manage_state(port: comm::Port<Msg>, options: &options::Options)
 {
 	let namespaces = ~[
-		Namespace {prefix: ~"devices", path: ~"http://network/"},
 		Namespace {prefix: ~"gnos", path: ~"http://www.gnos.org/2012/schema#"},
-		Namespace {prefix: ~"snmp", path: ~"http://snmp/"},
-		Namespace {prefix: ~"sname", path: ~"http://snmp-name/"},
+		Namespace {prefix: ~"map", path: fmt!("http://%s:%?/map/", options.server, options.port)},
 	];
 	
 	let stores = HashMap();

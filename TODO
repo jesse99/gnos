@@ -50,6 +50,12 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- maybe use grid lines to show magnification
 	- may be some stuff on tufte's site
 	- attach custom info
+* Need a container relation:
+	- contained items are rendered as ...
+	- contained items are persisted in their own store
+	- probably has some sort of root statement pointing to the container entity/store
+	- clicking on ... shows contained items and root at middle top
+	- clicking on root goes back to root's store
 * UI
 	- widget at upper left in window shows how deep naved in, click navs out
 	- widget at entity upper right shows how far can nav in

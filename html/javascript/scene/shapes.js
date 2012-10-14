@@ -26,10 +26,10 @@ NoOpShape.prototype.toString = function ()
 
 // ---- LineShape class -------------------------------------------------------
 // arrows are objects with stem_height and base_width properties
-function LineShape(line, style_names, from_arrow, to_arrow)
+function LineShape(line, styles, from_arrow, to_arrow)
 {
 	this.geometry = line;
-	this.style_names = style_names;
+	this.styles = ['frame-color:black'].concat(styles);
 	this.from_arrow = from_arrow;
 	this.to_arrow = to_arrow;
 	this.width = Math.abs(this.geometry.from.x - this.geometry.to.x);
@@ -125,15 +125,15 @@ ProgressBarShape.prototype.toString = function ()
 
 // ---- DiscShape class -------------------------------------------------------
 // Draws a filled disc. If context.lineWidth is non-zero a border is also added.
-function DiscShape(context, disc, style_names)
+function DiscShape(context, disc, styles)
 {
 	this.geometry = disc;
-	this.style_names = style_names;
+	this.styles = ['frame-color:black', 'back-color:white'].concat(styles);
 	this.width = disc.radius;
 	this.height = disc.radius;
 	
 	context.save();
-	var style = apply_styles(context, this.style_names);
+	apply_styles(context, this.styles);
 	this.stroke_width = context.lineWidth;
 	context.restore();
 	
@@ -145,8 +145,7 @@ DiscShape.prototype.draw = function (context)
 {
 	context.save();
 	
-	var styles = this.style_names.concat(this.extra_styles);
-	var style = apply_styles(context, styles);
+	apply_styles(context, this.styles);
 	//console.log("drawing disc with {0:j} and {1:j}".format(this.style_names, compose_styles(this.style_names)));
 	
 	context.beginPath();
@@ -171,25 +170,21 @@ DiscShape.prototype.toString = function ()
 	return "DiscShape at " + this.geometry.toString();
 };
 
-// ---- TextLinesShape class ---------------------------------------------------
-// Draws lines of text. 
+// ---- TextLineShape class ----------------------------------------------------
+// Draws a line of text. 
 // center - Point indicating where the text should be drawn. Currently the text will be centered on this.
 //              Or a function taking a this argument returning a Point.
-// lines - Array of strings to draw.
-// base_styles - Array of style names to be applied before style_names.
-// style_names - Array of style names. Each name is used with a line in lines.
-function TextLinesShape(context, center, lines, base_styles, style_names)
+// text - The string to draw.
+// style - Array of style name:value
+function TextLineShape(context, center, text, styles)
 {
-	assert(lines.length === style_names.length, "lines and style_names need to match");
-	
 	this.geometry = Point.zero;
-	this.lines = lines;
-	this.base_styles = base_styles;
-	this.style_names = style_names;
+	this.text = text;
+	this.styles = ['font-color:black'].concat(styles);
 	
 	this.stats = this.do_prep_center_text(context);
-	this.width = this.stats.max_width;
-	this.height = this.stats.total_height;
+	this.width = this.stats.width;
+	this.height = this.stats.height;
 	
 	if (typeof(center) == "function")
 		this.geometry = center(this);
@@ -199,31 +194,23 @@ function TextLinesShape(context, center, lines, base_styles, style_names)
 	freezeProps(this);
 }
 
-TextLinesShape.prototype.draw = function (context)
+TextLineShape.prototype.draw = function (context)
 {
 	context.save();
 	
-	if (this.lines)
+	if (this.text)
 	{
-		var style = compose_styles(this.base_styles);
-		if (style['clearRect'])
-			context.clearRect(this.geometry.x - this.stats.max_width/2, this.geometry.y - this.stats.total_height/2, this.stats.max_width, this.stats.total_height);
+//		if (style['clearRect'])
+//			context.clearRect(this.geometry.x - this.stats.max_width/2, this.geometry.y - this.stats.total_height/2, this.stats.max_width, this.stats.total_height);
 		
 		context.textAlign = 'center';
 		context.textBaseline = 'top';
-		context.fillStyle = 'black';
 		
-		var y = this.geometry.y - this.stats.total_height/2;
+		var y = this.geometry.y - this.stats.height/2;
+		var style = apply_styles(context, this.styles);
+		//console.log("drawing '{0} at {1}pt".format(line, style.fontSize));
 		
-		for (var i = 0; i < this.lines.length; ++i)
-		{
-			var line = this.lines[i];
-			var style = apply_styles(context, this.base_styles.concat(this.style_names[i]));
-			//console.log("drawing '{0} at {1}pt".format(line, style.fontSize));
-			
-			context.fillText(line, this.geometry.x, y);
-			y += this.stats.heights[i];
-		}
+		context.fillText(this.text, this.geometry.x, y);
 	}
 	
 	// Note that we always need to restore the context to avoid tripping the
@@ -231,54 +218,37 @@ TextLinesShape.prototype.draw = function (context)
 	context.restore();
 };
 
-TextLinesShape.prototype.hit_test = function (pt)
+TextLineShape.prototype.hit_test = function (pt)
 {
 	return false;		// TODO: not implemented
 };
 
-TextLinesShape.prototype.toString = function ()
+TextLineShape.prototype.toString = function ()
 {
-	return "TextLinesShape at " + this.geometry.toString();
+	return "TextLineShape at " + this.geometry.toString();
 };
 
 // Returns an object with:
-//    total_height: of all the lines
-//    max_width: width of the widest line
-//    heights: height of each line in lines
-//    widths: width of each line in lines
-TextLinesShape.prototype.do_prep_center_text = function(context)
+//    height: height of the text in pixels
+//    width: width of the text in pixels
+TextLineShape.prototype.do_prep_center_text = function(context)
 {
-	var total_height = 0.0;
-	var max_width = 0.0;
-	var heights = [];
-	var widths = [];
+	var height = 0;
+	var width = 0;
 	
-	if (this.lines)
+	if (this.text)
 	{
 		context.save();
 		
 		context.textAlign = 'center';
 		context.textBaseline = 'top';
 		
-		var metrics = compute_text_metrics(context, this.lines, this.base_styles, this.style_names);
-		heights = metrics.heights;
-		widths = metrics.widths;
-		total_height = heights.reduce(function(previous, current, i, array)
-		{
-			return previous + current;
-		}, 0);
-		
-		for (var i=0; i < this.lines.length; ++i)
-		{
-			var line = this.lines[i];
-			apply_styles(context, this.base_styles.concat(this.style_names[i]));
-			
-			var metrics = context.measureText(line);
-			max_width = Math.max(metrics.width, max_width);
-		}
+		var metrics = compute_text_metrics(context, [this.text], [this.styles]);
+		height = metrics.heights[0];
+		width = metrics.widths[0];
 		
 		context.restore();
 	}
 	
-	return {total_height: total_height, max_width: max_width, heights: heights, widths: widths};
+	return {height: height, width: width};
 };

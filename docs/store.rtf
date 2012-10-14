@@ -1,0 +1,343 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1138\cocoasubrtf470
+{\fonttbl\f0\froman\fcharset0 Times-Roman;\f1\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;\red255\green0\blue0;}
+\deftab480
+\pard\pardeftab480\pardirnatural
+
+\f0\fs36 \cf0 This defines the RDF schema used to represent the model updated by agents and \
+rendered by browser clients. There are five types of data:\
+
+\b entity
+\b0  - The nouns in the data being modeled.\
+
+\b info
+\b0  - Simple bits of information associated with an entity: labels, gauges, etc.\
+
+\b detail
+\b0  - Arbitrary amounts of possibly complex structured data associated with an\
+entity: lists, tables, images, etc.\
+
+\b decoration
+\b0  - Similar to details but identified with an id and associated with a timestamp.\
+Decorations are only added if an decoration with that id is not already atatched.\
+
+\b relation
+\b0  - Asssociates an entity with one or more other entities.\
+\pard\pardeftab480\pardirnatural
+\cf0 \
+The schema is defined with the aid of a couple of different namespace prefixes:\
+\pard\pardeftab480\pardirnatural
+
+\b \cf0 map
+\b0  - http://<server>:<port>/map/\
+\pard\pardeftab480\pardirnatural
+
+\b \cf0 gnos
+\b0  - http://www.gnos.org/2012/schema#\
+
+\b xsd
+\b0  - http://www.w3.org/2001/XMLSchema#\
+\
+\pard\pardeftab480\pardirnatural
+
+\b\fs50 \cf0 map:<store>/globals\
+\pard\pardeftab480\pardirnatural
+
+\b0\fs36 \cf0 gnos:poll_interval	xsd:integer		30 (seconds, optional)\
+gnos:last_update	xsd:dateTime	- (optional)\
+gnos:option			xsd:string			"ospf" (0-N arity)\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f1\fs24 \cf0 \
+\pard\pardeftab480\pardirnatural
+
+\f0\b\fs50 \cf0 map:<store>/entities/<name>\
+\pard\pardeftab480\pardirnatural
+
+\b0\fs36 \cf0 \ul \ulc0 gnos:entity\ulnone 			xsd:string			"Router 1"\
+gnos:style			xsd:string			"font-size:larger font-weight:bolder" (optional)\
+gnos:predicate		xsd:string			"" (optional)\
+\
+\pard\pardeftab480\pardirnatural
+
+\b\fs50 \cf0 _:label-info0\
+\pard\pardeftab480\pardirnatural
+
+\b0\fs36 \cf0 gnos:target			xsd:anyURI		map:auto-fat/entities/10.1.0.1\
+\pard\pardeftab480\pardirnatural
+\cf0 \ul \ulc0 gnos:label\ulnone 			xsd:string			"10.1.0.1" (may include new lines)\
+gnos:level			xsd:integer		1 (0 is displayed by default)\
+gnos:style			xsd:string			"" (optional)\
+gnos:predicate		xsd:string			"" (optional)\
+\pard\pardeftab480\pardirnatural
+\cf0 \
+\pard\pardeftab480\pardirnatural
+
+\b\fs50 \cf0 _:gauge-info0\
+\pard\pardeftab480\pardirnatural
+
+\b0\fs36 \cf0 gnos:target			xsd:anyURI		map:auto-fat/entities/10.1.0.1\
+\pard\pardeftab480\pardirnatural
+\cf0 \ul \ulc0 gnos:gauge\ulnone 			xsd:float			0.8\
+gnos:title				xsd:string			"CPU"\
+gnos:level			xsd:integer		0\
+gnos:style			xsd:string			"gauge-bar-color:red" (optional)\
+gnos:predicate		xsd:string			"" (optional)\
+\
+\pard\pardeftab480\pardirnatural
+
+\b\fs50 \cf0 _:text-detail0\
+\pard\pardeftab480\pardirnatural
+
+\b0\fs36 \cf0 gnos:target			xsd:anyURI		map:auto-fat/entities/10.1.0.1\
+\pard\pardeftab480\pardirnatural
+\cf0 \ul \ulc0 gnos:text\ulnone 				xsd:string			"blah\\nblah"\
+gnos:weight			xsd:float			0.1 (larger values are displayed first)\
+gnos:title				xsd:string			"Foo" (can be empty)\
+gnos:open			xsd:string			"always", "yes", or "no" (uses disclosure widget if not "always")\
+gnos:key				xsd:string			arbitrary text (used by the client to keep widgets open on refresh)\
+gnos:style			xsd:string			"font-smaller font-style:italic" (optional)\
+gnos:predicate		xsd:string			"" (optional)\
+\
+\pard\pardeftab480\pardirnatural
+\cf2 also need details for lists, tables, images, etc\
+\cf0 \
+\pard\pardeftab480\pardirnatural
+
+\b\fs50 \cf0 _:relation0\
+\pard\pardeftab480\pardirnatural
+
+\b0\fs36 \cf0 \ul \ulc0 gnos:left\ulnone 				xsd:anyURI		map:auto-fat/entities/10.1.0.1\
+gnos:right			xsd:anyURI		map:auto-fat/entities/10.1.0.2\
+gnos:left_info		blank				_:label-eth1 (0-N arity)\
+gnos:middle_info	blank				_:label-cost1 (0-N arity)\
+gnos:right_info		blank				_:label-eth2 (0-N arity)\
+gnos:style			xsd:string			"line-type:directed line-width:larger line-color:blue" (optional)\
+gnos:predicate		xsd:string			"options.ospf selection.name '10.1.0.4'
+\f1\fs24  
+\f0\fs36 == and" (optional)\
+\
+Underlined predicates represent what are (more or less) primary keys.\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f1\fs24 \cf0 \
+\pard\pardeftab480\pardirnatural
+
+\f0\b\fs50 \cf0 gnos:style\
+\pard\pardeftab480\pardirnatural
+
+\b0\fs36 \cf0 Styles are space separated lists of style names. \
+\
+The following affect entities:\
+
+\b frame-width
+\b0 :<width>\
+
+\b frame-color
+\b0 :<color>\
+
+\b back-color
+\b0 :<color>\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f1\fs24 \cf0 \
+\pard\pardeftab480\pardirnatural
+
+\f0\fs36 \cf0 The following affect text rendering:\
+\pard\pardeftab720
+
+\b \cf0 font-size
+\b0 :xx-small, x-small, small, normal, medium, large, x-large, xx-large, xxx-large, xxxx-large, smaller, larger\
+
+\b font-family
+\b0 :serif, sans-serif, cursive, fantasy, monospace\
+
+\b font-style
+\b0 :normal, italic, oblique\
+
+\b font-weight
+\b0 :normal, bold, bolder, lighter, 100, 200, 300, 400, 500, 600, 700, 800, 900\
+
+\b font-color
+\b0 :<color>\
+\pard\pardeftab480\pardirnatural
+\cf0 \
+The following affect gauges:\
+
+\b gauge-bar-color
+\b0 :<color>\
+
+\b gauge-back-color
+\b0 :<color>\
+\
+The following affect relations:\
+
+\b line-type
+\b0 :normal, directed, bidirectional\
+
+\b line-width
+\b0 :<width>\
+
+\b line-color
+\b0 :<color>\
+\pard\pardeftab720
+\cf0 \
+Colors may be X11 color names ("red") or RGB in hex (FF0000). Widths are in\
+pixels and may be fractional numbers.\
+\pard\pardeftab480\pardirnatural
+
+\f1\fs24 \cf0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\cf0 \
+\pard\pardeftab480\pardirnatural
+
+\f0\b\fs50 \cf0 gnos:predicate
+\f1\b0\fs24 \
+\pard\pardeftab480\pardirnatural
+
+\f0\fs36 \cf0 If a predicate is present then the associated instance is used only if the predicate\
+evaluates to true. Empty and missing predicates evaluate to true. Predicates are\
+written using Reverse Polish Notation (RPN) and contain operators and operands\
+(operands appear before their operator). For example `2 * (x - 1)` could be written\
+as '2 x 1 - *'.\
+\
+unary operators are:\
+	
+\b is_empty
+\b0 			string -> bool
+\f1\fs24 \
+
+\f0\fs36 	
+\b is_not_empty
+\b0 	string -> bool
+\f1\fs24 \
+
+\f0\fs36 	
+\b len		
+\b0 			string -> number
+\f1\fs24 \
+
+\f0\fs36 	
+\b not
+\b0 				bool -> bool\
+	
+\b to_num
+\b0 			string -> number
+\f1\fs24 \
+
+\f0\fs36 	
+\b to_lower
+\b0 			string -> string
+\f1\fs24 \
+
+\f0\fs36 	
+\b to_str	
+\b0 			any -> string
+\f1\fs24 \
+
+\f0\fs36 	
+\b to_upper
+\b0 			string -> string
+\f1\fs24 \
+
+\f0\fs36 binary operators are: \
+	
+\b +
+\b0 					number, number -> number\
+	
+\b -
+\b0 					number, number -> number\
+	
+\b *
+\b0 					number, number -> number\
+	
+\b /
+\b0 					number, number -> number\
+	
+\b %
+\b0 					number, number -> number\
+	
+\b ==
+\b0 					any, any -> bool\
+	
+\b !=
+\b0 					any, any -> bool\
+	
+\b <
+\b0 					T, T -> bool\
+	
+\b <=
+\b0 					T, T -> bool\
+	
+\b >
+\b0 					T, T -> bool\
+	
+\b >=		
+\b0 			T, T -> bool\
+	
+\b and	
+\b0 			bool, bool -> bool\
+	
+\b or		
+\b0 			bool, bool -> bool\
+	
+\b contains
+\b0 			target: string, needle: string -> bool
+\f1\fs24 \
+
+\f0\fs36 	
+\b ends_with
+\b0 		target: string, suffix: string -> bool
+\f1\fs24 \
+
+\f0\fs36 	
+\b starts_with
+\b0 		target: string, prefix: string -> bool
+\f1\fs24 \
+
+\f0\fs36 ternary operators are:\
+	
+\b if
+\b0 					predicate: bool, true_case: T, false_case: T -> T
+\f1\fs24 \
+
+\f0\fs36 variadic operators are:\
+	
+\b concat
+\b0 			..., N: number -> string		N is the number of any args concatenated
+\f1\fs24 \
+
+\f0\fs36 	
+\b log		
+\b0 			..., N: number -> string		concat + log
+\f1\fs24 \
+
+\f0\fs36 \
+operands may be literals:\
+	
+\b bool	
+\b0 	false, true\
+	
+\b number
+\b0 	23, 3.14, -1.0e3\
+	
+\b string	
+\b0 	'hey', "hmm"\
+or variables:\
+	
+\b selection.name
+\b0 	the name component of the current selection subject, or "" if no entity is selected\
+	
+\b options.xxx
+\b0 		value of an options boolean\
+\
+eval can fail for various reasons:\
+1) an operator was not called with enough operands\
+2) an operator was called with an operand of the wrong type (there are no implicit conversions
+\f1\fs24 )\
+
+\f0\fs36 3) undefined variable (including missing options)\
+4) to_num was called with an invalid string\
+5) syntax errors\
+when the eval fails a message is logged and the predicate returns false\
+}
