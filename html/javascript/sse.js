@@ -156,7 +156,7 @@ function create_callback(candidate, element, model_names)
 	};
 }
 
-function do_model_changed(model_names)
+function do_model_changed(model_names, animate)
 {
 	for (var id in GNOS.sse_renderers)
 	{
@@ -164,7 +164,10 @@ function do_model_changed(model_names)
 		if (candidate.model_names.intersects(model_names))
 		{
 			var element = document.getElementById(candidate.element_id);
-			animated_draw(element, create_callback(candidate, element, model_names));
+			if (animate)
+				animated_draw(element, create_callback(candidate, element, model_names));
+			else
+				candidate.callback(element, GNOS.sse_model, model_names);
 		}
 	}
 }

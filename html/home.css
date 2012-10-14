@@ -12,3 +12,25 @@
 	color: crimson;
 }
 
+#header
+{
+	display: -webkit-flex;
+	-webkit-flex-direction: row;
+}
+
+.col-box
+{
+	display: -webkit-flex;
+	-webkit-flex-direction: column;
+}
+
+.align-right
+{
+	margin-left: auto;
+}
+
+.input-label
+{
+	font-size: x-small;
+	-webkit-align-self: center;
+}

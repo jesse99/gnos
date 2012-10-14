@@ -7,6 +7,8 @@ GNOS.scene = new Scene();
 //GNOS.poll_interval = undefined;
 //GNOS.selection_name = null;
 //GNOS.opened = {};
+GNOS.entity_detail= undefined;
+//GNOS.relation_detail= undefined;
 GNOS.loaded_entities = false;
 
 window.onload = function()
@@ -14,9 +16,10 @@ window.onload = function()
 	resize_canvas();
 	window.onresize = resize_canvas;
 	
-	var map = document.getElementById('map');
-	
+	GNOS.entity_detail = document.getElementById('entity_detail');
+
 	var model_names = ["entities", "labels"];
+	GNOS.entity_detail.onchange = function () {do_model_changed(model_names, false);};
 	register_renderer("map renderer", model_names, "map", map_renderer);
 	
 	register_primary_map_query();
@@ -149,6 +152,8 @@ function map_renderer(element, model, model_names)
 	
 	if (GNOS.loaded_entities)
 	{
+		var max_entity = 0;
+		
 		GNOS.scene.remove_all();
 		model.entities.forEach(
 			function (entity, i)
@@ -159,10 +164,12 @@ function map_renderer(element, model, model_names)
 				model.labels.forEach(
 					function (label)
 					{
-						if (label.target === entity.target)
+						if (label.target === entity.target && label.level <= GNOS.entity_detail.value)
 						{
 							child_shapes.push(label.label);
 						}
+						
+						max_entity = Math.max(label.level, max_entity);
 					});
 				
 				// Unfortunately we can't create this shape until after all the other sub-shapes are created.
@@ -173,6 +180,12 @@ function map_renderer(element, model, model_names)
 				GNOS.scene.append(shape);
 			});
 			
+		// This is the only place where we know all of the levels of the entity infos.
+		// If the range has changed we update the slider accordingly. (It's a bit weird
+		// that we also use the slider value here but we can't do better).
+		GNOS.entity_detail.max = max_entity;
+		GNOS.entity_detail.hidden = max_entity === 0;
+		
 		if (model.poll_interval)								// this must be the last shape (we dynamically swap new shapes in)
 			GNOS.scene.append(model.poll_interval);
 		else

@@ -20,23 +20,36 @@ with dynamic content set according to the selection and insprector settings. -->
 	</head>
 	
 	<body>
-		<!-- Only the width/height ration is important. -->
-		<canvas id='map' width='400' height='300'>
-			Canvas not supported
-		</canvas>
-		
-		<section id='details'>
-			<!-- Detail information for the current map selection is added here. -->
+		<section class='col-box'>
+			<section id='header'>
+				<section class='col-box'>
+					<input id="entity_detail" class='input'value="1" min="0" max="3" step="1" type="range">
+					<section class='input-label'>Info Detail</section>
+				</section>
+				<section class='col-box align-right'>
+					<input id="relation_detail" class='input'value="1" min="0" max="3" step="1" type="range">
+					<section class='input-label'>Relation Detail</section>
+				</section>
+			</section>
+			
+			<!-- Only the width/height ration is important. -->
+			<canvas id='map' width='400' height='300'>
+				Canvas not supported
+			</canvas>
+			
+			<section id='details'>
+				<!-- Detail information for the current map selection is added here. -->
+			</section>
+			
+			{{#admin}}
+			<section id='nav'>
+				<ul class="sequence">
+					<li><a href="/models">models</a></li>
+					<li><a href="/query-store">query</a></li>
+					<li><a href="/shutdown">shutdown</a></li>
+				</ul>
+			</section>
+			{{/admin}}
 		</section>
-		
-		{{#admin}}
-		<section id='nav'>
-			<ul class="sequence">
-				<li><a href="/models">models</a></li>
-				<li><a href="/query-store">query</a></li>
-				<li><a href="/shutdown">shutdown</a></li>
-			</ul>
-		</section>
-		{{/admin}}
 	</body>
 <html>
