@@ -88,6 +88,7 @@ LineShape.prototype.do_draw_arrow = function(context, unit, tip, x, y, arrow)
 	context.moveTo(tip.x, tip.y);
 	context.lineTo(x + (arrow.base_width/2) * normals[0].x, y + (arrow.base_width/2) * normals[0].y);
 	context.lineTo(x + (arrow.base_width/2) * normals[1].x, y + (arrow.base_width/2) * normals[1].y);
+	context.closePath();
 	context.fill();
 };
 
@@ -221,33 +222,29 @@ RectShape.prototype.draw = function (context)
 	function fill_rect(context, rect)
 	{
 		context.beginPath();
-			// left
-			context.moveTo(rect.left, rect.top + rect.height);
-			context.lineTo(rect.left, rect.top);
+			context.moveTo(rect.left, rect.top);
 			
 			// top
-			context.moveTo(rect.left, rect.top);
 			context.lineTo(rect.left + rect.width, rect.top);
 			
 			// right
-			context.moveTo(rect.left + rect.width, rect.top);
 			context.lineTo(rect.left + rect.width, rect.top + rect.height);
 			
 			// bottom
-			context.moveTo(rect.left + rect.width, rect.top + rect.height);
 			context.lineTo(rect.left, rect.top + rect.height);
+		context.closePath();
 		context.fill();
 	}
 	
 	function stroke_left_top(context, rect)
 	{
 		context.beginPath();
-			// left
 			context.moveTo(rect.left, rect.top + rect.height);
+			
+			// left
 			context.lineTo(rect.left, rect.top);
 			
 			// top
-			context.moveTo(rect.left, rect.top);
 			context.lineTo(rect.left + rect.width, rect.top);
 		context.stroke();
 	}
@@ -255,20 +252,20 @@ RectShape.prototype.draw = function (context)
 	function stroke_right_bottom(context, rect)
 	{
 		context.beginPath();
-			// right
 			context.moveTo(rect.left + rect.width, rect.top);
+			
+			// right
 			context.lineTo(rect.left + rect.width, rect.top + rect.height);
 			
 			// bottom
-			context.moveTo(rect.left + rect.width, rect.top + rect.height);
 			context.lineTo(rect.left, rect.top + rect.height);
 		context.stroke();
 	}
 	
 	context.save();
 	apply_styles(context, this.styles);
-	
 	fill_rect(context, this.geometry);
+	
 	if (context.lineWidth !== 0)
 	{
 		stroke_left_top(context, this.geometry);

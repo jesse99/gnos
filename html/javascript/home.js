@@ -366,7 +366,7 @@ function map_renderer(element, model, model_names)
 
 // ---- EntityShape class -------------------------------------------------------
 // Used to draw a device consisting of a RectShape and an array of arbitrary shapes.
-function EntityShape(context, name, center, entity_styles, shapes)
+function EntityShape(context, name, center, styles, shapes)
 {
 	var width = 14 + shapes.reduce(function(value, shape)
 	{
@@ -377,7 +377,9 @@ function EntityShape(context, name, center, entity_styles, shapes)
 		return value + shape.height;
 	}, 0);
 	
-	this.rect = new RectShape(context, new Rect(center.x - width/2, center.y - this.total_height/2, width, this.total_height), entity_styles);
+	styles = ['frame-back-color:linen'].concat(styles);
+	
+	this.rect = new RectShape(context, new Rect(center.x - width/2, center.y - this.total_height/2, width, this.total_height), styles);
 	this.shapes = shapes;
 	this.name = name;
 	this.clickable = true;
