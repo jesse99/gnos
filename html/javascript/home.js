@@ -18,7 +18,7 @@ window.onload = function()
 	
 	GNOS.entity_detail = document.getElementById('entity_detail');
 
-	var model_names = ["poll_interval", "entities", "labels", "gauges"];
+	var model_names = ["globals", "entities", "labels", "gauges", "alerts"];
 	GNOS.entity_detail.onchange = function () {do_model_changed(model_names, false);};
 	register_renderer("map renderer", model_names, "map", map_renderer);
 	
@@ -69,10 +69,8 @@ function register_primary_map_query()
 	// to the spec the entire OPTIONAL block must match in order to affect 
 	// the solution.
 	var queries = [	'											\
-PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 														\
-	?poll_interval ?last_update								\
+	?poll_interval ?last_update ?num_errors					\
 WHERE 														\
 {																\
 	?map gnos:poll_interval ?poll_interval .					\
@@ -80,10 +78,12 @@ WHERE 														\
 	{															\
 		?map gnos:last_update ?last_update .					\
 	}															\
+	OPTIONAL												\
+	{															\
+		?map gnos:num_errors ?num_errors .					\
+	}															\
 }',
 '																\
-PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 														\
 	?target ?title ?style ?predicate								\
 WHERE 														\
@@ -91,7 +91,7 @@ WHERE 														\
 	?target gnos:entity ?title .									\
 	OPTIONAL												\
 	{															\
-		?target gnos:style ?style		 .						\
+		?target gnos:style ?style .								\
 	}															\
 	OPTIONAL												\
 	{															\
@@ -99,8 +99,6 @@ WHERE 														\
 	}															\
 }',
 	'															\
-PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 														\
 	?label ?target ?level ?priority ?style ?predicate			\
 WHERE 														\
@@ -119,8 +117,6 @@ WHERE 														\
 	}															\
 }',
 	'															\
-PREFIX gnos: <http://www.gnos.org/2012/schema#>		\
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>	\
 SELECT 														\
 	?value ?target ?title ?level ?priority ?style ?predicate		\
 WHERE 														\
@@ -138,16 +134,30 @@ WHERE 														\
 	{															\
 		?gauge gnos:predicate ?predicate .					\
 	}															\
+}',
+	'															\
+SELECT 														\
+	?target ?style												\
+WHERE 														\
+{																\
+	?subject gnos:alert ?alert .									\
+	?subject gnos:target ?target .								\
+	?subject gnos:style ?style .									\
+	OPTIONAL												\
+	{															\
+		?subject gnos:end ?end .								\
+	}															\
+	FILTER (!BOUND (?end))								\
 }'];
-	var model_names = ["poll_interval", "entities", "labels", "gauges"];
-	var callbacks = [poll_interval_query, entities_query, labels_query, gauges_query];
+	var model_names = ["globals", "entities", "labels", "gauges", "alerts"];
+	var callbacks = [globals_query, entities_query, labels_query, gauges_query, alerts_query];
 	register_query("primary map query", model_names, "primary", queries, callbacks);
 }
 
 // solution rows have 
 // required fields: poll_interval
-// optional fields: last_update
-function poll_interval_query(solution)
+// optional fields: last_update, num_errors
+function globals_query(solution)
 {
 	assert(solution.length <= 1, "expected one row but found " + solution.length);
 	
@@ -156,11 +166,31 @@ function poll_interval_query(solution)
 		var row = solution[0];
 		GNOS.last_update = new Date().getTime();
 		GNOS.poll_interval = row.poll_interval;
+		var poll_interval = create_poll_interval_label(GNOS.last_update, GNOS.poll_interval);
 		
-		var shape = create_poll_interval_label(GNOS.last_update, GNOS.poll_interval);
+		var num_errors = row.num_errors || 0;
+		if (num_errors > 0)
+			var error_count = create_globals_err_label(num_errors);
 		
-		return {poll_interval: shape};
+		return {globals: {poll_interval: poll_interval, error_count: error_count}};
 	}
+}
+
+function create_globals_err_label(num_errors)
+{
+	if (num_errors == 1)
+		var mesg = "1 error";
+	else
+		var mesg = num_errors + " errors";
+		
+	var styles = ['font-size:large', 'font-weight:bolder', 'font-color:red'];
+		
+	var map = document.getElementById('map');
+	var context = map.getContext('2d');
+	return new TextLineShape(context, function (self)
+		{
+			return new Point(context.canvas.width/2, context.canvas.height - self.stats.height/2);
+		}, mesg, styles, 0);
 }
 
 function create_poll_interval_label(last, poll_interval)
@@ -288,6 +318,58 @@ function gauges_query(solution)
 	return {gauges: gauges};
 }
 
+// solution rows have 
+// required fields: target, style
+function alerts_query(solution)
+{
+	function update_counts(table, row, style)
+	{
+		if (row.style.indexOf(style) >= 0)
+		{
+			if (!(row.target in table))
+				table[row.target] = 1;
+			else
+				table[row.target] += 1;
+		}
+	}
+	
+	function add_alert(alerts, table, suffix, styles, level)
+	{
+		for (var target in table)
+		{
+			if (table[target] == 1)
+				var label = "1 {0} alert".format(suffix);
+			else
+				var label = "{0} {1} alerts".format(table[target], suffix);
+				
+			var label = new TextLineShape(context, Point.zero, label, styles, 999);
+			alerts.push({target: target, shape: label, level: level, predicate: ""});
+		}
+	}
+	
+	var errors = {};
+	var warnings = {};
+	var infos = {};
+	
+	var map = document.getElementById('map');
+	var context = map.getContext('2d');
+	for (var i = 0; i < solution.length; ++i)
+	{
+		var row = solution[i];
+		
+		update_counts(errors, row, 'alert-type:error');
+		update_counts(warnings, row, 'alert-type:warning');
+		update_counts(infos, row, 'alert-type:info');
+	}
+	
+	var alerts = [];
+	add_alert(alerts, errors, "error", ['font-color:red', 'font-weight:bolder'], 0);
+	add_alert(alerts, warnings, "warning", ['font-color:orange'], 2);
+	add_alert(alerts, infos, "info", ['font-color:blue'], 3);
+
+	return {alerts: alerts};
+}
+
 function map_renderer(element, model, model_names)
 {
 	var map = document.getElementById('map');
@@ -328,6 +410,17 @@ function map_renderer(element, model, model_names)
 						
 						max_entity = Math.max(gauge.level, max_entity);
 					});
+				model.alerts.forEach(
+					function (alert)
+					{
+						if (alert.target === entity.target && alert.level <= GNOS.entity_detail.value)
+						{
+							child_shapes.push(alert.shape);
+							max_width = Math.max(alert.shape.width, max_width);
+						}
+						
+						max_entity = Math.max(alert.level, max_entity);
+					});
 				
 				// Ensure that info shapes appear in the same order on each entity.
 				child_shapes.sort(
@@ -355,8 +448,11 @@ function map_renderer(element, model, model_names)
 		GNOS.entity_detail.max = max_entity;
 		GNOS.entity_detail.hidden = max_entity === 0;
 		
-		if (model.poll_interval)								// this must be the last shape (we dynamically swap new shapes in)
-			GNOS.scene.append(model.poll_interval);
+		if (model.globals && model.globals.error_count)
+			GNOS.scene.append(model.globals.error_count);
+		
+		if (model.globals && model.globals.poll_interval)				// this must be the last shape (we dynamically swap new shapes in)
+			GNOS.scene.append(model.globals.poll_interval);
 		else
 			GNOS.scene.append(new NoOpShape());
 	}

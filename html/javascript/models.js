@@ -7,7 +7,6 @@ window.onload = function()
 	GNOS.store_renderer_ids = [];
 	
 	var query = '											\
-PREFIX gnos: <http://www.gnos.org/2012/schema#>	\
 SELECT DISTINCT 										\
 	?name 													\
 WHERE 													\
@@ -83,7 +82,6 @@ function deregister_store_renderers()
 function register_store_query(store)
 {
 	var query = '											\
-PREFIX gnos: <http://www.gnos.org/2012/schema#>	\
 SELECT DISTINCT 										\
 	?name 													\
 WHERE 													\

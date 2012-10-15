@@ -40,7 +40,7 @@ priv fn snmp_exited(err: option::Option<~str>, state_chan: comm::Chan<model::Msg
 	let lines = mesg.split_char('\n');
 	for lines.each |line| {error!("%s", *line)};
 	
-	let alert = model::Alert {device: ~"gnos:map", id: ~"snmp-modeler.py exited", level: model::ErrorLevel, mesg: mesg, resolution: ~"Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
+	let alert = model::Alert {target: ~"gnos:container", id: ~"snmp-modeler.py exited", level: ~"error", mesg: mesg, resolution: ~"Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
 	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _err| {model::open_alert(store, &alert)}, ~""));
 }
 
@@ -162,7 +162,7 @@ fn main(args: ~[~str])
 			(~"GET", ~"/shutdown", ~"shutdown"),		// TODO: enable this via debug cfg (or maybe via a command line option)
 			(~"GET", ~"/models", ~"models"),
 			(~"GET", ~"/query-store", ~"query_store"),
-			(~"GET", ~"/subject/{name}/{subject}", ~"subject"),
+			(~"GET", ~"/subject/{name}/*subject", ~"subject"),
 			(~"PUT", ~"/snmp-modeler", ~"modeler"),
 		],
 		views: ~[

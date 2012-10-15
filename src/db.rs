@@ -9,7 +9,7 @@ use rrdf::rrdf::*;
 fn setup(state_chan: comm::Chan<model::Msg>, poll_rate: u16) 
 {
 	comm::send(state_chan, model::UpdateMsg(~"primary", |store, _data| {add_got(store, state_chan, poll_rate); true}, ~""));
-//	add_alerts(state_chan);
+	add_alerts(state_chan);
 }
 
 priv fn update_got(state_chan: comm::Chan<model::Msg>, winterfell_loyalty_subject: ~str, winterfell_loyalty_value: f64, kings_landing_loyalty_subject: ~str, kings_landing_loyalty_value: f64, poll_rate: u16)
@@ -145,19 +145,19 @@ priv fn add_globals(store: &Store, poll_rate: u16)
 
 priv fn add_entities(store: &Store)
 {
-	let wall = ~"map:primary/entities/wall";
+	let wall = ~"entities:wall";
 	store.add(wall, ~[
 		(~"gnos:entity",	StringValue(~"The Wall", ~"")),
 		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
 	]);
 	
-	let winterfell = ~"map:primary/entities/winterfell";
+	let winterfell = ~"entities:winterfell";
 	store.add(winterfell, ~[
 		(~"gnos:entity",	StringValue(~"Winterfell", ~"")),
 		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
 	]);
 	
-	let kings_landing = ~"map:primary/entities/kings_landing";
+	let kings_landing = ~"entities:kings_landing";
 	store.add(kings_landing, ~[
 		(~"gnos:entity",		StringValue(~"King's Landing", ~"")),
 		(~"gnos:style",			StringValue(~"font-size:x-large font-weight:bolder frame-blur:5", ~"")),
@@ -168,7 +168,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 {
 	// wall labels
 	store.add(get_blank_name(store, ~"wall-label"), ~[
-		(~"gnos:target",	IriValue(~"map:primary/entities/wall")),
+		(~"gnos:target",	IriValue(~"entities:wall")),
 		(~"gnos:label",	StringValue(~"guards the realms of men", ~"")),
 		(~"gnos:level",	IntValue(2)),
 		(~"gnos:priority",	IntValue(1)),
@@ -176,14 +176,14 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 	
 	// winterfell labels
 	store.add(get_blank_name(store, ~"winterfell-label"), ~[
-		(~"gnos:target",	IriValue(~"map:primary/entities/winterfell")),
+		(~"gnos:target",	IriValue(~"entities:winterfell")),
 		(~"gnos:label",	StringValue(~"House Stark", ~"")),
 		(~"gnos:level",	IntValue(1)),
 		(~"gnos:priority",	IntValue(1)),
 	]);
 	
 	store.add(get_blank_name(store, ~"winterfell-label"), ~[
-		(~"gnos:target",	IriValue(~"map:primary/entities/winterfell")),
+		(~"gnos:target",	IriValue(~"entities:winterfell")),
 		(~"gnos:label",	StringValue(~"constructed by Brandon the Builder", ~"")),
 		(~"gnos:level",	IntValue(2)),
 		(~"gnos:priority",	IntValue(2)),
@@ -191,7 +191,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 	
 	// kings_landing labels
 	store.add(get_blank_name(store, ~"kings_landing-label"), ~[
-		(~"gnos:target",	IriValue(~"map:primary/entities/kings_landing")),
+		(~"gnos:target",	IriValue(~"entities:kings_landing")),
 		(~"gnos:label",	StringValue(~"Capitol of Westoros", ~"")),
 		(~"gnos:level",	IntValue(1)),
 		(~"gnos:priority",	IntValue(1)),
@@ -199,7 +199,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 	
 	// wall gauges
 	store.add(get_blank_name(store, ~"wall-gauge"), ~[
-		(~"gnos:target",	IriValue(~"map:primary/entities/wall")),
+		(~"gnos:target",	IriValue(~"entities:wall")),
 		(~"gnos:gauge",	FloatValue(1.0f64)),
 		(~"gnos:title",		StringValue(~"m/f ratio", ~"")),
 		(~"gnos:level",	IntValue(2)),
@@ -207,7 +207,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 	]);
 	
 	store.add(get_blank_name(store, ~"wall-gauge"), ~[
-		(~"gnos:target",	IriValue(~"map:primary/entities/wall")),
+		(~"gnos:target",	IriValue(~"entities:wall")),
 		(~"gnos:gauge",	FloatValue(0.3f64)),
 		(~"gnos:title",		StringValue(~"loyalty", ~"")),
 		(~"gnos:level",	IntValue(2)),
@@ -217,7 +217,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 	
 	// winterfell gauges
 	store.add(get_blank_name(store, ~"winterfell-gauge"), ~[
-		(~"gnos:target",	IriValue(~"map:primary/entities/winterfell")),
+		(~"gnos:target",	IriValue(~"entities:winterfell")),
 		(~"gnos:gauge",	FloatValue(0.7f64)),
 		(~"gnos:title",		StringValue(~"m/f ratio", ~"")),
 		(~"gnos:level",	IntValue(2)),
@@ -227,7 +227,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 	let winterfell_loyalty_subject = get_blank_name(store, ~"winterfell-gauge");
 	let winterfell_loyalty_value = 0.8f64;
 	store.add(winterfell_loyalty_subject, ~[
-		(~"gnos:target",	IriValue(~"map:primary/entities/winterfell")),
+		(~"gnos:target",	IriValue(~"entities:winterfell")),
 		(~"gnos:gauge",	FloatValue(winterfell_loyalty_value)),
 		(~"gnos:title",		StringValue(~"loyalty", ~"")),
 		(~"gnos:level",	IntValue(2)),
@@ -237,7 +237,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 	
 	// king's landing gauges
 	store.add(get_blank_name(store, ~"kings_landing-gauge"), ~[
-		(~"gnos:target",	IriValue(~"map:primary/entities/kings_landing")),
+		(~"gnos:target",	IriValue(~"entities:kings_landing")),
 		(~"gnos:gauge",	FloatValue(0.5f64)),
 		(~"gnos:title",		StringValue(~"m/f ratio", ~"")),
 		(~"gnos:level",	IntValue(2)),
@@ -247,7 +247,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 	let kings_landing_loyalty_subject = get_blank_name(store, ~"kings_landing-gauge");
 	let kings_landing_loyalty_value = 0.9f64;
 	store.add(kings_landing_loyalty_subject, ~[
-		(~"gnos:target",	IriValue(~"map:primary/entities/kings_landing")),
+		(~"gnos:target",	IriValue(~"entities:kings_landing")),
 		(~"gnos:gauge",	FloatValue(kings_landing_loyalty_value)),
 		(~"gnos:title",		StringValue(~"loyalty", ~"")),
 		(~"gnos:level",	IntValue(2)),
@@ -259,38 +259,40 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 	do task::spawn_sched(task::SingleThreaded) {update_got(state_chan, winterfell_loyalty_subject, winterfell_loyalty_value, kings_landing_loyalty_subject, kings_landing_loyalty_value, poll_rate);}
 }
 
-//priv fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool
-//{
-//	// map
-//	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _msg|
-//	{
-//		model::open_alert(store, &Alert {device: ~"gnos:map", id: ~"m1", level: model::ErrorLevel, mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."});
-//		model::open_alert(store, &Alert {device: ~"gnos:map", id: ~"m2", level: model::WarningLevel, mesg: ~"Approaching critical mass", resolution: ~"Reduce mass."});
-//		
-//		model::open_alert(store, &Alert {device: ~"gnos:map", id: ~"m3", level: model::ErrorLevel, mesg: ~"Electrons are leaking", resolution: ~"Call a plumber."});
-//		model::close_alert(store, ~"gnos:map", ~"m3");			// closed alert 
-//		
-//																		// open_alert is idempotent
-//		model::open_alert(store, &Alert {device: ~"gnos:map", id: ~"m1", level: model::ErrorLevel, mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."})
-//	}, ~""));
-//	
-//	// devices
-//	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _msg|
-//	{
-//		model::open_alert(store, &Alert {device: ~"map:primary/entities/winterfell", id: ~"w1", level: model::ErrorLevel, mesg: ~"The ocean is rising.", resolution: ~"Call King Canute."});
-//		model::open_alert(store, &Alert {device: ~"map:primary/entities/winterfell", id: ~"w2", level: model::ErrorLevel, mesg: ~"Ghosts walk the grounds.", resolution: ~"Who you going to call?"});
-//		model::open_alert(store, &Alert {device: ~"map:primary/entities/winterfell", id: ~"w3", level: model::WarningLevel, mesg: ~"Winter is coming.", resolution: ~"Increase the stores."});
-//		model::open_alert(store, &Alert {device: ~"map:primary/entities/winterfell", id: ~"w4", level: model::InfoLevel, mesg: ~"Bran stubbed his toe.", resolution: ~"Call the Maester."});
-//		
-//		model::open_alert(store, &Alert {device: ~"map:primary/entities/winterfell", id: ~"w5", level: model::ErrorLevel, mesg: ~"A deserter from the Wall was found.", resolution: ~"Chop his head off."});
-//		model::close_alert(store, ~"map:primary/entities/winterfell", ~"w5");	// closed alert
-//		
-//		model::close_alert(store, ~"map:primary/entities/winterfell", ~"w2");	// re-opened alert
-//		model::open_alert(store, &Alert {device: ~"map:primary/entities/winterfell", id: ~"w2", level: model::ErrorLevel, mesg: ~"More ghosts walk the grounds.", resolution: ~"Who you going to call?"})
-//	}, ~""));
-//	
-//	true
-//}
+priv fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool
+{
+	// container
+	comm::send(state_chan, model::UpdateMsg(~"primary", |store, _msg|
+	{
+		model::open_alert(store, &Alert {target: ~"gnos:container", id: ~"m1", level: ~"error", mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."});
+		model::open_alert(store, &Alert {target: ~"gnos:container", id: ~"m2", level: ~"warning", mesg: ~"Approaching critical mass", resolution: ~"Reduce mass."});
+		
+		model::open_alert(store, &Alert {target: ~"gnos:container", id: ~"m3", level: ~"error", mesg: ~"Electrons are leaking", resolution: ~"Call a plumber."});
+		model::close_alert(store, ~"gnos:container", ~"m3")			// closed alert 
+	}, ~""));
+	
+	// entities
+	comm::send(state_chan, model::UpdateMsg(~"primary", |store, _msg|
+	{
+		model::open_alert(store, &Alert {target: ~"entities:wall", id: ~"wa1", level: ~"error", mesg: ~"Night is falling.", resolution: ~"I am the fire that burns against the cold."});
+
+		model::open_alert(store, &Alert {target: ~"entities:winterfell", id: ~"w1", level: ~"error", mesg: ~"The ocean is rising.", resolution: ~"Call King Canute."});
+		model::open_alert(store, &Alert {target: ~"entities:winterfell", id: ~"w2", level: ~"error", mesg: ~"Ghosts walk the grounds.", resolution: ~"Who you going to call?"});
+		model::open_alert(store, &Alert {target: ~"entities:winterfell", id: ~"w3", level: ~"warning", mesg: ~"Winter is coming.", resolution: ~"Increase the stores."});
+		model::open_alert(store, &Alert {target: ~"entities:winterfell", id: ~"w4", level: ~"info", mesg: ~"Bran stubbed his toe.", resolution: ~"Call the Maester."});
+		
+		model::open_alert(store, &Alert {target: ~"entities:winterfell", id: ~"w5", level: ~"error", mesg: ~"A deserter from the Wall was found.", resolution: ~"Chop his head off."});
+		model::close_alert(store, ~"entities:winterfell", ~"w5");	// closed alert
+		
+		model::close_alert(store, ~"entities:winterfell", ~"w2");	// re-opening alert
+		model::open_alert(store, &Alert {target: ~"entities:winterfell", id: ~"w2", level: ~"error", mesg: ~"More ghosts walk the grounds.", resolution: ~"Who you going to call?"});
+		
+																					// open_alert is idempotent
+		model::open_alert(store, &Alert {target: ~"entities:winterfell", id: ~"w1", level: ~"error", mesg: ~"Shouldn't see this.", resolution: ~"Call tech support."})
+	}, ~""));
+	
+	true
+}
 
 //priv fn add_relation(store: &Store, lhs: ~str, rhs: ~str, style: ~str, label: ~str)
 //{

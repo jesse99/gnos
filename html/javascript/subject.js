@@ -8,10 +8,6 @@ window.onload = function()
 	var about = table.getAttribute("data-about");
 	
 	var query = '														\
-PREFIX devices: <http://network/>									\
-PREFIX gnos: <http://www.gnos.org/2012/schema#>				\
-PREFIX snmp: <http://snmp/>										\
-PREFIX sname: <http://snmp-name/>									\
 SELECT 																\
 	?predicate_url ?predicate_label ?value_url ?value_label			\
 WHERE 																\

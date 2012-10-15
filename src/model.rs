@@ -36,51 +36,29 @@ enum Msg
 
 /// Alerts are conditions that hold for a period of time (e.g. a router off line).
 ///
-/// * device - devices:<ip> or gnos:map.
-/// * id - is used along with device to identify alerts.
-/// * level - is the severity of the alert.
+/// * target - map:auto-fat/entities/10.1.0.1 or gnos:container.
+/// * id - is used along with target to identify alerts.
 /// * mesg - text that describes the alert (e.g. "offline").
 /// * resolution - text that describes how to fix the alert (e.g. "Is the device on? Is the ip correct? Is it connected to the network?").
+/// * level - "error", "warning", or "info".
 ///
-/// When an alert is added to the "alerts" store a gnos:begin dateTime is
+/// When an alert is added to the store a gnos:begin dateTime is
 /// included. When the alert becomes inactive (i.e. the condition no longer
 /// holds) a gnos:end timestamp is added.
 struct Alert
 {
-	pub device: ~str,
+	pub target: ~str,
 	pub id: ~str,
-	pub level: AlertLevel,
 	pub mesg: ~str,
 	pub resolution: ~str,
-}
-
-enum AlertLevel
-{
-	ErrorLevel,
-	WarningLevel,
-	InfoLevel,
-	DebugLevel,
-}
-
-// TODO: This is hopefully temporary: at some point rust should again be able to compare enums without assistence.
-impl AlertLevel : cmp::Eq
-{
-	pure fn eq(&&rhs: AlertLevel) -> bool
-	{
-		fmt!("%?", self) == fmt!("%?", rhs)
-	}
-	
-	pure fn ne(&&rhs: AlertLevel) -> bool
-	{
-		fmt!("%?", self) != fmt!("%?", rhs)
-	}
+	pub level: ~str,
 }
 
 type Registration = {queries: ~[~str], channel: RegisterChan, solutions: @mut ~[Solution]};
 
 pure fn get_standard_store_names() -> ~[~str]
 {
-	return ~[~"globals", ~"primary", ~"alerts", ~"snmp"];
+	return ~[~"globals", ~"primary"];
 }
 
 /// Runs within a task and manages triple stores holding gnos state.
@@ -100,6 +78,14 @@ fn manage_state(port: comm::Port<Msg>, options: &options::Options)
 	for get_standard_store_names().each
 	|name|
 	{
+		// sparql prefixed names only support a single name after the colon so these are useful
+		// (rrdf prefixed names support paths which gets a bit confusing)
+		let namespaces = 
+			~[
+				Namespace {prefix: ~"entities", path: fmt!("http://%s:%?/map/%s/entities/", options.server, options.port, *name)},
+				Namespace {prefix: ~"store", path: fmt!("http://%s:%?/map/%s/", options.server, options.port, *name)},
+			] + namespaces;
+		
 		stores.insert(copy *name,  @Store(namespaces, &HashMap()));
 		registered.insert(copy *name, HashMap());
 	}
@@ -182,23 +168,38 @@ fn get_state(name: ~str, channel: comm::Chan<Msg>, query: ~str) -> Solution
 	return result;
 }
 
-/// Helper used to add a new alert to the "alerts" store (if there is not already one open).
+priv fn get_prefixes(store: &Store) -> ~str
+{
+	let prefixes = do store.namespaces.filter_map |ns|
+		{
+			if ns.prefix != ~"_"
+			{
+				option::Some(fmt!("\tPREFIX %s: <%s>", ns.prefix, ns.path))
+			}
+			else
+			{
+				option::None
+			}
+		};
+	str::connect(prefixes, "\n")
+}
+
+/// Helper used to add a new alert to a store (if there is not already one open).
 fn open_alert(store: &Store, alert: &Alert) -> bool
 {
 	let expr = #fmt["
-	PREFIX devices: <http://network/>
-	PREFIX gnos: <http://www.gnos.org/2012/schema#>
+	%s
 	SELECT
 		?subject ?end
 	WHERE
 	{
 		?subject gnos:target %s .
-		?subject gnos:id \"%s\" .
+		?subject gnos:alert \"%s\" .
 		OPTIONAL
 		{
-			?subject gnos:end ?end
+			?subject gnos:end ?end .
 		}
-	}", alert.device, alert.id];
+	}", get_prefixes(store), alert.target, alert.id];
 	
 	match eval_query(store, expr)
 	{
@@ -207,28 +208,19 @@ fn open_alert(store: &Store, alert: &Alert) -> bool
 			// Add the alert if it doesn't already exist OR it exists but is closed (i.e. if we found rows they must all be closed).
 			if solution.rows.all(|row| {row.search(~"end").is_some()})
 			{
-				let level =
-					match alert.level
-					{
-						ErrorLevel =>		{~"error"}
-						WarningLevel =>	{~"warning"}
-						InfoLevel =>		{~"info"}
-						DebugLevel =>	{~"debug"}
-					};
-					
 				let subject = get_blank_name(store, ~"alert");
 				store.add(subject, ~[
-					(~"gnos:target", IriValue(copy alert.device)),
-					(~"gnos:id", StringValue(copy alert.id, ~"")),
+					(~"gnos:target", IriValue(copy alert.target)),
+					(~"gnos:alert", StringValue(copy alert.id, ~"")),
 					(~"gnos:begin", DateTimeValue(std::time::now())),
 					(~"gnos:mesg", StringValue(copy alert.mesg, ~"")),
 					(~"gnos:resolution", StringValue(copy alert.resolution, ~"")),
-					(~"gnos:level", StringValue(level, ~"")),
+					(~"gnos:style", StringValue(~"alert-type:" + alert.level, ~"")),
 				]);
 				
-				if alert.level == ErrorLevel
+				if alert.level == ~"error"
 				{
-					update_err_count(store, alert.device, 1);
+					update_err_count(store, 1);
 				}
 				true
 			}
@@ -240,29 +232,29 @@ fn open_alert(store: &Store, alert: &Alert) -> bool
 		result::Err(ref err) =>
 		{
 			error!("open_alert> %s", *err);
+			error!("open_alert> %s", expr);
 			false
 		}
 	}
 }
 
-/// Helper used to close any open alerts from the "alerts" store.
-fn close_alert(store: &Store, device: ~str, id: ~str) -> bool
+/// Helper used to close any open alerts from the store.
+fn close_alert(store: &Store, target: ~str, id: ~str) -> bool
 {
 	let expr = #fmt["
-	PREFIX devices: <http://network/>
-	PREFIX gnos: <http://www.gnos.org/2012/schema#>
+	%s
 	SELECT
-		?subject ?level ?end
+		?subject ?style ?end
 	WHERE
 	{
+		?subject gnos:alert \"%s\" .
 		?subject gnos:target %s .
-		?subject gnos:id \"%s\" .
-		?subject gnos:level ?level .
+		?subject gnos:style ?style .
 		OPTIONAL
 		{
 			?subject gnos:end ?end
 		}
-	}", device, id];
+	}", get_prefixes(store), id, target];
 	
 	match eval_query(store, expr)
 	{
@@ -275,7 +267,7 @@ fn close_alert(store: &Store, device: ~str, id: ~str) -> bool
 			{
 				if row.search(~"end").is_none()
 				{
-					if row.get(~"level").as_str() == ~"error"
+					if row.get(~"style").as_str().ends_with(~":error")
 					{
 						added += 1;
 					}
@@ -286,13 +278,14 @@ fn close_alert(store: &Store, device: ~str, id: ~str) -> bool
 			if added > 0
 			{
 				assert added == 1;
-				update_err_count(store, device, -1);
+				update_err_count(store, -1);
 			}
 			changed
 		}
 		result::Err(ref err) =>
 		{
 			error!("close_alert> %s", *err);
+			error!("close_alert> %s", expr);
 			false
 		}
 	}
@@ -322,6 +315,7 @@ fn eval_query(store: &Store, expr: ~str) -> result::Result<Solution, ~str>
 		}
 	}
 }
+
 // ---- Internal functions ----------------------------------------------------
 priv fn update_registered(stores: HashMap<~str, @Store>, name: ~str, queries: HashMap<~str, Selector>, registered: HashMap<~str, HashMap<~str, Registration>>)
 {
@@ -345,16 +339,16 @@ priv fn update_registered(stores: HashMap<~str, @Store>, name: ~str, queries: Ha
 	}
 }
 
-priv fn update_err_count(store: &Store, device: ~str, delta: i64)
+priv fn update_err_count(store: &Store, delta: i64)
 {
-	match store.find_object(device, ~"gnos:num_errors")
+	match store.find_object(~"store:globals", ~"gnos:num_errors")
 	{
 		option::Some(IntValue(value)) =>
 		{
 			// TODO: This is a rather inefficient pattern (though it doesn't matter here because
 			// subject has only one predicate). But maybe replace_triple should have a variant 
 			// or something that passes the original value to a closure.
-			store.replace_triple(~[], {subject: copy device, predicate: ~"gnos:num_errors", object: IntValue(value + delta)});
+			store.replace_triple(~[], {subject: ~"store:globals", predicate: ~"gnos:num_errors", object: IntValue(value + delta)});
 		}
 		option::Some(ref x) =>
 		{
@@ -363,7 +357,7 @@ priv fn update_err_count(store: &Store, device: ~str, delta: i64)
 		option::None =>
 		{
 			assert delta == 1;		// if we're closing an alert we should have found the err_count for the open alert
-			store.add_triple(~[], {subject: copy device, predicate: ~"gnos:num_errors", object: IntValue(1)});
+			store.add_triple(~[], {subject: ~"store:globals", predicate: ~"gnos:num_errors", object: IntValue(1)});
 		}
 	}
 }
@@ -402,7 +396,8 @@ priv fn eval_queries(store: &Store, queries: HashMap<~str, Selector>, exprs: ~[~
 	do result::map_vec(exprs)
 	|expr|
 	{
-		match get_selector(queries, *expr)
+		let expr = get_prefixes(store) + *expr;
+		match get_selector(queries, expr)
 		{
 			result::Ok(selector) =>
 			{
@@ -414,7 +409,7 @@ priv fn eval_queries(store: &Store, queries: HashMap<~str, Selector>, exprs: ~[~
 					}
 					result::Err(copy err) =>
 					{
-						error!("'%s' failed with %s", *expr, err);
+						error!("'%s' failed with %s", expr, err);
 						result::Err(err)
 					}
 				}

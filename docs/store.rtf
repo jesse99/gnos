@@ -17,9 +17,8 @@ rendered by browser clients. There are five types of data:\
 \b0  - Arbitrary amounts of possibly complex structured data associated with an\
 entity: lists, tables, images, etc.\
 
-\b decoration
-\b0  - Similar to details but identified with an id and associated with a timestamp.\
-Decorations are only added if an decoration with that id is not already atatched.\
+\b alert
+\b0  - These are dynamic conditions that apply to an entity for a period of time.\
 
 \b relation
 \b0  - Asssociates an entity with one or more other entities.\
@@ -45,6 +44,7 @@ The schema is defined with the aid of a couple of different namespace prefixes:\
 
 \b0\fs36 \cf0 gnos:poll_interval	xsd:integer		30 (seconds, optional)\
 gnos:last_update	xsd:dateTime	- (optional)\
+gnos:num_errors	xsd:integer		1 (number of open error alerts, optional)\
 gnos:option			xsd:string			"ospf" (0-N arity)\
 \pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
 
@@ -82,9 +82,25 @@ gnos:predicate		xsd:string			"" (optional)\
 \cf0 \ul \ulc0 gnos:gauge\ulnone 			xsd:float			0.8\
 gnos:title				xsd:string			"CPU"\
 gnos:level			xsd:integer		0\
-gnos:priority			xsd:integer		1 (larger values are displayed first)\
+gnos:priority			xsd:integer		1 (smaller values are displayed first)\
 gnos:style			xsd:string			"gauge-bar-color:red" (optional)\
 gnos:predicate		xsd:string			"" (optional)\
+\
+\pard\pardeftab480\pardirnatural
+
+\b\fs50 \cf0 _:alert0\
+\pard\pardeftab480\pardirnatural
+
+\b0\fs36 \cf0 gnos:target			xsd:
+\fs32 anyURI
+\fs36 		map:auto-fat/entities/10.1.0.1 (or gnos:container)\
+\pard\pardeftab480\pardirnatural
+\cf0 \ul \ulc0 gnos:alert\ulnone 				xsd:string			"device down" (used when closing alerts)\
+gnos:begin			xsd:dateTime	Jan 1, 2012\
+gnos:end				xsd:dateTime	Jan 2, 2012 (if present the alert is closed)\
+gnos:mesg			xsd:string			"The device is not responding to snmp."\
+gnos:resolution		xsd:string			"Whack it with a hammer or restart snmpd."\
+gnos:style			xsd:string			"alert-type:error"\
 \
 \pard\pardeftab480\pardirnatural
 
@@ -94,7 +110,7 @@ gnos:predicate		xsd:string			"" (optional)\
 \b0\fs36 \cf0 gnos:target			xsd:anyURI		map:auto-fat/entities/10.1.0.1\
 \pard\pardeftab480\pardirnatural
 \cf0 \ul \ulc0 gnos:text\ulnone 				xsd:string			"blah\\nblah"\
-gnos:weight			xsd:float			0.1 (larger values are displayed first)\
+gnos:priority			xsd:float			0.1 (smaller values are displayed first)\
 gnos:title				xsd:string			"Foo" (can be empty)\
 gnos:open			xsd:string			"always", "yes", or "no" (uses disclosure widget if not "always")\
 gnos:key				xsd:string			arbitrary text (used by the client to keep widgets open on refresh)\
@@ -122,7 +138,8 @@ gnos:predicate		xsd:string			"options.ospf selection.name '10.1.0.4'
 Underlined predicates represent what are (more or less) primary keys.\
 \pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
 
-\f1\fs24 \cf0 \
+\f1\fs24 \cf0 ------------------------------------------------------------------------------------------------------------------------------\
+\
 \pard\pardeftab480\pardirnatural
 
 \f0\b\fs50 \cf0 gnos:style\
@@ -172,6 +189,11 @@ The following affect gauges:\
 \b gauge-bar-color
 \b0 :<color>\
 frame styles are also applied. Font styles are used with the title.\
+\
+The following affect alerts:\
+
+\b alert-type
+\b0 :error, warning, info\
 \
 The following affect relations:\
 
