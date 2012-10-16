@@ -18,7 +18,7 @@ window.onload = function()
 	
 	GNOS.entity_detail = document.getElementById('entity_detail');
 
-	var model_names = ["globals", "entities", "labels", "gauges", "alerts"];
+	var model_names = ["globals", "entities", "labels", "gauges", "alerts", "relations"];
 	GNOS.entity_detail.onchange = function () {do_model_changed(model_names, false);};
 	register_renderer("map renderer", model_names, "map", map_renderer);
 	
@@ -148,9 +148,38 @@ WHERE 														\
 		?subject gnos:end ?end .								\
 	}															\
 	FILTER (!BOUND (?end))								\
+}',
+	'															\
+SELECT 														\
+	?left ?right 													\
+	?style ?predicate ?left_info ?middle_info ?right_info		\
+WHERE 														\
+{																\
+	?subject gnos:left ?left .									\
+	?subject gnos:right ?right .									\
+	OPTIONAL												\
+	{															\
+		?subject gnos:style ?style .								\
+	}															\
+	OPTIONAL												\
+	{															\
+		?subject gnos:predicate ?predicate .					\
+	}															\
+	OPTIONAL												\
+	{															\
+		?subject gnos:left_info ?left_info .						\
+	}															\
+	OPTIONAL												\
+	{															\
+		?subject gnos:middle_info ?middle_info .				\
+	}															\
+	OPTIONAL												\
+	{															\
+		?subject gnos:right_info ?right_info .					\
+	}															\
 }'];
-	var model_names = ["globals", "entities", "labels", "gauges", "alerts"];
-	var callbacks = [globals_query, entities_query, labels_query, gauges_query, alerts_query];
+	var model_names = ["globals", "entities", "labels", "gauges", "alerts", "relations"];
+	var callbacks = [globals_query, entities_query, labels_query, gauges_query, alerts_query, relations_query];
 	register_query("primary map query", model_names, "primary", queries, callbacks);
 }
 
@@ -368,6 +397,57 @@ function alerts_query(solution)
 	add_alert(alerts, infos, "info", ['font-color:blue'], 3);
 
 	return {alerts: alerts};
+}
+
+// solution rows have 
+// required fields: left, right
+// optional fields: style, predicate, left_info, middle_info, right_info
+function relations_query(solution)
+{
+	function add_shape(shapes, target, shape)
+	{
+		if (!(target in shapes))
+			shapes[target] = [shape];
+		else
+			shapes[target] += [shape];
+	}
+	
+	// Note that left+right will be repeated if there are multiple infos for
+	// left, middle, or right.
+	var shapes = {};
+	for (var i = 0; i < solution.length; ++i)
+	{
+		var row = solution[i];
+		var target = row.left + row.right;
+		
+		if (row.left_info)
+			add_shape(shapes, target, row.left_info);
+		if (row.middle_info)
+			add_shape(shapes, target, row.middle_info);
+		if (row.right_info)
+			add_shape(shapes, target, row.right_info);
+		
+		if (!(target in shapes))
+			shapes[target] = [];
+	}
+	
+	var relations = {};
+	for (var i = 0; i < solution.length; ++i)
+	{
+		var row = solution[i];
+		var target = row.left + row.right;
+		
+		if (!(target in shapes))
+		{
+			var style = row.style || "";
+			var styles = style.split(' ');
+			
+			relations[target] = {left: row.left, right: row.right, shapes: shapes[target], styles: styles, predicate: row.predicate || ""};
+		}
+	}
+console.log('relations = {0:j}'.format(relations));
+	
+	return {relations: relations};
 }
 
 function map_renderer(element, model, model_names)

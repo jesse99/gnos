@@ -12,6 +12,9 @@ fn setup(state_chan: comm::Chan<model::Msg>, poll_rate: u16)
 	add_alerts(state_chan);
 }
 
+// This is designed to test live updating of views. What we do is degrade the loyalty (to the crown) of
+// winterfell and knight's landing. The color and level settings of the layalty gauges are adjusted
+// based on the current loyalty value.
 priv fn update_got(state_chan: comm::Chan<model::Msg>, winterfell_loyalty_subject: ~str, winterfell_loyalty_value: f64, kings_landing_loyalty_subject: ~str, kings_landing_loyalty_value: f64, poll_rate: u16)
 {
 	fn degrade_loyalty(value: f64, delta: f64) -> f64
@@ -79,8 +82,8 @@ priv fn add_got(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: u1
 	add_infos(store, state_chan, poll_rate);
 	
 	// relations
-//	add_relation(store, wall, winterfell, ~"link", ~"road");
-//	add_relation(store, kings_landing, winterfell, ~"route", ~"king's road");
+	add_relation(store, ~"entities:wall", ~"entities:winterfell", ~"line-type:directed", ~"road", ~"");
+	add_relation(store, ~"entities:kings_landing", ~"entities:winterfell", ~"line-width:3 line-color:purple", ~"king's road", ~"straight and true");
 	
 	// details
 //	let map_summary = get_blank_name(store, ~"summary");
@@ -145,20 +148,17 @@ priv fn add_globals(store: &Store, poll_rate: u16)
 
 priv fn add_entities(store: &Store)
 {
-	let wall = ~"entities:wall";
-	store.add(wall, ~[
+	store.add(~"entities:wall", ~[
 		(~"gnos:entity",	StringValue(~"The Wall", ~"")),
 		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
 	]);
 	
-	let winterfell = ~"entities:winterfell";
-	store.add(winterfell, ~[
+	store.add(~"entities:winterfell", ~[
 		(~"gnos:entity",	StringValue(~"Winterfell", ~"")),
 		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
 	]);
 	
-	let kings_landing = ~"entities:kings_landing";
-	store.add(kings_landing, ~[
+	store.add(~"entities:kings_landing", ~[
 		(~"gnos:entity",		StringValue(~"King's Landing", ~"")),
 		(~"gnos:style",			StringValue(~"font-size:x-large font-weight:bolder frame-blur:5", ~"")),
 	]);
@@ -275,7 +275,7 @@ priv fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool
 	comm::send(state_chan, model::UpdateMsg(~"primary", |store, _msg|
 	{
 		model::open_alert(store, &Alert {target: ~"entities:wall", id: ~"wa1", level: ~"error", mesg: ~"Night is falling.", resolution: ~"I am the fire that burns against the cold."});
-
+		
 		model::open_alert(store, &Alert {target: ~"entities:winterfell", id: ~"w1", level: ~"error", mesg: ~"The ocean is rising.", resolution: ~"Call King Canute."});
 		model::open_alert(store, &Alert {target: ~"entities:winterfell", id: ~"w2", level: ~"error", mesg: ~"Ghosts walk the grounds.", resolution: ~"Who you going to call?"});
 		model::open_alert(store, &Alert {target: ~"entities:winterfell", id: ~"w3", level: ~"warning", mesg: ~"Winter is coming.", resolution: ~"Increase the stores."});
@@ -287,33 +287,46 @@ priv fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool
 		model::close_alert(store, ~"entities:winterfell", ~"w2");	// re-opening alert
 		model::open_alert(store, &Alert {target: ~"entities:winterfell", id: ~"w2", level: ~"error", mesg: ~"More ghosts walk the grounds.", resolution: ~"Who you going to call?"});
 		
-																					// open_alert is idempotent
+																	// open_alert is idempotent
 		model::open_alert(store, &Alert {target: ~"entities:winterfell", id: ~"w1", level: ~"error", mesg: ~"Shouldn't see this.", resolution: ~"Call tech support."})
 	}, ~""));
 	
 	true
 }
 
-//priv fn add_relation(store: &Store, lhs: ~str, rhs: ~str, style: ~str, label: ~str)
-//{
-//	let lhs_relation = get_blank_name(store, ~"lhs");
-//	store.add(lhs_relation, ~[
-//		(~"gnos:src",                 	IriValue(copy lhs)),
-//		(~"gnos:dst",                 	IriValue(copy rhs)),
-//		(~"gnos:type",                 StringValue(~"unidirectional", ~"")),
-//		(~"gnos:style",                 StringValue(copy style, ~"")),
-//		(~"gnos:primary_label",    StringValue(copy label, ~"")),
-//		(~"gnos:secondary_label", StringValue(~"details", ~"")),
-//		(~"gnos:tertiary_label",     StringValue(~"more details", ~"")),
-//	]);
-//	
-//	let rhs_relation = get_blank_name(store, ~"rhs");
-//	store.add(rhs_relation, ~[
-//		(~"gnos:src",                 	IriValue(copy rhs)),
-//		(~"gnos:dst",                 	IriValue(copy lhs)),
-//		(~"gnos:type",                 StringValue(~"unidirectional", ~"")),
-//		(~"gnos:style",                 StringValue(copy style, ~"")),
-//		(~"gnos:primary_label",    StringValue(copy label, ~"")),
-//		(~"gnos:secondary_label", StringValue(~"details", ~"")),
-//	]);
-//}
+priv fn add_relation(store: &Store, lhs: ~str, rhs: ~str, style: ~str, label1: ~str, label2: ~str)
+{
+	let relation = get_blank_name(store, ~"relation");
+	
+	let info1 = get_blank_name(store, ~"relation-label");
+	store.add(info1, ~[
+		(~"gnos:target",	BlankValue(copy relation)),
+		(~"gnos:label",	StringValue(copy label1, ~"")),
+		(~"gnos:level",	IntValue(1)),
+		(~"gnos:priority",	IntValue(1)),
+	]);
+	
+	let optional =
+		if label2.is_not_empty()
+		{
+			let info2 = get_blank_name(store, ~"relation-label");
+			store.add(info2, ~[
+				(~"gnos:target",	BlankValue(copy relation)),
+				(~"gnos:label",	StringValue(copy label2, ~"")),
+				(~"gnos:level",	IntValue(2)),
+				(~"gnos:priority",	IntValue(2)),
+			]);
+			~[(~"gnos:middle_info",	BlankValue(info2))]
+		}
+		else
+		{
+			~[]
+		};
+	
+	store.add(relation, ~[
+		(~"gnos:left",			IriValue(copy lhs)),
+		(~"gnos:right",			IriValue(copy rhs)),
+		(~"gnos:style",			StringValue(copy style, ~"")),
+		(~"gnos:middle_info",	BlankValue(info1)),
+	] + optional);
+}
