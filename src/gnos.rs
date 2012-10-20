@@ -103,7 +103,7 @@ priv fn static_view(options: &options::Options, config: &rwebserve::connection::
 	response
 }
 
-fn main(args: ~[~str])
+fn main()
 {
 	info!("starting up gnos");
 	if env!("GNOS_USER").is_empty()
@@ -112,10 +112,10 @@ fn main(args: ~[~str])
 		libc::exit(1)
 	}
 	
-	let mut options = options::parse_command_line(args);
+	let mut options = options::parse_command_line(os::args());
 	options::validate(&options);
 	
-	let state_chan = do task::spawn_listener |port, copy options| {model::manage_state(port, &options)};
+	let state_chan = do task::spawn_listener |port, copy options| {model::manage_state(port, options.server, options.port)};
 	let samples_chan = do task::spawn_listener |port| {samples::manage_samples(port)};
 	if !options.db
 	{
