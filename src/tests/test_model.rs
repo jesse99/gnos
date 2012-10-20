@@ -114,7 +114,7 @@ fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
 						{
 							let key = get_str(*entry, 0);
 							let value = get_str(*entry, 1);
-							store.replace_triple(~[], {subject: copy subject, predicate: ~"sname:" + key, object: StringValue(value, ~"")});
+							store.replace_triple(~[], {subject: copy subject, predicate: ~"gnos:" + key, object: StringValue(value, ~"")});
 						}
 						ref y =>
 						{
@@ -142,18 +142,16 @@ fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
 #[test]
 fn test_query()
 {
-	let state_chan = do task::spawn_listener |port| {model::manage_state(port, "10.0.0.1", 8080)};
+	let state_chan = do task::spawn_listener |port| {model::manage_state(port, "127.0.0.1", 8080)};
 	let sync_port = comm::Port();
 	let sync_chan = comm::Chan(&sync_port);
 	
 	let query = ~"
-PREFIX gnos: <http://www.gnos.org/2012/schema#>
-PREFIX sname: <http://snmp-name/>
 SELECT
 	?ttl
 WHERE
 {
-	?subject sname:ttl ?ttl
+	?subject gnos:ttl ?ttl
 }";
 	let query_port = comm::Port();
 	let query_chan = comm::Chan(&query_port);
@@ -191,32 +189,28 @@ WHERE
 #[test]
 fn test_registration()
 {
-	let state_chan = do task::spawn_listener |port| {model::manage_state(port, "10.0.0.1", 8080)};
+	let state_chan = do task::spawn_listener |port| {model::manage_state(port, "127.0.0.1", 8080)};
 	let sync_port = comm::Port();
 	let sync_chan = comm::Chan(&sync_port);
 	
 	// register queries
 	let ttl_query = ~"
-PREFIX gnos: <http://www.gnos.org/2012/schema#>
-PREFIX sname: <http://snmp-name/>
 SELECT
 	?ttl
 WHERE
 {
-	?subject sname:ttl ?ttl
+	?subject gnos:ttl ?ttl
 }";
 	let ttl_port = comm::Port();
 	let ttl_chan = comm::Chan(&ttl_port);
 	comm::send(state_chan, RegisterMsg(~"primary", ~"ttl-query", ~[ttl_query], ttl_chan));
 	
 	let fwd_query = ~"
-PREFIX gnos: <http://www.gnos.org/2012/schema#>
-PREFIX sname: <http://snmp-name/>
 SELECT
 	?fwd
 WHERE
 {
-	?subject sname:fwd ?fwd
+	?subject gnos:fwd ?fwd
 }";
 	let fwd_port = comm::Port();
 	let fwd_chan = comm::Chan(&fwd_port);
@@ -261,19 +255,17 @@ WHERE
 #[test]
 fn test_deregistration()
 {
-	let state_chan = do task::spawn_listener |port| {model::manage_state(port, "10.0.0.1", 8080)};
+	let state_chan = do task::spawn_listener |port| {model::manage_state(port, "127.0.0.1", 8080)};
 	let sync_port = comm::Port();
 	let sync_chan = comm::Chan(&sync_port);
 	
 	// register queries
 	let ttl_query = ~"
-PREFIX gnos: <http://www.gnos.org/2012/schema#>
-PREFIX sname: <http://snmp-name/>
 SELECT
 	?ttl
 WHERE
 {
-	?subject sname:ttl ?ttl
+	?subject gnos:ttl ?ttl
 }";
 	let ttl_port = comm::Port();
 	let ttl_chan = comm::Chan(&ttl_port);
@@ -339,7 +331,7 @@ fn test_alerts()
 		Namespace {prefix: ~"devices", path: ~"http://network/"},
 		Namespace {prefix: ~"gnos", path: ~"http://www.gnos.org/2012/schema#"},
 		Namespace {prefix: ~"snmp", path: ~"http://snmp/"},
-		Namespace {prefix: ~"sname", path: ~"http://snmp-name/"},
+		Namespace {prefix: ~"gnos", path: ~"http://www.gnos.org/2012/schema#"},
 	];
 	let store = Store(namespaces, &std::map::HashMap());
 	

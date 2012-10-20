@@ -23,7 +23,7 @@ pub type RegisterChan = comm::Chan<result::Result<~[Solution], ~str>>;
 /// server-sent events. Store should be "model" or "alerts".
 pub enum Msg
 {
-	QueryMsg(~str, ~str, comm::Chan<Solution>),		// store + SPARQL query + channel to send results back along
+	QueryMsg(~str, ~str, comm::Chan<Solution>),		// store + SPARQL query + channel to send results back along (store prefixes are auto-added to the query)
 	UpdateMsg(~str, UpdateFn, ~str),						// store + function to use to update the store + data to use
 	UpdatesMsg(~[~str], UpdatesFn, ~str),				// stores + function to use to update the stores + data to use
 	
