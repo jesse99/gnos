@@ -11,7 +11,7 @@ use Request = rwebserve::rwebserve::Request;
 use Response = rwebserve::rwebserve::Response;
 use ResponseHandler = rwebserve::rwebserve::ResponseHandler;
 
-priv fn copy_scripts(root: &Path, user: ~str, host: ~str) -> option::Option<~str>
+priv fn copy_scripts(root: &Path, user: &str, host: &str) -> option::Option<~str>
 {
 	let dir = core::os::make_absolute(root).pop();	// gnos/html => /gnos
 	let dir = dir.push(~"scripts");						// /gnos => /gnos/scripts
@@ -20,7 +20,7 @@ priv fn copy_scripts(root: &Path, user: ~str, host: ~str) -> option::Option<~str
 	utils::scp_files(files, user, host)
 }
 
-priv fn run_snmp(user: ~str, host: ~str, script: ~str) -> option::Option<~str>
+priv fn run_snmp(user: &str, host: &str, script: &str) -> option::Option<~str>
 {
 	utils::run_remote_command(user, host, ~"python snmp-modeler.py -vv " + script)
 }
@@ -85,13 +85,13 @@ priv fn update_globals(store: &Store, options: &options::Options) -> bool
 	store.add(~"gnos:globals", devices);
 	
 	let names = model::get_standard_store_names();
-	let stores = vec::zip(vec::from_elem(names.len(), ~"gnos:store"), do names.map |n| {StringValue(copy n, ~"")});
+	let stores = vec::zip(vec::from_elem(names.len(), ~"gnos:store"), do names.map |n| {StringValue(n.to_unique(), ~"")});
 	store.add(~"gnos:globals", stores);
 	
 	true
 }
 
-fn static_view(options: &options::Options, config: &rwebserve::connection::ConnConfig, request: &Request, response: &Response) -> Response
+priv fn static_view(options: &options::Options, config: &rwebserve::connection::ConnConfig, request: &Request, response: &Response) -> Response
 {
 	let response = rwebserve::configuration::static_view(config, request, response);
 	

@@ -1,6 +1,6 @@
 /// Functions and types used to manage a task responsible for managing sample data.
 use comm::{Chan, Port};
-use core::io::{WriterUtil};
+use core::io::{WriterUtil, ReaderUtil};
 use std::map::{HashMap};
 use RingBuffer = ring_buffer::RingBuffer;
 use runits::generated::*;
@@ -58,7 +58,7 @@ pub fn manage_samples(port: comm::Port<Msg>)
 			}
 			GetSampleSets(ref names, ch) =>
 			{
-				let buffers = do names.map |n| {copy *sample_sets[@copy n].second()};
+				let buffers = do names.map |n| {copy *sample_sets[@n.to_unique()].second()};
 				ch.send(buffers);
 			}
 			RegisterMsg(copy key, copy owner, channel) =>
@@ -75,7 +75,7 @@ pub fn manage_samples(port: comm::Port<Msg>)
 			{
 				for registered.each_value |value|
 				{
-					send_update(sample_sets, *value.first(), value.second());
+					send_update(sample_sets, value.first().to_unique(), value.second());
 				}
 			}
 			ExitMsg =>
@@ -112,7 +112,7 @@ pub fn create_charts(id: ~str, charts: &[Chart], samples_chan: Chan<Msg>)
 	
 	// Assemble a mondo R script,
 	let port = Port();
-	let chan = Chan(port);
+	let chan = Chan(&port);
 	for charts.each |chart|
 	{
 		assert chart.sample_sets.is_not_empty();
@@ -124,7 +124,7 @@ pub fn create_charts(id: ~str, charts: &[Chart], samples_chan: Chan<Msg>)
 	
 	// and execute it.
 	let action: JobFn =
-		|move script, copy id|
+		|move script, move id|
 		{
 			let path = path::from_str(fmt!("/tmp/gnos-%s.R", id));
 			match io::file_writer(&path, ~[io::Create, io::Truncate])
@@ -158,7 +158,7 @@ priv fn get_time_interval(interval: float, num_samples: uint) -> (float, ~str)
 // represent all of our sample values. Note that this assumes that the samples
 // were originaly in kbps. TODO: seems a bit error prone to make that
 // assumption.
-priv fn get_value_scaling(samples: ~[RingBuffer]) -> (float, ~str)
+priv fn get_value_scaling(samples: &[RingBuffer]) -> (float, ~str)
 {
 	let max_values = do samples.map |s| {iter::max(s)};
 	let max_value = max_values.max();
@@ -199,7 +199,7 @@ priv fn get_value_scaling(samples: ~[RingBuffer]) -> (float, ~str)
 // grid()
 // 
 // dev.off()
-priv fn append_r_script(chart: &Chart, samples: ~[RingBuffer], script: &mut ~str)
+priv fn append_r_script(chart: &Chart, samples: &[RingBuffer], script: &mut ~str)
 {
 	let num_lines = samples.len();
 	let num_samples = samples[0].len();
@@ -250,7 +250,7 @@ priv fn append_r_script(chart: &Chart, samples: ~[RingBuffer], script: &mut ~str
 	};
 	*script += "\n";
 	
-	let legends = do chart.legends.map |n| {fmt!("'%s'", n)};
+	let legends = do chart.legends.map |n| {fmt!("'%s'", *n)};
 	let colors = do vec::from_fn(num_lines) |i| {fmt!("colors[%?]", i + 1)};
 	*script += fmt!("legend('topleft', c(%s), fill = c(%s))\n", str::connect(legends, ", "), str::connect(colors, ", "));
 	*script += "grid()\n\n";
@@ -281,22 +281,22 @@ priv fn run_script(path: &Path) -> option::Option<~str>
 	}
 }
 
-priv fn send_update(sample_sets: HashMap<@~str, (@~str, @RingBuffer)>, owner: ~str, channel: Chan<~[Detail]>)
+priv fn send_update(sample_sets: HashMap<@~str, (@~str, @RingBuffer)>, owner: &str, channel: Chan<~[Detail]>)
 {
 	let mut details = ~[];
 	
 	for sample_sets.each |sample_name, value|
 	{
-		if *value.first() == owner
+		if str::eq_slice(*value.first(), owner)
 		{
-			vec::push(details, get_detail(*sample_name, value.second()));
+			vec::push(&mut details, get_detail(*sample_name, value.second()));
 		}
 	}
 	
 	channel.send(details);
 }
 
-priv fn get_detail(sample_name: ~str, buffer: &RingBuffer) -> Detail
+priv fn get_detail(sample_name: &str, buffer: &RingBuffer) -> Detail
 {
 	let mut min = float::infinity;
 	let mut mean = 0.0;
@@ -309,5 +309,5 @@ priv fn get_detail(sample_name: ~str, buffer: &RingBuffer) -> Detail
 		mean += *x;
 	}
 	mean /= buffer.len() as float;
-	Detail {sample_name: sample_name, min: min, mean: mean, max: max, units: ~"kbps"}	// TODO: use better units
+	Detail {sample_name: sample_name.to_unique(), min: min, mean: mean, max: max, units: ~"kbps"}	// TODO: use better units
 }

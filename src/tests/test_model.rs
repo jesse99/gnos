@@ -12,12 +12,12 @@ fn check_solutions(actual: &Solution, expected: &Solution) -> bool
 		|i, row|
 		{
 			let mut entries = ~[];
-			for row.each |e| {vec::push(entries, fmt!("%s = %s", e.first(), e.second().to_str()))};
+			for row.each |e| {vec::push(&mut entries, fmt!("%s = %s", e.first(), e.second().to_str()))};
 			io::stderr().write_line(fmt!("   %?: %s", i, str::connect(entries, ~", ")));
 		};
 	}
 	
-	fn print_failure(mesg: ~str, actual: &Solution, expected: &Solution)
+	fn print_failure(mesg: &str, actual: &Solution, expected: &Solution)
 	{
 		io::stderr().write_line(mesg);
 		io::stderr().write_line("Actual:");
@@ -45,10 +45,10 @@ fn check_solutions(actual: &Solution, expected: &Solution) -> bool
 	|i, row1|
 	{
 		let row2 = copy expected.rows[i];
-		if vec::len(row1) != vec::len(row2)
+		if vec::len(*row1) != vec::len(row2)
 		{
 			print_failure(#fmt["Row %? had size %? but expected %?.",
-				i, vec::len(row1), vec::len(row2)], actual, expected);
+				i, vec::len(*row1), vec::len(row2)], actual, expected);
 			return false;
 		}
 		
@@ -83,26 +83,26 @@ fn check_solutions(actual: &Solution, expected: &Solution) -> bool
 
 fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
 {
-	fn get_str(entry: @~[std::json::Json], index: uint) -> ~str
+	fn get_str(entry: &[std::json::Json], index: uint) -> ~str
 	{
 		match entry[index]
 		{
-			std::json::String(value) =>
+			std::json::String(ref value) =>
 			{
-				copy *value
+				value.to_unique()
 			}
-			x =>
+			ref x =>
 			{
 				fail fmt!("Expected ~[str] but found %?", x)
 			}
 		}
 	}
 	
-	fn do_update(store: &Store, data: ~str) -> bool
+	fn do_update(store: &Store, data: &str) -> bool
 	{
 		match std::json::from_str(data)
 		{
-			result::Ok(std::json::List(items)) =>
+			result::Ok(std::json::List(ref items)) =>
 			{
 				let subject = ~"http://blah";
 				for items.each
@@ -110,13 +110,13 @@ fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
 				{
 					match *item
 					{
-						std::json::List(entry) =>
+						std::json::List(ref entry) =>
 						{
-							let key = get_str(entry, 0);
-							let value = get_str(entry, 1);
+							let key = get_str(*entry, 0);
+							let value = get_str(*entry, 1);
 							store.replace_triple(~[], {subject: copy subject, predicate: ~"sname:" + key, object: StringValue(value, ~"")});
 						}
-						y =>
+						ref y =>
 						{
 							fail fmt!("Expected ~[key, value] but found %?", y);
 						}
@@ -124,11 +124,11 @@ fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
 				}
 				true
 			}
-			result::Ok(x) =>
+			result::Ok(ref x) =>
 			{
 				fail fmt!("Expected list but found %?", x)
 			}
-			x =>
+			ref x =>
 			{
 				fail fmt!("Expected list but found %?", x)
 			}
@@ -142,9 +142,9 @@ fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
 #[test]
 fn test_query()
 {
-	let state_chan = do task::spawn_listener |port| {model::manage_state(port)};
+	let state_chan = do task::spawn_listener |port| {model::manage_state(port, "10.0.0.1", 8080)};
 	let sync_port = comm::Port();
-	let sync_chan = comm::Chan(sync_port);
+	let sync_chan = comm::Chan(&sync_port);
 	
 	let query = ~"
 PREFIX gnos: <http://www.gnos.org/2012/schema#>
@@ -156,7 +156,7 @@ WHERE
 	?subject sname:ttl ?ttl
 }";
 	let query_port = comm::Port();
-	let query_chan = comm::Chan(query_port);
+	let query_chan = comm::Chan(&query_port);
 	comm::send(state_chan, QueryMsg(~"primary", copy query, query_chan));
 	
 	// store starts out empty
@@ -191,9 +191,9 @@ WHERE
 #[test]
 fn test_registration()
 {
-	let state_chan = do task::spawn_listener |port| {model::manage_state(port)};
+	let state_chan = do task::spawn_listener |port| {model::manage_state(port, "10.0.0.1", 8080)};
 	let sync_port = comm::Port();
-	let sync_chan = comm::Chan(sync_port);
+	let sync_chan = comm::Chan(&sync_port);
 	
 	// register queries
 	let ttl_query = ~"
@@ -206,7 +206,7 @@ WHERE
 	?subject sname:ttl ?ttl
 }";
 	let ttl_port = comm::Port();
-	let ttl_chan = comm::Chan(ttl_port);
+	let ttl_chan = comm::Chan(&ttl_port);
 	comm::send(state_chan, RegisterMsg(~"primary", ~"ttl-query", ~[ttl_query], ttl_chan));
 	
 	let fwd_query = ~"
@@ -219,7 +219,7 @@ WHERE
 	?subject sname:fwd ?fwd
 }";
 	let fwd_port = comm::Port();
-	let fwd_chan = comm::Chan(fwd_port);
+	let fwd_chan = comm::Chan(&fwd_port);
 	comm::send(state_chan, RegisterMsg(~"primary", ~"fwd-query", ~[fwd_query], fwd_chan));
 	
 	// get solutions on registration,
@@ -261,9 +261,9 @@ WHERE
 #[test]
 fn test_deregistration()
 {
-	let state_chan = do task::spawn_listener |port| {model::manage_state(port)};
+	let state_chan = do task::spawn_listener |port| {model::manage_state(port, "10.0.0.1", 8080)};
 	let sync_port = comm::Port();
-	let sync_chan = comm::Chan(sync_port);
+	let sync_chan = comm::Chan(&sync_port);
 	
 	// register queries
 	let ttl_query = ~"
@@ -276,7 +276,7 @@ WHERE
 	?subject sname:ttl ?ttl
 }";
 	let ttl_port = comm::Port();
-	let ttl_chan = comm::Chan(ttl_port);
+	let ttl_chan = comm::Chan(&ttl_port);
 	comm::send(state_chan, RegisterMsg(~"primary", ~"ttl-query", ~[ttl_query], ttl_chan));
 	
 	// get solutions on registration,
@@ -344,19 +344,19 @@ fn test_alerts()
 	let store = Store(namespaces, &std::map::HashMap());
 	
 	// open foo/bar => adds the alert
-	open_alert(&store, &Alert {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"fie", resolution: ~""});
+	open_alert(&store, &Alert {target: ~"gnos:foo", id: ~"bar", level: ~"0", mesg: ~"fie", resolution: ~""});
 	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
 	]});
 	
 	// open foo/bar => does nothing
-	open_alert(&store, &Alert {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"no-op fie", resolution: ~""});
+	open_alert(&store, &Alert {target: ~"gnos:foo", id: ~"bar", level: ~"0", mesg: ~"no-op fie", resolution: ~""});
 	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
 	]});
 	
 	// open foo/cat => adds alert
-	open_alert(&store, &Alert {device: ~"gnos:foo", id: ~"cat", level: ErrorLevel, mesg: ~"meow", resolution: ~""});
+	open_alert(&store, &Alert {target: ~"gnos:foo", id: ~"cat", level: ~"0", mesg: ~"meow", resolution: ~""});
 	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
 		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
@@ -384,7 +384,7 @@ fn test_alerts()
 	]});
 	
 	// open foo/bar => adds a new alert
-	open_alert(&store, &Alert {device: ~"gnos:foo", id: ~"bar", level: ErrorLevel, mesg: ~"fum", resolution: ~""});
+	open_alert(&store, &Alert {target: ~"gnos:foo", id: ~"bar", level: ~"0", mesg: ~"fum", resolution: ~""});
 	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
 		~[(~"mesg", StringValue(~"fum", ~"")), (~"closed", BoolValue(false))],
 		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],

@@ -6,22 +6,22 @@ use Namespace = rrdf::solution::Namespace;
 /// Function used to update a store within the model task.
 ///
 /// Data can be anything, but is typically json. Return true if the store was updated.
-type UpdateFn = fn~ (store: &Store, data: ~str) -> bool;
+pub type UpdateFn = fn~ (store: &Store, data: &str) -> bool;
 
 /// Like UpdateFn except that it takes multiple stores.
-type UpdatesFn = fn~ (store: ~[@Store], data: ~str) -> bool;
+pub type UpdatesFn = fn~ (store: &[@Store], data: &str) -> bool;
 
 /// The channel used by RegisterMsg to communicate the initial result and
 /// subsequent results back to the original task.
 ///
 /// In the case of an error only the initial result is sent.
-type RegisterChan = comm::Chan<result::Result<~[Solution], ~str>>;
+pub type RegisterChan = comm::Chan<result::Result<~[Solution], ~str>>;
 
 /// Enum used to communicate with the model task.
 ///
 /// Used to query a model, to update a model, and to (un)register
 /// server-sent events. Store should be "model" or "alerts".
-enum Msg
+pub enum Msg
 {
 	QueryMsg(~str, ~str, comm::Chan<Solution>),		// store + SPARQL query + channel to send results back along
 	UpdateMsg(~str, UpdateFn, ~str),						// store + function to use to update the store + data to use
@@ -45,7 +45,7 @@ enum Msg
 /// When an alert is added to the store a gnos:begin dateTime is
 /// included. When the alert becomes inactive (i.e. the condition no longer
 /// holds) a gnos:end timestamp is added.
-struct Alert
+pub struct Alert
 {
 	pub target: ~str,
 	pub id: ~str,
@@ -54,9 +54,9 @@ struct Alert
 	pub level: ~str,
 }
 
-type Registration = {queries: ~[~str], channel: RegisterChan, solutions: @mut ~[Solution]};
+pub type Registration = {queries: ~[~str], channel: RegisterChan, solutions: @mut ~[Solution]};
 
-pure fn get_standard_store_names() -> ~[~str]
+pub pure fn get_standard_store_names() -> ~[~str]
 {
 	return ~[~"globals", ~"primary"];
 }
@@ -64,11 +64,11 @@ pure fn get_standard_store_names() -> ~[~str]
 /// Runs within a task and manages triple stores holding gnos state.
 ///
 /// Other tasks (e.g. views) can query or update the state this function manages.
-fn manage_state(port: comm::Port<Msg>, options: &options::Options)
+pub fn manage_state(port: comm::Port<Msg>, server: &str,  server_port: u16)
 {
 	let namespaces = ~[
 		Namespace {prefix: ~"gnos", path: ~"http://www.gnos.org/2012/schema#"},
-		Namespace {prefix: ~"map", path: fmt!("http://%s:%?/map/", options.server, options.port)},
+		Namespace {prefix: ~"map", path: fmt!("http://%s:%?/map/", server, server_port)},
 	];
 	
 	let stores = HashMap();
@@ -82,8 +82,8 @@ fn manage_state(port: comm::Port<Msg>, options: &options::Options)
 		// (rrdf prefixed names support paths which gets a bit confusing)
 		let namespaces = 
 			~[
-				Namespace {prefix: ~"entities", path: fmt!("http://%s:%?/map/%s/entities/", options.server, options.port, *name)},
-				Namespace {prefix: ~"store", path: fmt!("http://%s:%?/map/%s/", options.server, options.port, *name)},
+				Namespace {prefix: ~"entities", path: fmt!("http://%s:%?/map/%s/entities/", server, server_port, *name)},
+				Namespace {prefix: ~"store", path: fmt!("http://%s:%?/map/%s/", server, server_port, *name)},
 			] + namespaces;
 		
 		stores.insert(copy *name,  @Store(namespaces, &HashMap()));
@@ -114,7 +114,7 @@ fn manage_state(port: comm::Port<Msg>, options: &options::Options)
 				// 1) It allows multiple stores to be updated atomically.
 				// 2) At the moment json is not sendable so we can use this message to avoid re-parsing
 				// the (potentially very large) json strings modelers send us.
-				let ss = do names.map |name| {stores.get(copy name)};
+				let ss = do names.map |name| {stores.get(name.to_unique())};
 				if (*f)(ss, *data)
 				{
 					info!("Updated %s stores", str::connect(names, ~", "));
@@ -159,11 +159,11 @@ fn manage_state(port: comm::Port<Msg>, options: &options::Options)
 }
 
 /// Helper used to query model state.
-fn get_state(name: ~str, channel: comm::Chan<Msg>, query: ~str) -> Solution
+pub fn get_state(name: &str, channel: comm::Chan<Msg>, query: &str) -> Solution
 {
 	let port = comm::Port::<Solution>();
-	let chan = comm::Chan::<Solution>(port);
-	comm::send(channel, QueryMsg(copy name, copy query, chan));
+	let chan = comm::Chan::<Solution>(&port);
+	comm::send(channel, QueryMsg(name.to_unique(), query.to_unique(), chan));
 	let result = comm::recv(port);
 	return result;
 }
@@ -185,7 +185,7 @@ priv fn get_prefixes(store: &Store) -> ~str
 }
 
 /// Helper used to add a new alert to a store (if there is not already one open).
-fn open_alert(store: &Store, alert: &Alert) -> bool
+pub fn open_alert(store: &Store, alert: &Alert) -> bool
 {
 	let expr = #fmt["
 	%s
@@ -239,7 +239,7 @@ fn open_alert(store: &Store, alert: &Alert) -> bool
 }
 
 /// Helper used to close any open alerts from the store.
-fn close_alert(store: &Store, target: ~str, id: ~str) -> bool
+pub fn close_alert(store: &Store, target: &str, id: &str) -> bool
 {
 	let expr = #fmt["
 	%s
@@ -291,7 +291,7 @@ fn close_alert(store: &Store, target: ~str, id: ~str) -> bool
 	}
 }
 
-fn eval_query(store: &Store, expr: ~str) -> result::Result<Solution, ~str>
+pub fn eval_query(store: &Store, expr: &str) -> result::Result<Solution, ~str>
 {
 	match compile(expr)
 	{
@@ -317,13 +317,13 @@ fn eval_query(store: &Store, expr: ~str) -> result::Result<Solution, ~str>
 }
 
 // ---- Internal functions ----------------------------------------------------
-priv fn update_registered(stores: HashMap<~str, @Store>, name: ~str, queries: HashMap<~str, Selector>, registered: HashMap<~str, HashMap<~str, Registration>>)
+priv fn update_registered(stores: HashMap<~str, @Store>, name: &str, queries: HashMap<~str, Selector>, registered: HashMap<~str, HashMap<~str, Registration>>)
 {
-	let store = stores.find(copy name);
+	let store = stores.find(name.to_unique());
 	if store.is_some()
 	{
-		let map = registered.find(copy name);
-		if option::is_some(map)
+		let map = registered.find(name.to_unique());
+		if option::is_some(&map)
 		{
 			for map.get().each_value
 			|r|
@@ -364,9 +364,9 @@ priv fn update_err_count(store: &Store, delta: i64)
 
 // In general the same queries will be used over and over again so it will be
 // much more efficient to cache the selectors.
-priv fn get_selector(queries: HashMap<~str, Selector>, query: ~str) -> result::Result<Selector, ~str>
+priv fn get_selector(queries: HashMap<~str, Selector>, query: &str) -> result::Result<Selector, ~str>
 {
-	match queries.find(copy query)
+	match queries.find(query.to_unique())
 	{
 		option::Some(s) =>
 		{
@@ -378,7 +378,7 @@ priv fn get_selector(queries: HashMap<~str, Selector>, query: ~str) -> result::R
 			{
 				result::Ok(s) =>
 				{
-					queries.insert(copy query, s);
+					queries.insert(query.to_unique(), s);
 					result::Ok(s)
 				}
 				result::Err(copy err) =>
@@ -391,7 +391,7 @@ priv fn get_selector(queries: HashMap<~str, Selector>, query: ~str) -> result::R
 	}
 }
 
-priv fn eval_queries(store: &Store, queries: HashMap<~str, Selector>, exprs: ~[~str]) -> result::Result<~[Solution], ~str>
+priv fn eval_queries(store: &Store, queries: HashMap<~str, Selector>, exprs: &[~str]) -> result::Result<~[Solution], ~str>
 {
 	do result::map_vec(exprs)
 	|expr|

@@ -4,7 +4,7 @@
 /// * NotifyOnFailure - call a function with the error.
 /// * NotifyOnExit - call a function with the error or option::none.
 /// * ShutdownOnFailure - call cleanup actions and then call exit.
-enum FailurePolicy
+pub enum FailurePolicy
 {
 	IgnoreFailures,
 	NotifyOnFailure(fn~ (~str)),
@@ -13,21 +13,21 @@ enum FailurePolicy
 }
 
 /// A pointer to a function to call when the server shuts down.
-type ExitFn = fn~ () -> ();
+pub type ExitFn = fn~ () -> ();
 
 /// A pointer to a function to execute within a task.
 ///
 /// Returns a message on errors.
-type JobFn = fn~ () -> option::Option<~str>;
+pub type JobFn = fn~ () -> option::Option<~str>;
 
-struct Job
+pub struct Job
 {
 	pub action: JobFn,
 	pub policy: FailurePolicy,
 }
 
 /// Run the job within a task.
-fn run(+job: Job, +cleanup: ~[ExitFn])
+pub fn run(job: Job, cleanup: ~[ExitFn])
 {
 	// These guys can block for arbitrary amounts of time so they need their own thread.
 	do task::spawn_sched(task::SingleThreaded)
@@ -37,7 +37,7 @@ fn run(+job: Job, +cleanup: ~[ExitFn])
 }
 
 /// Run the jobs within a task: one after another.
-fn sequence(+jobs: ~[Job], +cleanup: ~[ExitFn])
+pub fn sequence(jobs: ~[Job], cleanup: ~[ExitFn])
 {
 	do task::spawn_sched(task::SingleThreaded)
 	{
@@ -49,7 +49,7 @@ fn sequence(+jobs: ~[Job], +cleanup: ~[ExitFn])
 	}
 }
 
-priv fn do_run(job: &Job, cleanup: ~[ExitFn])
+priv fn do_run(job: &Job, cleanup: &[ExitFn])
 {
 	match job.policy
 	{

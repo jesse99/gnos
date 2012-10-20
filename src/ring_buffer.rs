@@ -1,5 +1,5 @@
 /// Fixed size buffer: when it is at capacity pushs drop the oldest element.
-struct RingBuffer
+pub struct RingBuffer
 {
 	priv mut buffer: ~[float],
 	priv capacity: uint,			// number of elements the buffer is able to hold (can't guarantee that vec capacity is exactly what we set it to)
@@ -7,14 +7,14 @@ struct RingBuffer
 	priv mut next: uint,			// index at which new elements land
 }
 
-fn RingBuffer(capacity: uint) -> RingBuffer
+pub fn RingBuffer(capacity: uint) -> RingBuffer
 {
 	let ring = RingBuffer {buffer: ~[], capacity: capacity, size: 0, next: 0};
-	vec::reserve(ring.buffer, capacity);
+	vec::reserve(&mut ring.buffer, capacity);
 	ring
 }
 
-impl RingBuffer
+pub impl RingBuffer
 {
 	pure fn len() -> uint
 	{
@@ -38,7 +38,7 @@ impl RingBuffer
 	
 	fn clear()
 	{
-		vec::truncate(self.buffer, 0);
+		vec::truncate(&mut self.buffer, 0);
 		self.size = 0;
 		self.next = 0;
 	}
@@ -49,7 +49,7 @@ impl RingBuffer
 		
 		if self.size < self.capacity
 		{
-			vec::push(self.buffer, element);
+			vec::push(&mut self.buffer, element);
 			self.size += 1;
 		}
 		else
@@ -60,9 +60,9 @@ impl RingBuffer
 	}
 }
 
-impl RingBuffer : ops::Index<uint, float>
+pub impl RingBuffer : ops::Index<uint, float>
 {
-	pure fn index(&&index: uint) -> float
+	pure fn index(index: uint) -> float
 	{
 		assert index < self.size;
 		
@@ -77,7 +77,7 @@ impl RingBuffer : ops::Index<uint, float>
 	}
 }
 
-impl RingBuffer : BaseIter<float>
+pub impl RingBuffer : BaseIter<float>
 {
 	pure fn each(blk: fn(v: &float) -> bool)
 	{
@@ -98,9 +98,9 @@ impl RingBuffer : BaseIter<float>
 	}
 }
 
-impl RingBuffer : ToStr
+pub impl RingBuffer : ToStr
 {
-	fn to_str() -> ~str
+	pure fn to_str() -> ~str
 	{
 		fmt!("size: %?, next: %?, capacity: %?, buffer: %?", self.size, self.next, self.capacity, self.buffer)
 	}

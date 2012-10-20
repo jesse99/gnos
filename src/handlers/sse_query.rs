@@ -26,7 +26,7 @@ use ResponseHandler = rwebserve::rwebserve::ResponseHandler;
 /// of JSON encoded solutions.
 ///
 /// If a query fails to compile the result will be a string with an error message.
-fn sse_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: server::PushChan) -> server::ControlChan
+pub fn sse_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: server::PushChan) -> server::ControlChan
 {
 	let name = copy *request.params.get(@~"name");
 	let queries = get_queries(request);
@@ -36,9 +36,9 @@ fn sse_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: serve
 	{
 		info!("starting %s query stream", name);
 		let notify_port = comm::Port();
-		let notify_chan = comm::Chan(notify_port);
+		let notify_chan = comm::Chan(&notify_port);
 		
-		let key = fmt!("query %?", ptr::addr_of(notify_port));
+		let key = fmt!("query %?", ptr::addr_of(&notify_port));
 		comm::send(state_chan, RegisterMsg(copy name, copy key, copy queries, notify_chan));
 		
 		let mut solutions = ~[];
@@ -79,7 +79,7 @@ fn sse_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: serve
 priv fn get_queries(request: &server::Request) -> ~[~str]
 {
 	let mut queries = ~[];
-	vec::push(queries, copy *request.params.get(@~"expr"));
+	vec::push(&mut queries, copy *request.params.get(@~"expr"));
 	
 	for uint::iterate(2, 10)
 	|i|
@@ -88,7 +88,7 @@ priv fn get_queries(request: &server::Request) -> ~[~str]
 		{
 			option::Some(expr) =>
 			{
-				vec::push(queries, copy *expr);
+				vec::push(&mut queries, copy *expr);
 			}
 			option::None =>
 			{
@@ -107,11 +107,11 @@ priv fn solutions_to_json(solutions: &[Solution]) -> std::json::Json
 	}
 	else
 	{
-		std::json::List(@
+		std::json::List(
 			do vec::map(solutions)
 			|solution|
 			{
-				solution_to_json(&solution)
+				solution_to_json(solution)
 			}
 		)
 	}
@@ -120,28 +120,27 @@ priv fn solutions_to_json(solutions: &[Solution]) -> std::json::Json
 priv fn solution_to_json(solution: &Solution) -> std::json::Json
 {
 	//info!(" ");
-	std::json::List(@
+	std::json::List(
 		do vec::map(solution.rows)
 		|row|
 		{
 			//info!("row: %?", row);
-			solution_row_to_json(&row)
+			solution_row_to_json(row)
 		}
 	)
 }
 
 priv fn solution_row_to_json(row: &SolutionRow) -> std::json::Json
 {
-	std::json::Dict(
-		std::map::hash_from_vec(
-			do vec::map(*row)
-			|entry|
-			{
-				let (key, value) = copy entry;
-				(key, object_to_json(value))
-			}
-		)
-	)
+	let mut obj = ~send_map::linear::linear_map_with_capacity(row.size());
+	
+	for vec::each(*row) |entry|
+	{
+		let value = object_to_json(entry.second());
+		obj.insert(entry.first(), value);
+	}
+	
+	std::json::Object(obj)
 }
 
 // TODO: need to escape as html?

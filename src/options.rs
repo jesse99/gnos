@@ -3,7 +3,7 @@ use io::WriterUtil;
 use Path = path::Path;
 use std::getopts::*;
 
-struct Device
+pub struct Device
 {
 	pub name: ~str,
 	pub managed_ip: ~str,
@@ -14,7 +14,7 @@ struct Device
 }
 
 /// Various options derived from the command line and the network.json file.
-struct Options
+pub struct Options
 {
 	// these are from the command line
 	pub root: Path,		// points to the html directory
@@ -38,16 +38,16 @@ struct Options
 // str constants aren't supported yet.
 // TODO: get this (somehow) from the link attribute in the rc file (going the other way
 // doesn't work because vers in the link attribute has to be a literal)
-pure fn get_version() -> ~str
+pub pure fn get_version() -> ~str
 {
 	~"0.1"
 }
 
-fn parse_command_line(args: ~[~str]) -> Options
+pub fn parse_command_line(args: ~[~str]) -> Options
 {
 	// It's good practice to do this before invoking getopts because getopts
 	// will fail if a required option is missing.
-	if args.contains(~"-h") || args.contains(~"--help")
+	if args.contains(&~"-h") || args.contains(&~"--help")
 	{
 		print_usage();
 		libc::exit(0);
@@ -101,7 +101,7 @@ fn parse_command_line(args: ~[~str]) -> Options
 	}
 }
 
-fn validate(options: &Options)
+pub fn validate(options: &Options)
 {
 	if !os::path_is_dir(&options.root)
 	{
@@ -131,18 +131,18 @@ priv fn load_network_file(path: &Path) -> {network: ~str, client: ~str, server: 
 		{
 			match std::json::from_reader(reader)
 			{
-				result::Ok(std::json::Dict(data)) =>
+				result::Ok(std::json::Object(ref data)) =>
 				{
 					{
-						network: get_network_str(path, data, ~"network"),
-						client: get_network_str(path, data, ~"client"),
-						server: get_network_str(path, data, ~"server"),
-						port: get_network_u16(path, data, ~"port"),
-						poll_rate: get_network_u16(path, data, ~"poll-rate"),
-						devices: get_network_devices(path, data, ~"devices"),
+						network: get_network_str(path, *data, &~"network"),
+						client: get_network_str(path, *data, &~"client"),
+						server: get_network_str(path, *data, &~"server"),
+						port: get_network_u16(path, *data, &~"port"),
+						poll_rate: get_network_u16(path, *data, &~"poll-rate"),
+						devices: get_network_devices(path, *data, &~"devices"),
 					}
 				}
-				result::Ok(x) =>
+				result::Ok(ref x) =>
 				{
 					io::stderr().write_line(fmt!("Error parsing '%s': expected json::dict but found %?.", path.to_str(), x));
 					libc::exit(1)
@@ -162,49 +162,49 @@ priv fn load_network_file(path: &Path) -> {network: ~str, client: ~str, server: 
 	}
 }
 
-priv fn get_network_devices(path: &Path, data: std::map::HashMap<~str, std::json::Json>, key: ~str) -> ~[Device]
+priv fn get_network_devices(path: &Path, data: &send_map::linear::LinearMap<~str, std::json::Json>, key: &~str) -> ~[Device]
 {
-	match data.find(copy key)
+	match data.find(key)
 	{
-		option::Some(std::json::Dict(value)) =>
+		option::Some(std::json::Object(ref value)) =>
 		{
 			let mut devices = ~[];
 			for value.each
 			|key, value|
 			{
-				vec::push(devices, get_network_device(path, key, value));
+				vec::push(&mut devices, get_network_device(path, *key, value));
 			}
 			devices
 		}
-		option::Some(x) =>
+		option::Some(ref x) =>
 		{
-			io::stderr().write_line(fmt!("In '%s' %s was expected to be a json::dict but was %?.", path.to_str(), key, x));
+			io::stderr().write_line(fmt!("In '%s' %s was expected to be a json::dict but was %?.", path.to_str(), *key, x));
 			libc::exit(1)
 		}
 		option::None =>
 		{
-			io::stderr().write_line(fmt!("Expected to find %s in '%s'.", key, path.to_str()));
+			io::stderr().write_line(fmt!("Expected to find %s in '%s'.", *key, path.to_str()));
 			libc::exit(1)
 		}
 	}
 }
 
-priv fn get_network_device(path: &Path, name: ~str, value: std::json::Json) -> Device
+priv fn get_network_device(path: &Path, name: &str, value: &std::json::Json) -> Device
 {
-	match value
+	match *value
 	{
-		std::json::Dict(value) =>
+		std::json::Object(ref value) =>
 		{
 			Device {
-				name: name,
-				managed_ip: get_network_str(path, value, ~"ip"),
-				community: get_network_str(path, value, ~"community"),
-				center_x: get_network_float(path, value, ~"center_x"),
-				center_y: get_network_float(path, value, ~"center_y"),
-				style: get_network_str(path, value, ~"type"),
+				name: name.to_unique(),
+				managed_ip: get_network_str(path, *value, &~"ip"),
+				community: get_network_str(path, *value, &~"community"),
+				center_x: get_network_float(path, *value, &~"center_x"),
+				center_y: get_network_float(path, *value, &~"center_y"),
+				style: get_network_str(path, *value, &~"type"),
 			}
 		}
-		x =>
+		ref x =>
 		{
 			io::stderr().write_line(fmt!("In '%s' %s was expected to be a json::dict but was %?.", path.to_str(), name, x));
 			libc::exit(1)
@@ -212,74 +212,74 @@ priv fn get_network_device(path: &Path, name: ~str, value: std::json::Json) -> D
 	}
 }
 
-priv fn get_network_str(path: &Path, data: std::map::HashMap<~str, std::json::Json>, key: ~str) -> ~str
+priv fn get_network_str(path: &Path, data: &send_map::linear::LinearMap<~str, std::json::Json>, key: &~str) -> ~str
 {
-	match data.find(copy key)
+	match data.find(key)
 	{
-		option::Some(std::json::String(value)) =>
+		option::Some(std::json::String(ref value)) =>
 		{
-			copy *value
+			value.to_unique()
 		}
-		option::Some(x) =>
+		option::Some(ref x) =>
 		{
-			io::stderr().write_line(fmt!("In '%s' %s was expected to be a json::string but was %?.", path.to_str(), key, x));
+			io::stderr().write_line(fmt!("In '%s' %s was expected to be a json::string but was %?.", path.to_str(), *key, x));
 			libc::exit(1)
 		}
 		option::None =>
 		{
-			io::stderr().write_line(fmt!("Expected to find %s in '%s'.", key, path.to_str()));
+			io::stderr().write_line(fmt!("Expected to find %s in '%s'.", *key, path.to_str()));
 			libc::exit(1)
 		}
 	}
 }
 
-priv fn get_network_u16(path: &Path, data: std::map::HashMap<~str, std::json::Json>, key: ~str) -> u16
+priv fn get_network_u16(path: &Path, data: &send_map::linear::LinearMap<~str, std::json::Json>, key: &~str) -> u16
 {
-	match data.find(copy key)
+	match data.find(key)
 	{
-		option::Some(std::json::Num(value)) =>
+		option::Some(std::json::Number(value)) =>
 		{
 			if value > u16::max_value as float
 			{
-				io::stderr().write_line(fmt!("In '%s' %s was too large for a u16.", path.to_str(), key));
+				io::stderr().write_line(fmt!("In '%s' %s was too large for a u16.", path.to_str(), *key));
 				libc::exit(1);
 			}
 			if value < 0.0
 			{
-				io::stderr().write_line(fmt!("In '%s' %s was negative.", path.to_str(), key));
+				io::stderr().write_line(fmt!("In '%s' %s was negative.", path.to_str(), *key));
 				libc::exit(1);
 			}
 			value as u16
 		}
-		option::Some(x) =>
+		option::Some(ref x) =>
 		{
-			io::stderr().write_line(fmt!("In '%s' %s was expected to be a json::num but was %?.", path.to_str(), key, x));
+			io::stderr().write_line(fmt!("In '%s' %s was expected to be a json::num but was %?.", path.to_str(), *key, x));
 			libc::exit(1)
 		}
 		option::None =>
 		{
-			io::stderr().write_line(fmt!("Expected to find %s in '%s'.", key, path.to_str()));
+			io::stderr().write_line(fmt!("Expected to find %s in '%s'.", *key, path.to_str()));
 			libc::exit(1)
 		}
 	}
 }
 
-priv fn get_network_float(path: &Path, data: std::map::HashMap<~str, std::json::Json>, key: ~str) -> float
+priv fn get_network_float(path: &Path, data: &send_map::linear::LinearMap<~str, std::json::Json>, key: &~str) -> float
 {
-	match data.find(copy key)
+	match data.find(key)
 	{
-		option::Some(std::json::Num(value)) =>
+		option::Some(std::json::Number(value)) =>
 		{
 			value
 		}
-		option::Some(x) =>
+		option::Some(ref x) =>
 		{
-			io::stderr().write_line(fmt!("In '%s' %s was expected to be a json::num but was %?.", path.to_str(), key, x));
+			io::stderr().write_line(fmt!("In '%s' %s was expected to be a json::num but was %?.", path.to_str(), *key, x));
 			libc::exit(1)
 		}
 		option::None =>
 		{
-			io::stderr().write_line(fmt!("Expected to find %s in '%s'.", key, path.to_str()));
+			io::stderr().write_line(fmt!("Expected to find %s in '%s'.", *key, path.to_str()));
 			libc::exit(1)
 		}
 	}

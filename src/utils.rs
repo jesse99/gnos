@@ -3,7 +3,7 @@ use Path = path::Path;
 use std::getopts::*;
 use std::time::*;
 
-fn title_case(s: ~str) -> ~str
+pub fn title_case(s: &str) -> ~str
 {
 	if s.is_not_empty() && char::is_lowercase(s[0] as char)
 	{
@@ -11,12 +11,12 @@ fn title_case(s: ~str) -> ~str
 	}
 	else
 	{
-		copy s
+		s.to_unique()
 	}
 }
 
 /// Returns an error if the files cannot be copied.
-fn scp_files(files: ~[~Path], user: ~str, host: ~str) -> option::Option<~str>
+pub fn scp_files(files: &[~Path], user: &str, host: &str) -> option::Option<~str>
 {
 	if vec::is_empty(files)
 	{
@@ -32,9 +32,9 @@ fn scp_files(files: ~[~Path], user: ~str, host: ~str) -> option::Option<~str>
 /// Uses ssh to run a command remotely.
 ///
 /// Returns an error if the command returned a non-zero result code
-fn run_remote_command(user: ~str, host: ~str, command: ~str) -> option::Option<~str>
+pub fn run_remote_command(user: &str, host: &str, command: &str) -> option::Option<~str>
 {
-	let args = ~[fmt!("%s@%s", user, host)] + ~[copy command];
+	let args = ~[fmt!("%s@%s", user, host)] + ~[command.to_unique()];
 	
 	info!("ssh %s \"%s\"", args.head(), str::connect(args.tail(), ~" "));
 	run_command(~"ssh", args)
@@ -43,7 +43,7 @@ fn run_remote_command(user: ~str, host: ~str, command: ~str) -> option::Option<~
 /// Returns paths to files in dir with an extension in extensions.
 ///
 /// Returned paths include the dir component.
-fn list_dir_path(dir: &Path, extensions: ~[~str]) -> ~[~Path]
+pub fn list_dir_path(dir: &Path, extensions: &[~str]) -> ~[~Path]
 {
 	let files = core::os::list_dir_path(dir);
 	do files.filter
@@ -53,7 +53,7 @@ fn list_dir_path(dir: &Path, extensions: ~[~str]) -> ~[~Path]
 		assert ftype.is_none() || ftype.get().starts_with(".");
 		match ftype
 		{
-			option::Some(ref ext) 	=> extensions.contains(*ext),
+			option::Some(ref ext) 	=> extensions.contains(ext),
 			option::None		=> false,
 		}
 	}
@@ -61,7 +61,7 @@ fn list_dir_path(dir: &Path, extensions: ~[~str]) -> ~[~Path]
 
 // Like time::precise_time_s except that a lower resolution (and presumbably much faster)
 // timer is used.
-fn imprecise_time_s() -> float
+pub fn imprecise_time_s() -> float
 {
 	let time = std::time::get_time();
 	let secs = time.sec as float;
@@ -72,7 +72,7 @@ fn imprecise_time_s() -> float
 // Takes a tm and returns the number of seconds from the current
 // time and strings like "2 minutes ago", "Yesterday 18:06", and
 // "Thu Jan  1 00:00:00 1970".
-fn tm_to_delta_str(time: Tm) -> {elapsed: float, delta: ~str}
+pub fn tm_to_delta_str(time: Tm) -> {elapsed: float, delta: ~str}
 {
 	fn tm_to_secs(time: Tm) -> float
 	{
@@ -134,7 +134,7 @@ fn tm_to_delta_str(time: Tm) -> {elapsed: float, delta: ~str}
 }
 
 // --------------------------------------------------------------------------------------
-priv fn run_command(tool: ~str, args: ~[~str]) -> option::Option<~str>
+priv fn run_command(tool: &str, args: &[~str]) -> option::Option<~str>
 {
 	match core::run::program_output(tool, args)
 	{

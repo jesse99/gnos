@@ -6,7 +6,7 @@ use rrdf::rrdf::*;
 
 // TODO: In the future this should be replaced with a turtle file
 // and --db should take a path to it (and maybe others).
-fn setup(state_chan: comm::Chan<model::Msg>, poll_rate: u16) 
+pub fn setup(state_chan: comm::Chan<model::Msg>, poll_rate: u16) 
 {
 	comm::send(state_chan, model::UpdateMsg(~"primary", |store, _data| {add_got(store, state_chan, poll_rate); true}, ~""));
 	add_alerts(state_chan);
@@ -256,7 +256,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 	]);
 	
 	// update_got calls libc sleep so it needs its own thread
-	do task::spawn_sched(task::SingleThreaded) {update_got(state_chan, winterfell_loyalty_subject, winterfell_loyalty_value, kings_landing_loyalty_subject, kings_landing_loyalty_value, poll_rate);}
+	do task::spawn_sched(task::SingleThreaded) |copy winterfell_loyalty_subject, copy kings_landing_loyalty_subject| {update_got(state_chan, copy winterfell_loyalty_subject, winterfell_loyalty_value, copy kings_landing_loyalty_subject, kings_landing_loyalty_value, poll_rate);}
 }
 
 priv fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool

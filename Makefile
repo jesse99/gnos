@@ -25,12 +25,12 @@ check: bin/test-gnos
 	export RUST_LOG=gnos=1,rwebserve=1,socket=1,rrdf=0 && ./bin/test-gnos
 
 check1: bin/test-gnos
-	export RUST_LOG=gnos=2,rwebserve=1,socket=1,rrdf=0 && ./bin/test-gnos test_alerts
+	export RUST_LOG=gnos=2,rwebserve=1,socket=1,rrdf=0 && ./bin/test-gnos test_query
 
 # You can either use this target (assuming that the libraries are in /usr/local/lib/rust)
 # or install them via cargo.
 update-libraries:
-	cp /usr/local/lib/rust/libmustache-*-0.1.dylib bin
+	cp /usr/local/lib/rust/libmustache-*-0.3pre.dylib bin
 	cp /usr/local/lib/rust/libsocket-*-0.1.dylib bin
 	cp /usr/local/lib/rust/librparse-*-0.6.dylib bin
 	cp /usr/local/lib/rust/librrdf-*-0.2.dylib bin
