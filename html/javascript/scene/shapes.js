@@ -30,8 +30,6 @@ function LineShape(context, line, styles, from_arrow, to_arrow)
 {
 	this.geometry = line;
 	this.styles = ['line-color:black'].concat(styles).filter(function (s) {return s.indexOf('line-') === 0;});
-	this.from_arrow = from_arrow;
-	this.to_arrow = to_arrow;
 	this.width = Math.abs(this.geometry.from.x - this.geometry.to.x);
 	this.height = Math.abs(this.geometry.from.y - this.geometry.to.y);
 	
@@ -39,6 +37,22 @@ function LineShape(context, line, styles, from_arrow, to_arrow)
 	apply_styles(context, this.styles);
 	this.stroke_width = context.lineWidth;
 	context.restore();
+	
+	if (styles.indexOf("line-type:directed") >= 0)
+	{
+		this.from_arrow = {stem_height: 0, base_width: 0};
+		this.to_arrow = {stem_height: 15 + this.stroke_width, base_width: 12 + this.stroke_width};
+	}
+	else if (styles.indexOf("line-type:bidirectional") >= 0)
+	{
+		this.from_arrow = {stem_height: 15 + this.stroke_width, base_width: 12 + this.stroke_width};
+		this.to_arrow = {stem_height: 15 + this.stroke_width, base_width: 12 + this.stroke_width};
+	}
+	else
+	{
+		this.from_arrow = {stem_height: 0, base_width: 0};
+		this.to_arrow = {stem_height: 0, base_width: 0};
+	}
 	
 	freezeProps(this);
 }
@@ -298,6 +312,33 @@ RectShape.prototype.hit_test = function (pt)
 		}
 	}
 	return false;
+};
+
+// Does an intersection of the perimeter of the shape with a line from center to other (center).
+RectShape.prototype.intersect_line = function (other)
+{
+	var g = this.geometry;
+	var line1 = new Line(new Point(g.left + g.width/2, g.top + g.height/2), other);
+	
+	// try left side
+	var result = new Line(new Point(g.left, g.top), new Point(g.left, g.top + g.height)).intersection(line1);
+	if (result)
+		return result;
+		
+	// try right side
+	result = new Line(new Point(g.left + g.width, g.top), new Point(g.left + g.width, g.top + g.height)).intersection(line1);
+	if (result)
+		return result;
+		
+	// try top side
+	result = new Line(new Point(g.left, g.top), new Point(g.left + g.width, g.top)).intersection(line1);
+	if (result)
+		return result;
+		
+	// try bottom side
+	result = new Line(new Point(g.left, g.top + g.height), new Point(g.left + g.width, g.top + g.height)).intersection(line1);
+	assert(result, "{0} and {1} did not intersect".format(this, other));
+	return result;
 };
 
 RectShape.prototype.toString = function ()

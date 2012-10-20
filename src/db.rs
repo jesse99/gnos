@@ -82,8 +82,8 @@ priv fn add_got(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: u1
 	add_infos(store, state_chan, poll_rate);
 	
 	// relations
-	add_relation(store, ~"entities:wall", ~"entities:winterfell", ~"line-type:directed", ~"road", ~"");
-	add_relation(store, ~"entities:kings_landing", ~"entities:winterfell", ~"line-width:3 line-color:purple", ~"king's road", ~"straight and true");
+	add_relation(store, ~"entities:wall", ~"entities:winterfell", ~"line-type:bidirectional", ~"road", ~"");
+	add_relation(store, ~"entities:kings_landing", ~"entities:winterfell", ~"line-width:3 line-color:purple line-type:directed", ~"king's road", ~"straight and true");
 	
 	// details
 //	let map_summary = get_blank_name(store, ~"summary");
@@ -316,7 +316,7 @@ priv fn add_relation(store: &Store, lhs: ~str, rhs: ~str, style: ~str, label1: ~
 				(~"gnos:level",	IntValue(2)),
 				(~"gnos:priority",	IntValue(2)),
 			]);
-			~[(~"gnos:middle_info",	BlankValue(info2))]
+			~[(~"gnos:left_info",	BlankValue(info2))]
 		}
 		else
 		{

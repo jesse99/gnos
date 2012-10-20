@@ -530,15 +530,24 @@ function map_renderer(element, model, model_names)
 				var right = find_entity(relation.right);
 				if (left && right)
 				{
-					var line = new Line(left.center, right.center);
-					var from_arrow = {stem_height: 0, base_width: 0};
-					var to_arrow = {stem_height: 0, base_width: 0};
-					var shape = new LineShape(context, line, relation.styles, from_arrow, to_arrow);
+					var left_pt = left.rect.intersect_line(right.center);	// TODO: need to offset centers if there are multiple relations between the entities
+					var right_pt = right.rect.intersect_line(left.center);
+					var line = new Line(left_pt, right_pt);
+					
+					if (relation.styles.indexOf("line-type:directed") >= 0)
+					{
+						line = line.shrink(0, 4);
+					}
+					else if (relation.styles.indexOf("line-type:bidirectional") >= 0)
+					{
+						line = line.shrink(3, 4);
+					}
+					
+					var shape = new LineShape(context, line, relation.styles);
 					
 					shapes.push(shape);
 				}
 			});
-		
 		GNOS.scene.prepend_all(shapes);
 	}
 	

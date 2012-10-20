@@ -116,17 +116,37 @@ Line.prototype.interpolate = function (p)
 // Shrinks the line by from_delta pixels on the from side and to_delta pixels on the to side.
 Line.prototype.shrink = function (from_delta, to_delta)
 {
-	var theta = Math.atan((this.to.y - this.from.y)/(this.to.x - this.from.x));
+	var length = this.to.distance(this.from);
 	
-	var dx = from_delta * Math.cos(theta);
-	var dy = from_delta * Math.sin(theta);
-	var from = new Point(this.from.x + dx, this.from.y + dy);
-		
-	dx = to_delta * Math.cos(theta);
-	dy = to_delta * Math.sin(theta);
-	var to = new Point(this.to.x + dx, this.to.y + dy);
+	var from = this.relative_pt(from_delta/length);
+	var to = this.relative_pt(1.0 - to_delta/length);
 	
 	return new Line(from, to);
+};
+
+// Returns a point along the line where p = 0.0 is from
+// and p = 1.0 is to.
+Line.prototype.relative_pt = function (p)
+{
+	return new Point(this.from.x + p*(this.to.x - this.from.x), this.from.y + p*(this.to.y - this.from.y));
+};
+
+// Returns either a Point where the two line segments intersect or null.
+Line.prototype.intersection = function (other)
+{
+	// Based on the LeMothe code from http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+	var s1_x = this.to.x - this.from.x;
+	var s1_y = this.to.y - this.from.y;
+	var s2_x = other.to.x - other.from.x;
+	var s2_y = other.to.y - other.from.y;
+	
+	var s = (-s1_y * (this.from.x - other.from.x) + s1_x * (this.from.y - other.from.y)) / (-s2_x * s1_y + s1_x * s2_y);
+	var t = ( s2_x * (this.from.y - other.from.y) - s2_y * (this.from.x - other.from.x)) / (-s2_x * s1_y + s1_x * s2_y);
+	
+	if (s >= 0 && s <= 1 && t >= 0 && t <= 1)
+		return new Point(this.from.x + (t * s1_x), this.from.y + (t * s1_y));
+	
+	return null;
 };
 
 Line.prototype.toString = function ()
