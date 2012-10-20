@@ -26,7 +26,7 @@ NoOpShape.prototype.toString = function ()
 
 // ---- LineShape class -------------------------------------------------------
 // arrows are objects with stem_height and base_width properties
-function LineShape(line, styles, from_arrow, to_arrow)
+function LineShape(context, line, styles, from_arrow, to_arrow)
 {
 	this.geometry = line;
 	this.styles = ['line-color:black'].concat(styles).filter(function (s) {return s.indexOf('line-') === 0;});
@@ -34,6 +34,12 @@ function LineShape(line, styles, from_arrow, to_arrow)
 	this.to_arrow = to_arrow;
 	this.width = Math.abs(this.geometry.from.x - this.geometry.to.x);
 	this.height = Math.abs(this.geometry.from.y - this.geometry.to.y);
+	
+	context.save();
+	apply_styles(context, this.styles);
+	this.stroke_width = context.lineWidth;
+	context.restore();
+	
 	freezeProps(this);
 }
 
@@ -41,7 +47,7 @@ function LineShape(line, styles, from_arrow, to_arrow)
 LineShape.prototype.draw = function (context)
 {
 	context.save();
-	apply_styles(context, this.style_names);
+	apply_styles(context, this.styles);
 	
 	var unit = this.geometry.normalize();
 	var from_x = this.geometry.from.x + this.from_arrow.stem_height * unit.x;
@@ -166,7 +172,6 @@ function DiscShape(context, disc, styles)
 DiscShape.prototype.draw = function (context)
 {
 	context.save();
-	
 	apply_styles(context, this.styles);
 	//console.log("drawing disc with {0:j} and {1:j}".format(this.style_names, compose_styles(this.style_names)));
 	

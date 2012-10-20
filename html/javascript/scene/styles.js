@@ -15,6 +15,10 @@ GNOS.handlers =
 	'frame-back-color': fill_color,
 	'frame-blur': frame_blur,
 	
+	'line-width': frame_width,
+	'line-color': stroke_color,
+	'line-type': no_op,					// handled by LineShape
+	
 	'gauge-bar-color': fill_color
 };
 
@@ -161,6 +165,10 @@ function fill_color(context, value)
 function frame_blur(context, value)
 {
 	context.frameBlur = parseInt(value, 10);
+}
+
+function no_op(context, value)
+{
 }
 
 // This is a very common way to adjust the lightness of a color, but it's not a very

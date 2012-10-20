@@ -100,20 +100,20 @@ WHERE 														\
 }',
 	'															\
 SELECT 														\
-	?label ?target ?level ?priority ?style ?predicate			\
+	?subject ?label ?target ?level ?priority ?style ?predicate	\
 WHERE 														\
 {																\
-	?info gnos:label ?label .									\
-	?info gnos:target ?target .									\
-	?info gnos:level ?level .									\
-	?info gnos:priority ?priority .								\
+	?subject gnos:label ?label .								\
+	?subject gnos:target ?target .								\
+	?subject gnos:level ?level .								\
+	?subject gnos:priority ?priority .							\
 	OPTIONAL												\
 	{															\
-		?info gnos:style ?style .								\
+		?subject gnos:style ?style .								\
 	}															\
 	OPTIONAL												\
 	{															\
-		?info gnos:predicate ?predicate .						\
+		?subject gnos:predicate ?predicate .					\
 	}															\
 }',
 	'															\
@@ -302,11 +302,11 @@ function entities_query(solution)
 }
 
 // solution rows have 
-// required fields: label, target, level, priority
+// required fields: subject, label, target, level, priority
 // optional fields: style, predicate
 function labels_query(solution)
 {
-	var labels = [];
+	var labels = {};
 	
 	var map = document.getElementById('map');
 	var context = map.getContext('2d');
@@ -318,7 +318,7 @@ function labels_query(solution)
 		var styles = style.split(' ');
 		var label = new TextLineShape(context, Point.zero, row.label, styles, row.priority);
 		
-		labels.push({target: row.target, shape: label, level: row.level, predicate: row.predicate || ""});
+		labels[row.subject] = {target: row.target, shape: label, level: row.level, predicate: row.predicate || ""};
 	}
 	
 	return {labels: labels};
@@ -395,7 +395,7 @@ function alerts_query(solution)
 	add_alert(alerts, errors, "error", ['font-color:red', 'font-weight:bolder'], 0);
 	add_alert(alerts, warnings, "warning", ['font-color:orange'], 2);
 	add_alert(alerts, infos, "info", ['font-color:blue'], 3);
-
+	
 	return {alerts: alerts};
 }
 
@@ -404,81 +404,59 @@ function alerts_query(solution)
 // optional fields: style, predicate, left_info, middle_info, right_info
 function relations_query(solution)
 {
-	function add_shape(shapes, target, shape)
-	{
-		if (!(target in shapes))
-			shapes[target] = [shape];
-		else
-			shapes[target] += [shape];
-	}
-	
-	// Note that left+right will be repeated if there are multiple infos for
-	// left, middle, or right.
-	var shapes = {};
+	var relations = [];
 	for (var i = 0; i < solution.length; ++i)
 	{
 		var row = solution[i];
-		var target = row.left + row.right;
 		
+		var label_names = [];
 		if (row.left_info)
-			add_shape(shapes, target, row.left_info);
+			label_names += [row.left_info];
 		if (row.middle_info)
-			add_shape(shapes, target, row.middle_info);
+			label_names += [row.middle_info];
 		if (row.right_info)
-			add_shape(shapes, target, row.right_info);
+			label_names += [row.right_info];
 		
-		if (!(target in shapes))
-			shapes[target] = [];
-	}
-	
-	var relations = {};
-	for (var i = 0; i < solution.length; ++i)
-	{
-		var row = solution[i];
-		var target = row.left + row.right;
+		var style = row.style || "";
+		var styles = style.split(' ');
 		
-		if (!(target in shapes))
-		{
-			var style = row.style || "";
-			var styles = style.split(' ');
-			
-			relations[target] = {left: row.left, right: row.right, shapes: shapes[target], styles: styles, predicate: row.predicate || ""};
-		}
+		relations.push({left: row.left, right: row.right, label_names: label_names, styles: styles, predicate: row.predicate || ""});
 	}
-console.log('relations = {0:j}'.format(relations));
 	
 	return {relations: relations};
 }
 
 function map_renderer(element, model, model_names)
 {
-	var map = document.getElementById('map');
-	var context = map.getContext('2d');
-	context.clearRect(0, 0, map.width, map.height);
-	
-	if (GNOS.loaded_entities)
+	function add_shapes(contetx, model)
 	{
 		var max_entity = 0;
 		
-		GNOS.scene.remove_all();
+		// add entity shapes to the scene,
 		model.entities.forEach(
 			function (entity, i)
 			{
 				var child_shapes = [];
+				
+				// title
 				child_shapes.push(entity.title);	
 				
+				// labels
 				var max_width = entity.title.width;
-				model.labels.forEach(
-					function (label)
+				for (var name in model.labels)
+				{
+					var label = model.labels[name];
+					
+					if (label.target === entity.target && label.level <= GNOS.entity_detail.value)
 					{
-						if (label.target === entity.target && label.level <= GNOS.entity_detail.value)
-						{
-							child_shapes.push(label.shape);
-							max_width = Math.max(label.shape.width, max_width);
-						}
-						
-						max_entity = Math.max(label.level, max_entity);
-					});
+						child_shapes.push(label.shape);
+						max_width = Math.max(label.shape.width, max_width);
+					}
+					
+					max_entity = Math.max(label.level, max_entity);
+				}
+				
+				// gauges
 				model.gauges.forEach(
 					function (gauge)
 					{
@@ -490,6 +468,8 @@ function map_renderer(element, model, model_names)
 						
 						max_entity = Math.max(gauge.level, max_entity);
 					});
+					
+				// alerts
 				model.alerts.forEach(
 					function (alert)
 					{
@@ -527,6 +507,50 @@ function map_renderer(element, model, model_names)
 		// that we also use the slider value here but we can't do better).
 		GNOS.entity_detail.max = max_entity;
 		GNOS.entity_detail.hidden = max_entity === 0;
+	}
+	
+	function find_entity(name)
+	{
+		return GNOS.scene.find(
+			function (shape)
+			{
+				if (shape.name == name)
+					return shape;
+			});
+	}
+	
+	function add_relations(context, model)
+	{
+		var shapes = [];
+		
+		model.relations.forEach(
+			function (relation)
+			{
+				var left = find_entity(relation.left);
+				var right = find_entity(relation.right);
+				if (left && right)
+				{
+					var line = new Line(left.center, right.center);
+					var from_arrow = {stem_height: 0, base_width: 0};
+					var to_arrow = {stem_height: 0, base_width: 0};
+					var shape = new LineShape(context, line, relation.styles, from_arrow, to_arrow);
+					
+					shapes.push(shape);
+				}
+			});
+		
+		GNOS.scene.prepend_all(shapes);
+	}
+	
+	var map = document.getElementById('map');
+	var context = map.getContext('2d');
+	context.clearRect(0, 0, map.width, map.height);
+	
+	if (GNOS.loaded_entities)
+	{
+		GNOS.scene.remove_all();
+		add_shapes(context, model);
+		add_relations(context, model);
 		
 		if (model.globals && model.globals.error_count)
 			GNOS.scene.append(model.globals.error_count);
@@ -556,6 +580,7 @@ function EntityShape(context, name, center, styles, shapes)
 	styles = ['frame-back-color:linen'].concat(styles);
 	
 	this.rect = new RectShape(context, new Rect(center.x - width/2, center.y - this.total_height/2, width, this.total_height), styles);
+	this.center = center;
 	this.shapes = shapes;
 	this.name = name;
 	this.clickable = true;

@@ -6,8 +6,9 @@
 
 \f0\fs36 \cf0 This defines the RDF schema used to represent the model updated by agents and \
 rendered by browser clients. There are five types of data:\
+\pard\pardeftab480\pardirnatural
 
-\b entity
+\b \cf0 entity
 \b0  - The nouns in the data being modeled.\
 
 \b info
@@ -22,94 +23,76 @@ entity: lists, tables, images, etc.\
 
 \b relation
 \b0  - Asssociates an entity with one or more other entities.\
-\pard\pardeftab480\pardirnatural
-\cf0 \
+\
 The schema is defined with the aid of a couple of different namespace prefixes:\
-\pard\pardeftab480\pardirnatural
 
-\b \cf0 map
+\b map
 \b0  - http://<server>:<port>/map/\
-\pard\pardeftab480\pardirnatural
 
-\b \cf0 gnos
+\b gnos
 \b0  - http://www.gnos.org/2012/schema#\
 
 \b xsd
 \b0  - http://www.w3.org/2001/XMLSchema#\
 \
-\pard\pardeftab480\pardirnatural
 
-\b\fs50 \cf0 map:<store>/globals\
+\b\fs50 map:<store>/globals\
 \pard\pardeftab480\pardirnatural
 
 \b0\fs36 \cf0 gnos:poll_interval	xsd:integer		30 (seconds, optional)\
 gnos:last_update	xsd:dateTime	- (optional)\
 gnos:num_errors	xsd:integer		1 (number of open error alerts, optional)\
 gnos:option			xsd:string			"ospf" (0-N arity)\
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\pard\pardeftab480\pardirnatural
 
 \f1\fs24 \cf0 \
 \pard\pardeftab480\pardirnatural
 
 \f0\b\fs50 \cf0 map:<store>/entities/<name>\
-\pard\pardeftab480\pardirnatural
 
-\b0\fs36 \cf0 \ul \ulc0 gnos:entity\ulnone 			xsd:string			"Router 1"\
+\b0\fs36 \ul \ulc0 gnos:entity\ulnone 			xsd:string			"Router 1"\
 gnos:style			xsd:string			"font-size:larger font-weight:bolder" (optional)\
 gnos:predicate		xsd:string			"" (optional)\
 \
-\pard\pardeftab480\pardirnatural
 
-\b\fs50 \cf0 _:label-info0\
-\pard\pardeftab480\pardirnatural
+\b\fs50 _:label-info0\
 
-\b0\fs36 \cf0 gnos:target			xsd:anyURI		map:auto-fat/entities/10.1.0.1\
-\pard\pardeftab480\pardirnatural
-\cf0 \ul \ulc0 gnos:label\ulnone 			xsd:string			"10.1.0.1" (may include new lines)\
+\b0\fs36 gnos:target			xsd:anyURI		map:auto-fat/entities/10.1.0.1\
+\ul gnos:label\ulnone 			xsd:string			"10.1.0.1" (may include new lines)\
 gnos:level			xsd:integer		1 (0 is displayed by default)\
 gnos:priority			xsd:integer		1 (smaller values are displayed first)\
 gnos:style			xsd:string			"" (optional)\
 gnos:predicate		xsd:string			"" (optional)\
-\pard\pardeftab480\pardirnatural
-\cf0 \
-\pard\pardeftab480\pardirnatural
+\
 
-\b\fs50 \cf0 _:gauge-info0\
-\pard\pardeftab480\pardirnatural
+\b\fs50 _:gauge-info0\
 
-\b0\fs36 \cf0 gnos:target			xsd:anyURI		map:auto-fat/entities/10.1.0.1\
-\pard\pardeftab480\pardirnatural
-\cf0 \ul \ulc0 gnos:gauge\ulnone 			xsd:float			0.8\
+\b0\fs36 gnos:target			xsd:anyURI		map:auto-fat/entities/10.1.0.1\
+\ul gnos:gauge\ulnone 			xsd:float			0.8\
 gnos:title				xsd:string			"CPU"\
 gnos:level			xsd:integer		0\
 gnos:priority			xsd:integer		1 (smaller values are displayed first)\
 gnos:style			xsd:string			"gauge-bar-color:red" (optional)\
 gnos:predicate		xsd:string			"" (optional)\
 \
-\pard\pardeftab480\pardirnatural
 
-\b\fs50 \cf0 _:alert0\
-\pard\pardeftab480\pardirnatural
+\b\fs50 _:alert0\
 
-\b0\fs36 \cf0 gnos:target			xsd:
+\b0\fs36 gnos:target			xsd:
 \fs32 anyURI
 \fs36 		map:auto-fat/entities/10.1.0.1 (or gnos:container)\
-\pard\pardeftab480\pardirnatural
-\cf0 \ul \ulc0 gnos:alert\ulnone 				xsd:string			"device down" (used when closing alerts)\
+\ul gnos:alert\ulnone 				xsd:string			"device down" (used when closing alerts)\
 gnos:begin			xsd:dateTime	Jan 1, 2012\
 gnos:end				xsd:dateTime	Jan 2, 2012 (if present the alert is closed)\
 gnos:mesg			xsd:string			"The device is not responding to snmp."\
 gnos:resolution		xsd:string			"Whack it with a hammer or restart snmpd."\
 gnos:style			xsd:string			"alert-type:error"\
 \
-\pard\pardeftab480\pardirnatural
 
-\b\fs50 \cf0 _:text-detail0\
-\pard\pardeftab480\pardirnatural
+\b\fs50 _:text-detail0\
 
-\b0\fs36 \cf0 gnos:target			xsd:anyURI		map:auto-fat/entities/10.1.0.1\
-\pard\pardeftab480\pardirnatural
-\cf0 \ul \ulc0 gnos:text\ulnone 				xsd:string			"blah\\nblah"\
+\b0\fs36 gnos:target			xsd:anyURI		map:auto-fat/entities/10.1.0.1\
+\ul gnos:text\ulnone 				xsd:string			"blah\\nblah"\
 gnos:priority			xsd:float			0.1 (smaller values are displayed first)\
 gnos:title				xsd:string			"Foo" (can be empty)\
 gnos:open			xsd:string			"always", "yes", or "no" (uses disclosure widget if not "always")\
@@ -117,15 +100,12 @@ gnos:key				xsd:string			arbitrary text (used by the client to keep widgets open
 gnos:style			xsd:string			"font-smaller font-style:italic" (optional)\
 gnos:predicate		xsd:string			"" (optional)\
 \
-\pard\pardeftab480\pardirnatural
 \cf2 also need details for lists, tables, images, etc\
 \cf0 \
-\pard\pardeftab480\pardirnatural
 
-\b\fs50 \cf0 _:relation0\
-\pard\pardeftab480\pardirnatural
+\b\fs50 _:relation0\
 
-\b0\fs36 \cf0 \ul \ulc0 gnos:left\ulnone 				xsd:anyURI		map:auto-fat/entities/10.1.0.1\
+\b0\fs36 \ul gnos:left\ulnone 				xsd:anyURI		map:auto-fat/entities/10.1.0.1\
 gnos:right			xsd:anyURI		map:auto-fat/entities/10.1.0.2\
 gnos:left_info		blank				_:label-eth1 (0-N arity)\
 gnos:middle_info	blank				_:label-cost1 (0-N arity)\
@@ -135,17 +115,16 @@ gnos:predicate		xsd:string			"options.ospf selection.name '10.1.0.4'
 \f1\fs24  
 \f0\fs36 == and" (optional)\
 \
-Underlined predicates represent what are (more or less) primary keys.\
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
-
-\f1\fs24 \cf0 ------------------------------------------------------------------------------------------------------------------------------\
+Multiple relations can exist between entities.\
 \
-\pard\pardeftab480\pardirnatural
+Underlined predicates represent what are (more or less) primary keys.\
 
-\f0\b\fs50 \cf0 gnos:style\
-\pard\pardeftab480\pardirnatural
+\f1\fs24 ------------------------------------------------------------------------------------------------------------------------------\
+\
 
-\b0\fs36 \cf0 Styles are space separated lists of style names. \
+\f0\b\fs50 gnos:style\
+
+\b0\fs36 Styles are space separated lists of style names. \
 \
 The following affect entities:\
 
@@ -160,15 +139,12 @@ The following affect entities:\
 
 \b frame-blur
 \b0 :<width>\
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
 
-\f1\fs24 \cf0 \
-\pard\pardeftab480\pardirnatural
+\f1\fs24 \
 
-\f0\fs36 \cf0 The following affect text rendering:\
-\pard\pardeftab720
+\f0\fs36 The following affect text rendering:\
 
-\b \cf0 font-size
+\b font-size
 \b0 :xx-small, x-small, small, normal, medium, large, x-large, xx-large, smaller, larger\
 
 \b font-family
@@ -182,8 +158,7 @@ The following affect entities:\
 
 \b font-color
 \b0 :<color>\
-\pard\pardeftab480\pardirnatural
-\cf0 \
+\
 The following affect gauges:\
 
 \b gauge-bar-color
@@ -205,22 +180,17 @@ The following affect relations:\
 
 \b line-color
 \b0 :<color>\
-\pard\pardeftab720
-\cf0 \
+\
 Colors may be X11 color names ("red") or RGB in hex (FF0000). Widths are in\
 pixels and may be fractional numbers.\
-\pard\pardeftab480\pardirnatural
 
-\f1\fs24 \cf0 \
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
-\cf0 \
-\pard\pardeftab480\pardirnatural
+\f1\fs24 \
+\
 
-\f0\b\fs50 \cf0 gnos:predicate
+\f0\b\fs50 gnos:predicate
 \f1\b0\fs24 \
-\pard\pardeftab480\pardirnatural
 
-\f0\fs36 \cf0 If a predicate is present then the associated instance is used only if the predicate\
+\f0\fs36 If a predicate is present then the associated instance is used only if the predicate\
 evaluates to true. Empty and missing predicates evaluate to true. Predicates are\
 written using Reverse Polish Notation (RPN) and contain operators and operands\
 (operands appear before their operator). For example `2 * (x - 1)` could be written\

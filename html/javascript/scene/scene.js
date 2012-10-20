@@ -13,10 +13,12 @@ Scene.prototype.append = function (shape)
 
 Scene.prototype.append_all = function (shapes)
 {
-	for (var i = 0; i < shapes.length; ++i)
-	{
-		this.shapes.push(shapes[i]);
-	}
+	this.shapes = this.shapes.concat(shapes);
+};
+
+Scene.prototype.prepend_all = function (shapes)
+{
+	this.shapes = shapes.concat(this.shapes);
 };
 
 Scene.prototype.find = function (predicate)
