@@ -202,7 +202,7 @@ DiscShape.prototype.draw = function (context)
 	context.closePath();
 	
 	context.fill();
-	if (context.lineWidth !== 0)
+	if (context.lineWidth > 0.01)
 		context.stroke();
 	context.restore();
 };
@@ -284,8 +284,10 @@ RectShape.prototype.draw = function (context)
 	context.save();
 	apply_styles(context, this.styles);
 	fill_rect(context, this.geometry);
+console.log("styles: {0:j}".format(this.styles));
+console.log("   lineWidth: {0}".format(context.lineWidth));
 	
-	if (context.lineWidth !== 0)
+	if (context.lineWidth > 0.01)
 	{
 		stroke_left_top(context, this.geometry);
 		
@@ -368,6 +370,7 @@ function TextLineShape(context, center, text, styles, priority)
 	else
 		this.geometry = center;
 	this.bbox = new Rect(this.geometry.x - this.width/2, this.geometry.y - this.height/2, this.width, this.height);
+	
 	freezeProps(this);
 }
 

@@ -146,7 +146,11 @@ function font_family(context, value)
 
 function frame_width(context, value)
 {
-	context.lineWidth = parseFloat(value);
+	var x = parseFloat(value);
+	if (x === 0.0)
+		context.lineWidth = 0.00001;		// setting lineWidth to 0.0 actually sets it to 1.0
+	else
+		context.lineWidth = x;
 }
 
 function colors(context, value)

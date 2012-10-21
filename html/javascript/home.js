@@ -7,8 +7,8 @@ GNOS.last_update = undefined;
 GNOS.poll_interval = undefined;
 //GNOS.selection_name = null;
 //GNOS.opened = {};
-GNOS.entity_detail= undefined;
-//GNOS.relation_detail= undefined;
+GNOS.entity_detail = undefined;
+GNOS.relation_detail = undefined;
 GNOS.loaded_entities = false;
 
 window.onload = function()
@@ -17,9 +17,11 @@ window.onload = function()
 	window.onresize = resize_canvas;
 	
 	GNOS.entity_detail = document.getElementById('entity_detail');
-
+	GNOS.relation_detail = document.getElementById('relation_detail');
+	
 	var model_names = ["globals", "entities", "labels", "gauges", "alerts", "relations"];
 	GNOS.entity_detail.onchange = function () {do_model_changed(model_names, false);};
+	GNOS.relation_detail.onchange = function () {do_model_changed(model_names, false);};
 	register_renderer("map renderer", model_names, "map", map_renderer);
 	
 	register_primary_map_query();
@@ -409,18 +411,10 @@ function relations_query(solution)
 	{
 		var row = solution[i];
 		
-		var label_names = [];
-		if (row.left_info)
-			label_names += [row.left_info];
-		if (row.middle_info)
-			label_names += [row.middle_info];
-		if (row.right_info)
-			label_names += [row.right_info];
-		
 		var style = row.style || "";
 		var styles = style.split(' ');
 		
-		relations.push({left: row.left, right: row.right, label_names: label_names, styles: styles, predicate: row.predicate || ""});
+		relations.push({left: row.left, right: row.right, left_label: row.left_info, middle_label: row.middle_info, right_label: row.right_info, styles: styles, predicate: row.predicate || ""});
 	}
 	
 	return {relations: relations};
@@ -521,7 +515,28 @@ function map_renderer(element, model, model_names)
 	
 	function add_relations(context, model)
 	{
+		function add_label(model, shapes, line, name, p, max_relation)
+		{
+			if (name && name in model.labels)
+			{
+				var label = model.labels[name];
+				max_relation = Math.max(label.level, max_relation);
+				
+				if (label.level <= GNOS.relation_detail.value)
+				{
+					var center = line.relative_pt(p);
+					var styles = ['frame-width:0', 'frame-back-color:white'];
+					var children = [label.shape];
+					var shape = new EntityShape(context, "", center, styles, children);
+					shapes.push(shape);
+				}
+			}
+			
+			return max_relation;
+		}
+		
 		var shapes = [];
+		var max_relation = 0;
 		
 		model.relations.forEach(
 			function (relation)
@@ -544,11 +559,17 @@ function map_renderer(element, model, model_names)
 					}
 					
 					var shape = new LineShape(context, line, relation.styles);
-					
 					shapes.push(shape);
+					
+					max_relation = add_label(model, shapes, line, relation.left_label, 0.2, max_relation);
+					max_relation = add_label(model, shapes, line, relation.middle_label, 0.5, max_relation);
+					max_relation = add_label(model, shapes, line, relation.right_label, 0.8, max_relation);
 				}
 			});
 		GNOS.scene.prepend_all(shapes);
+		
+		GNOS.relation_detail.max = max_relation;
+		GNOS.relation_detail.hidden = max_relation === 0;
 	}
 	
 	var map = document.getElementById('map');
