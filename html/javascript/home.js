@@ -11,8 +11,7 @@ GNOS.entity_detail = undefined;
 GNOS.relation_detail = undefined;
 GNOS.loaded_entities = false;
 
-window.onload = function()
-{
+$(document).ready(function(){
 	resize_canvas();
 	window.onresize = resize_canvas;
 	
@@ -28,7 +27,7 @@ window.onload = function()
 	GNOS.timer_id = setInterval(update_time, 1000);
 	
 	set_loading_label();
-};
+});
 
 function resize_canvas()
 {

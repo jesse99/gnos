@@ -1,12 +1,12 @@
 // Used to view interface bandwidth details for a device.
 "use strict";
 
-window.onload = function()
+$(document).ready(function()
 {
 	var body = document.getElementById('body');
 	var owner = body.getAttribute("data-owner");
 	register_query(owner);
-};
+});
 
 function register_query(owner)
 {

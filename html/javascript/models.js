@@ -1,7 +1,7 @@
 // Page that shows subjects in each store.
 "use strict";
 
-window.onload = function()
+$(document).ready(function()
 {
 	GNOS.store_query_ids = [];
 	GNOS.store_renderer_ids = [];
@@ -15,7 +15,7 @@ WHERE 													\
 } ORDER BY ?name';
 	register_query("models", ["models"], "globals", [query], [models_query]);
 	register_renderer("models", ["models"], "body", models_renderer);
-};
+});
 
 function models_query(solution)
 {

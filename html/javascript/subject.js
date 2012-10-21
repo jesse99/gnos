@@ -1,7 +1,7 @@
 // Page that shows predicates for a particular subject.
 "use strict";
 
-window.onload = function()
+$(document).ready(function()
 {
 	var table = document.getElementById('subject');
 	var store = table.getAttribute("data-name");
@@ -22,7 +22,7 @@ WHERE 																\
 	register_query("subject", ["subject"], store, [query], [subject_query]);
 	
 	register_renderer("subject", ["subject"], "subject", subject_renderer);
-};
+});
 
 function subject_query(solution)
 {
