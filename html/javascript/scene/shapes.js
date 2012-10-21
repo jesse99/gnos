@@ -284,8 +284,6 @@ RectShape.prototype.draw = function (context)
 	context.save();
 	apply_styles(context, this.styles);
 	fill_rect(context, this.geometry);
-console.log("styles: {0:j}".format(this.styles));
-console.log("   lineWidth: {0}".format(context.lineWidth));
 	
 	if (context.lineWidth > 0.01)
 	{

@@ -27,6 +27,7 @@ GNOS.handlers =
 // Applies cascading styles to the current canvas context.
 function apply_styles(context, styles)
 {
+//console.log("styles: {0:j}".format(styles));
 	context.font_parts = ['normal', 400, 12, 'Arial'];	// font-style, font-weight, font-size, font-family
 	context.lineWidth = 1;
 	context.strokeStyle = 'black';
@@ -60,6 +61,7 @@ function apply_styles(context, styles)
 	context.font_parts[1] = context.font_parts[1].toFixed();
 	context.font_parts[2] = context.font_parts[2].toFixed() + 'pt';
 	context.font = context.font_parts.join(' ');
+//console.log("   fill: {0}".format(context.fillStyle));
 }
 
 function font_style(context, value)
@@ -153,9 +155,26 @@ function frame_width(context, value)
 		context.lineWidth = x;
 }
 
+function color_to_css(value)
+{
+	var i = value.indexOf('/');
+	if (i > 0)
+	{
+		var color = value.slice(0, i);
+		var alpha = parseFloat(value.slice(i+1));
+		
+		var triplet = Color.get(color).hexTriplet();
+		return new Color(triplet, alpha).css();
+	}
+	else
+	{
+		return Color.get(value).css();
+	}
+}
+
 function colors(context, value)
 {
-	var color = Color.get(value).hexTriplet();
+	var color = color_to_css(value);
 	
 	context.strokeStyle = color;
 	context.fillStyle = color;
@@ -163,14 +182,14 @@ function colors(context, value)
 
 function stroke_color(context, value)
 {
-	var color = Color.get(value).hexTriplet();
+	var color = color_to_css(value);
 	
 	context.strokeStyle = color;
 }
 
 function fill_color(context, value)
 {
-	var color = Color.get(value).hexTriplet();
+	var color = color_to_css(value);
 	
 	context.fillStyle = color;
 }
@@ -204,5 +223,5 @@ function scale_lightness(color_name, scaling)
 	var color = Color.get(color_name);
 	var hsl = color.hslData();
 	hsl[2] = Math.min(scaling*hsl[2], 1.0);
-	return Color.hsl(hsl[0], hsl[1], hsl[2]).hexTriplet();
+	return Color.hsl(hsl[0], hsl[1], hsl[2]).css();
 }
