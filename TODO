@@ -50,6 +50,11 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- maybe use grid lines to show magnification
 	- may be some stuff on tufte's site
 	- attach custom info
+* Balloon layout is interesting:
+	http://lab.kapit.fr/display/visualizationlayouts/Balloon+layout
+* Interesting wayts to connect html thingies:
+	- http://jsplumb.org/doc/usage.html
+	- http://js-graph-it.sourceforge.net/index.html
 * Need a container relation:
 	- contained items are rendered as ...
 	- contained items are persisted in their own store
