@@ -14,10 +14,10 @@ function register_query(owner)
 	GNOS.sse_query = {source: source, owner: owner};
 	GNOS.update_count = 0;
 	
-	var chart = document.getElementById('chart');
+	var chart = $('#chart');
 	GNOS.base_src = chart.src;
 	
-	var body = document.getElementById('body');
+	var body = $('#body');
 	source.addEventListener('message', function(event)
 	{
 		var data = JSON.parse(event.data);
@@ -75,6 +75,6 @@ function do_update(details)
 	}
 	html += "</table>\n";
 	
-	var stats = document.getElementById('stats');
-	stats.innerHTML = html;
+	var stats = $('#stats');
+	stats.html(html);
 }

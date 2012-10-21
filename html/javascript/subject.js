@@ -3,9 +3,9 @@
 
 $(document).ready(function()
 {
-	var table = document.getElementById('subject');
-	var store = table.getAttribute("data-name");
-	var about = table.getAttribute("data-about");
+	var table = $('#subject');
+	var store = table.attr("data-name");
+	var about = table.attr("data-about");
 	
 	var query = '														\
 SELECT 																\
@@ -67,7 +67,7 @@ function subject_query(solution)
 
 function subject_renderer(element, model, model_names)
 {
-	element.innerHTML = model.subject;
+	element.html(model.subject);
 }
 
 function make_link(url, label)

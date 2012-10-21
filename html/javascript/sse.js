@@ -71,7 +71,7 @@ function register_query(id, model_names, store, queries, callbacks)
 		}
 		
 		if (keys)
-			do_model_changed(keys);
+			do_model_changed(keys, true);
 	});
 	
 	source.addEventListener('open', function(event)
@@ -163,7 +163,7 @@ function do_model_changed(model_names, animate)
 		var candidate = GNOS.sse_renderers[id];
 		if (candidate.model_names.intersects(model_names))
 		{
-			var element = document.getElementById(candidate.element_id);
+			var element = $('#' + candidate.element_id);
 			if (animate)
 				animated_draw(element, create_callback(candidate, element, model_names));
 			else

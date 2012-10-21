@@ -3,15 +3,16 @@
 
 $(document).ready(function()
 {
+console.log("registering");
 	GNOS.store_query_ids = [];
 	GNOS.store_renderer_ids = [];
 	
-	var query = '											\
-SELECT DISTINCT 										\
-	?name 													\
-WHERE 													\
-{ 															\
-	gnos:globals gnos:store ?name . 						\
+	var query = '							\
+SELECT DISTINCT 						\
+	?name 									\
+WHERE 									\
+{ 											\
+	gnos:globals gnos:store ?name . 		\
 } ORDER BY ?name';
 	register_query("models", ["models"], "globals", [query], [models_query]);
 	register_renderer("models", ["models"], "body", models_renderer);
@@ -37,7 +38,7 @@ function models_query(solution)
 
 function models_renderer(element, model, model_names)
 {
-	element.innerHTML = model.models[0];
+	element.html(model.models[0]);
 	
 	// Add sse callbacks to update the place holders.
 	deregister_store_queries();
@@ -81,13 +82,13 @@ function deregister_store_renderers()
 // show up there.
 function register_store_query(store)
 {
-	var query = '											\
-SELECT DISTINCT 										\
-	?name 													\
-WHERE 													\
-{ 															\
-	?subject ?predicate ?object . 							\
-	BIND(rrdf:pname(?subject) AS ?name) 				\
+	var query = '									\
+SELECT DISTINCT 								\
+	?name 											\
+WHERE 											\
+{ 													\
+	?subject ?predicate ?object . 					\
+	BIND(rrdf:pname(?subject) AS ?name) 		\
 } ORDER BY ?name';
 	
 	var id = "models-" + store;
@@ -121,5 +122,5 @@ function store_renderer(element, model, model_names)
 {
 	var model_name = model_names[0];
 	
-	element.innerHTML = model[model_name];
+	element.html(model[model_name]);
 }

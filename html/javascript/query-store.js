@@ -9,17 +9,17 @@ function submit_query()
 		GNOS.query_store = null;
 	}
 	
-	var name = document.getElementById('name');
-	var query = document.getElementById('query');
+	var name = $('#name');
+	var query = $('#query');
 	
 	GNOS.query_store = new EventSource('/query?name={0}&expr={1}'.format(
-		encodeURIComponent(name.value), encodeURIComponent(query.value)));
-	GNOS.query_value = query.value;
+		encodeURIComponent(name.val()), encodeURIComponent(query.val())));
+	GNOS.query_value = query.val();
 	GNOS.query_store.addEventListener('message', function(event)
 	{
 		var data = JSON.parse(event.data);
 		
-		var element = document.getElementById('results');
+		var element = $('#results');
 		if (event.data[0] != '"')
 			animated_draw(element, function() {save_solution(element, data);});
 		else
@@ -46,7 +46,7 @@ function save_err(root, err)
 	html += "<section class='error'>";
 	html += escapeHtml(err);
 	html += "</section>";
-	root.innerHTML = html;
+	root.html(html);
 }
 
 function save_solution(root, solution)
@@ -69,7 +69,7 @@ function save_solution(root, solution)
 		html += "	</tr>\n";
 	}
 	html += "</table>\n";
-	root.innerHTML = html;
+	root.html(html);
 }
 
 // solution will be json of the form:
