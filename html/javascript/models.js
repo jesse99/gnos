@@ -21,9 +21,9 @@ WHERE 									\
 function models_query(solution)
 {
 	var html = "";
-	for (var i = 0; i < solution.length; ++i)
+	$.each(solution, function (i, row)
 	{
-		var store = solution[i].name;
+		var store = row.name;
 		
 		html += '<details open="open">\n';
 		html += '<summary>{0}</summary>\n'.format(escapeHtml(store));
@@ -31,7 +31,7 @@ function models_query(solution)
 		html += '</table>\n';
 		html += '</details>\n';
 		html += '<br>\n';
-	}
+	});
 	
 	return {models: [html, solution]};
 }
@@ -45,34 +45,32 @@ function models_renderer(element, model, model_names)
 	deregister_store_renderers();
 	
 	var solution = model.models[1];
-	for (var i = 0; i < solution.length; ++i)
+	$.each(solution, function (i, row)
 	{
-		var store = solution[i].name;
+		var store = row.name;
 		register_store_query(store);
 		
 		var name = "{0}-store".format(store);
 		register_renderer(name, [name], name, store_renderer);
 		GNOS.store_renderer_ids.push(name);
-	}
+	});
 }
 
 function deregister_store_queries()
 {
-	for (var i = 0; i < GNOS.store_query_ids.length; ++i)
+	$.each(GNOS.store_query_ids, function (i, id)
 	{
-		var id = GNOS.store_query_ids[i];
 		deregister_query(id);
-	}
+	});
 	GNOS.store_query_ids = [];
 }
 
 function deregister_store_renderers()
 {
-	for (var i = 0; i < GNOS.store_renderer_ids.length; ++i)
+	$.each(GNOS.store_renderer_ids, function (i, id)
 	{
-		var id = GNOS.store_renderer_ids[i];
 		deregister_renderer(id);
-	}
+	});
 	GNOS.store_renderer_ids = [];
 }
 
@@ -102,16 +100,16 @@ function store_query(store, solution)
 	var model_name = "{0}-store".format(store);
 	
 	var html = "";
-	for (var i = 0; i < solution.length; ++i)
+	$.each(solution, function (i, row)
 	{
-		var name = solution[i].name;
+		var name = row.name;
 		
 		var klass = i & 1 ? "odd" : "even";
 		html += '<tr class="{0}"><td class="value"><span>\
 						<a href="/subject/{3}/{1}">{2}</a>\
 					</span></td></tr>\n'.format(
 						klass, encodeURIComponent(name), escapeHtml(name), encodeURIComponent(store));
-	}
+	});
 	
 	var result = {};
 	result[model_name] = html;

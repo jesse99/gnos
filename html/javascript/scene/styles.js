@@ -36,22 +36,21 @@ function apply_styles(context, styles)
 	context.arrow_width = undefined;
 	context.arrow_height = undefined;
 	
-	styles.forEach(
-		function (style)
+	$.each(styles, function (k, style)
+	{
+		if (style)
 		{
-			if (style)
-			{
-				var i = style.indexOf(':');
-				assert(i > 0, "failed to find ':' in " + style);
-				
-				var name = style.slice(0, i);
-				var value = style.slice(i+1);
-				
-				var handler = GNOS.handlers[name];
-				assert(handler, "failed to find a style handler for " + name);
-				handler(context, value);
-			}
-		});
+			var i = style.indexOf(':');
+			assert(i > 0, "failed to find ':' in " + style);
+			
+			var name = style.slice(0, i);
+			var value = style.slice(i+1);
+			
+			var handler = GNOS.handlers[name];
+			assert(handler, "failed to find a style handler for " + name);
+			handler(context, value);
+		}
+	});
 	
 	if (context.arrow_width === undefined)
 		context.arrow_width = 12 + context.lineWidth;

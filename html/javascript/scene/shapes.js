@@ -363,7 +363,7 @@ function TextLineShape(context, center, text, styles, priority)
 	this.width = this.stats.width;
 	this.height = this.stats.height;
 	
-	if (typeof(center) == "function")
+	if (jQuery.isFunction(center))
 		this.geometry = center(this);
 	else
 		this.geometry = center;

@@ -56,10 +56,8 @@ function do_update(details)
 	html += "		<th>Mean</th>\n";
 	html += "		<th>Max</th>\n";
 	html += "	</tr>\n";
-	for (var i = 0; i < details.length; ++i)
+	$.each(details, function (i, detail)
 	{
-		var detail = details[i];
-		
 		// These are formatted as "10.102.0.2-eth0-in-octets".
 		var parts = detail.sample_name.split('-');
 		var name = parts[1];
@@ -72,7 +70,7 @@ function do_update(details)
 		html += "		<td>{0} {1}</td>\n".format(detail.mean.toFixed(1), units);
 		html += "		<td>{0} {1}</td>\n".format(detail.max.toFixed(1), units);
 		html += "	</tr>\n";
-	}
+	});
 	html += "</table>\n";
 	
 	var stats = $('#stats');

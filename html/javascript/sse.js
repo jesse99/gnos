@@ -22,21 +22,19 @@ function register_query(id, model_names, store, queries, callbacks)
 //console.log("registering {0} query for {1}".format(id, store));
 	
 	// Models should be associated with only one query.
-	for (var qid in GNOS.sse_queries)
+	$.each(GNOS.sse_queries, function (qid, candidate)
 	{
-		var candidate = GNOS.sse_queries[qid];
 		var common = model_names.intersect(candidate.model_names);
 		assert(common.length === 0, "{0:j} was found in {1}".format(common, qid));
-	}
+	});
 	
 	// Start the model off in a well known state.
 	if (!GNOS.sse_model)
 		GNOS.sse_model = {};
-	model_names.forEach(
-		function (model_name)
-		{
-			GNOS.sse_model[model_name] = null;
-		});
+	$.each(model_names, function (i, model_name)
+	{
+		GNOS.sse_model[model_name] = null;
+	});
 	
 	// Create an EventSource for the query.
 	var expressions = queries.map(
@@ -57,18 +55,18 @@ function register_query(id, model_names, store, queries, callbacks)
 			data = [data];
 			
 		var keys = [];
-		for (var i = 0; i < queries.length; ++i)
+		$.each(queries, function (i, query)
 		{
 			var result = callbacks[i](data[i]);
-			for (var name in result)
+			$.each(result, function (name, model)
 			{
 				assert(model_names.indexOf(name) >= 0, "{0} returned {1} which is not in {2:j}".format(id, name, model_names));
 				assert(keys.indexOf(name) < 0, "{0} returned {1} which is was already returned".format(id, name));
 				
-				GNOS.sse_model[name] = result[name];
+				GNOS.sse_model[name] = model;
 				keys.push(name);
-			}
-		}
+			});
+		});
 		
 		if (keys)
 			do_model_changed(keys, true);
@@ -98,11 +96,10 @@ function deregister_query(id)
 	if (query)
 	{
 		// Renderers will often hang around so don't leave stale state hanging around.
-		query.model_names.forEach(
-			function (name)
-			{
-				GNOS.sse_model[name] = null;
-			});
+		$.each(query.model_names, function (name, model)
+		{
+			GNOS.sse_model[name] = null;
+		});
 		
 		// Deterministically close the sse session.
 		query.source.close();
@@ -158,9 +155,8 @@ function create_callback(candidate, element, model_names)
 
 function do_model_changed(model_names, animate)
 {
-	for (var id in GNOS.sse_renderers)
+	$.each(GNOS.sse_renderers, function (id, candidate)
 	{
-		var candidate = GNOS.sse_renderers[id];
 		if (candidate.model_names.intersects(model_names))
 		{
 			var element = $('#' + candidate.element_id);
@@ -169,5 +165,5 @@ function do_model_changed(model_names, animate)
 			else
 				candidate.callback(element, GNOS.sse_model, model_names);
 		}
-	}
+	});
 }

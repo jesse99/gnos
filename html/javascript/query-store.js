@@ -60,14 +60,12 @@ function save_solution(root, solution)
 	html += "	<tr>\n";
 	html += (headers.map(function (h) {return "<th>{0}</th>".format(escapeHtml(h || ""));})).join('\n');
 	html += "	</tr>\n";
-	for (var i = 0; i < rows.length; ++i)
+	$.each(rows, function (i, row)
 	{
-		var row = rows[i];
-		
 		html += "	<tr>\n";
 		html += (row.map(function (r) {return "<td>{0}</td>".format(escapeHtml(r || ""));})).join('\n');
 		html += "	</tr>\n";
-	}
+	});
 	html += "</table>\n";
 	root.html(html);
 }
@@ -91,9 +89,8 @@ function analyze_solution(headers, rows, solution)
 		var names = variables.map(function (v) {return v.slice(1);});
 		names.forEach(function (n) {headers.push(n);});
 		
-		for (var i = 0; i < solution.length; ++i)
+		$.each(solution, function (i, srow)
 		{
-			var srow = solution[i];
 			var row = [];
 			
 			for (var key in srow)
@@ -103,6 +100,6 @@ function analyze_solution(headers, rows, solution)
 			}
 			
 			rows.push(row);
-		}
+		});
 	}
 }

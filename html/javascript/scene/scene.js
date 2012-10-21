@@ -48,7 +48,7 @@ Scene.prototype.remove_if = function (predicate)
 
 Scene.prototype.draw = function (context)
 {
-	for (var i = 0; i < this.shapes.length; ++i)
+	$.each(this.shapes, function (i, shape)
 	{
 		// We could save and restore the context here, but it seems to work out better
 		// if the code that changes settings is the code that reverts it (among other
@@ -61,13 +61,12 @@ Scene.prototype.draw = function (context)
 		context.fillStyle = 'magenta';
 		context.lineWidth = 10;
 		
-		var shape = this.shapes[i];
 		shape.draw(context);
 		
 		// Make sure thet the properties we set still have their awful values.
 		// If not then the shape didn't restore the context.
 		assert(context.strokeStyle === '#ff00ff' && context.fillStyle === '#ff00ff' && context.lineWidth === 10, shape + " didn't restore context");
-	}
+	});
 };
 
 // Note that this will only return shapes which have a true clickable property.

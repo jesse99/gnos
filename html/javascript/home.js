@@ -288,16 +288,14 @@ function entities_query(solution)
 	
 	var map = document.getElementById('map');
 	var context = map.getContext('2d');
-	for (var i = 0; i < solution.length; ++i)
+	$.each(solution, function (i, row)
 	{
-		var row = solution[i];
-		
 		var style = row.style || "";
 		var styles = style.split(' ');
 		var label = new TextLineShape(context, Point.zero, row.title, styles, 0);
 		
 		entities.push({target: row.target, title: label, styles: styles, predicate: row.predicate || ""});
-	}
+	});
 	
 	return {entities: entities};
 }
@@ -311,16 +309,14 @@ function labels_query(solution)
 	
 	var map = document.getElementById('map');
 	var context = map.getContext('2d');
-	for (var i = 0; i < solution.length; ++i)
+	$.each(solution, function (i, row)
 	{
-		var row = solution[i];
-		
 		var style = row.style || "";
 		var styles = style.split(' ');
 		var label = new TextLineShape(context, Point.zero, row.label, styles, row.priority);
 		
 		labels[row.subject] = {target: row.target, shape: label, level: row.level, predicate: row.predicate || ""};
-	}
+	});
 	
 	return {labels: labels};
 }
@@ -334,16 +330,14 @@ function gauges_query(solution)
 	
 	var map = document.getElementById('map');
 	var context = map.getContext('2d');
-	for (var i = 0; i < solution.length; ++i)
+	$.each(solution, function (i, row)
 	{
-		var row = solution[i];
-		
 		var style = row.style || "";
 		var styles = style.split(' ');
 		var gauge = new GaugeShape(context, Point.zero, row.value, row.title, styles, row.priority);
 		
 		gauges.push({target: row.target, shape: gauge, level: row.level, predicate: row.predicate || ""});
-	}
+	});
 	
 	return {gauges: gauges};
 }
@@ -365,16 +359,16 @@ function alerts_query(solution)
 	
 	function add_alert(alerts, table, suffix, styles, level)
 	{
-		for (var target in table)
+		$.each(table, function (target, count)
 		{
-			if (table[target] == 1)
+			if (count == 1)
 				var label = "1 {0} alert".format(suffix);
 			else
-				var label = "{0} {1} alerts".format(table[target], suffix);
+				var label = "{0} {1} alerts".format(count, suffix);
 				
 			var label = new TextLineShape(context, Point.zero, label, styles, 999);
 			alerts.push({target: target, shape: label, level: level, predicate: ""});
-		}
+		});
 	}
 	
 	var errors = {};
@@ -383,14 +377,12 @@ function alerts_query(solution)
 	
 	var map = document.getElementById('map');
 	var context = map.getContext('2d');
-	for (var i = 0; i < solution.length; ++i)
+	$.each(solution, function (i, row)
 	{
-		var row = solution[i];
-		
 		update_counts(errors, row, 'alert-type:error');
 		update_counts(warnings, row, 'alert-type:warning');
 		update_counts(infos, row, 'alert-type:info');
-	}
+	});
 	
 	var alerts = [];
 	add_alert(alerts, errors, "error", ['font-color:red', 'font-weight:bolder'], 0);
@@ -406,15 +398,13 @@ function alerts_query(solution)
 function relations_query(solution)
 {
 	var relations = [];
-	for (var i = 0; i < solution.length; ++i)
+	$.each(solution, function (i, row)
 	{
-		var row = solution[i];
-		
 		var style = row.style || "";
 		var styles = style.split(' ');
 		
 		relations.push({left: row.left, right: row.right, left_label: row.left_info, middle_label: row.middle_info, right_label: row.right_info, styles: styles, predicate: row.predicate || ""});
-	}
+	});
 	
 	return {relations: relations};
 }
@@ -426,74 +416,69 @@ function map_renderer(element, model, model_names)
 		var max_entity = 0;
 		
 		// add entity shapes to the scene,
-		model.entities.forEach(
-			function (entity, i)
+		$.each(model.entities, function (k, entity)
+		{
+			var child_shapes = [];
+			
+			// title
+			child_shapes.push(entity.title);	
+			
+			// labels
+			var max_width = entity.title.width;
+			$.each(model.labels, function (name, label)
 			{
-				var child_shapes = [];
-				
-				// title
-				child_shapes.push(entity.title);	
-				
-				// labels
-				var max_width = entity.title.width;
-				for (var name in model.labels)
+				if (label.target === entity.target && label.level <= GNOS.entity_detail.value)
 				{
-					var label = model.labels[name];
-					
-					if (label.target === entity.target && label.level <= GNOS.entity_detail.value)
-					{
-						child_shapes.push(label.shape);
-						max_width = Math.max(label.shape.width, max_width);
-					}
-					
-					max_entity = Math.max(label.level, max_entity);
+					child_shapes.push(label.shape);
+					max_width = Math.max(label.shape.width, max_width);
 				}
 				
-				// gauges
-				model.gauges.forEach(
-					function (gauge)
-					{
-						if (gauge.target === entity.target && gauge.level <= GNOS.entity_detail.value)
-						{
-							gauge.shape.adjust_width(context, max_width);
-							child_shapes.push(gauge.shape);
-						}
-						
-						max_entity = Math.max(gauge.level, max_entity);
-					});
-					
-				// alerts
-				model.alerts.forEach(
-					function (alert)
-					{
-						if (alert.target === entity.target && alert.level <= GNOS.entity_detail.value)
-						{
-							child_shapes.push(alert.shape);
-							max_width = Math.max(alert.shape.width, max_width);
-						}
-						
-						max_entity = Math.max(alert.level, max_entity);
-					});
-				
-				// Ensure that info shapes appear in the same order on each entity.
-				child_shapes.sort(
-					function (x, y)
-					{
-						if (x.priority < y.priority)
-							return -1;
-						else if (x.priority > y.priority)
-							return 1;
-						else
-							return 0;
-					});
-				
-				// Unfortunately we can't create this shape until after all the other sub-shapes are created.
-				// So it's simplest just to create the shape here.
-				var center = new Point(200 + 200*i, 50 + 200*i);
-//				var center = new Point(50 + 50*i * context.canvas.width, 50 + 50*i * context.canvas.height);
-				var shape = new EntityShape(context, entity.target, center, entity.styles, child_shapes);
-				GNOS.scene.append(shape);
+				max_entity = Math.max(label.level, max_entity);
 			});
+			
+			// gauges
+			$.each(model.gauges, function (i, gauge)
+			{
+				if (gauge.target === entity.target && gauge.level <= GNOS.entity_detail.value)
+				{
+					gauge.shape.adjust_width(context, max_width);
+					child_shapes.push(gauge.shape);
+				}
+				
+				max_entity = Math.max(gauge.level, max_entity);
+			});
+				
+			// alerts
+			$.each(model.alerts, function (i, alert)
+			{
+				if (alert.target === entity.target && alert.level <= GNOS.entity_detail.value)
+				{
+					child_shapes.push(alert.shape);
+					max_width = Math.max(alert.shape.width, max_width);
+				}
+				
+				max_entity = Math.max(alert.level, max_entity);
+			});
+			
+			// Ensure that info shapes appear in the same order on each entity.
+			child_shapes.sort(
+				function (x, y)
+				{
+					if (x.priority < y.priority)
+						return -1;
+					else if (x.priority > y.priority)
+						return 1;
+					else
+						return 0;
+				});
+			
+			// Unfortunately we can't create this shape until after all the other sub-shapes are created.
+			// So it's simplest just to create the shape here.
+			var center = new Point(200 + 200*k, 50 + 200*k);
+//				var center = new Point(50 + 50*i * context.canvas.width, 50 + 50*i * context.canvas.height);
+			var shape = new EntityShape(context, entity.target, center, entity.styles, child_shapes);
+			GNOS.scene.append(shape);
+		});
 			
 		// This is the only place where we know all of the levels of the entity infos.
 		// If the range has changed we update the slider accordingly. (It's a bit weird
@@ -537,34 +522,33 @@ function map_renderer(element, model, model_names)
 		var shapes = [];
 		var max_relation = 0;
 		
-		model.relations.forEach(
-			function (relation)
+		$.each(model.relations, function (i, relation)
+		{
+			var left = find_entity(relation.left);
+			var right = find_entity(relation.right);
+			if (left && right)
 			{
-				var left = find_entity(relation.left);
-				var right = find_entity(relation.right);
-				if (left && right)
+				var left_pt = left.rect.intersect_line(right.center);	// TODO: need to offset centers if there are multiple relations between the entities
+				var right_pt = right.rect.intersect_line(left.center);
+				var line = new Line(left_pt, right_pt);
+				
+				if (relation.styles.indexOf("line-type:directed") >= 0)
 				{
-					var left_pt = left.rect.intersect_line(right.center);	// TODO: need to offset centers if there are multiple relations between the entities
-					var right_pt = right.rect.intersect_line(left.center);
-					var line = new Line(left_pt, right_pt);
-					
-					if (relation.styles.indexOf("line-type:directed") >= 0)
-					{
-						line = line.shrink(0, 3);		// might want to add a style for the outdent
-					}
-					else if (relation.styles.indexOf("line-type:bidirectional") >= 0)
-					{
-						line = line.shrink(3, 3);
-					}
-					
-					var shape = new LineShape(context, line, relation.styles);
-					shapes.push(shape);
-					
-					max_relation = add_label(model, shapes, line, relation.left_label, 0.2, max_relation);
-					max_relation = add_label(model, shapes, line, relation.middle_label, 0.5, max_relation);
-					max_relation = add_label(model, shapes, line, relation.right_label, 0.8, max_relation);
+					line = line.shrink(0, 3);		// might want to add a style for the outdent
 				}
-			});
+				else if (relation.styles.indexOf("line-type:bidirectional") >= 0)
+				{
+					line = line.shrink(3, 3);
+				}
+				
+				var shape = new LineShape(context, line, relation.styles);
+				shapes.push(shape);
+				
+				max_relation = add_label(model, shapes, line, relation.left_label, 0.2, max_relation);
+				max_relation = add_label(model, shapes, line, relation.middle_label, 0.5, max_relation);
+				max_relation = add_label(model, shapes, line, relation.right_label, 0.8, max_relation);
+			}
+		});
 		GNOS.scene.prepend_all(shapes);
 		
 		GNOS.relation_detail.max = max_relation;
@@ -626,18 +610,16 @@ EntityShape.prototype.draw = function (context)
 	
 	var dx = this.rect.geometry.left + this.rect.width/2;
 	var dy = this.rect.geometry.top + this.rect.height/2 - this.total_height/2 + 0.2*this.shapes[0].height;	// TODO: hopefully when text metrics work a bit better we can get rid of that last term (think we need leading)
-	for (var i = 0; i < this.shapes.length; ++i)
+	$.each(this.shapes, function (i, shape)
 	{
 		context.save();
 		
-		var shape = this.shapes[i];
 		context.translate(dx, dy + shape.height/2);
-		
 		shape.draw(context);
 		
 		dy += shape.height;
 		context.restore();
-	}
+	});
 };
 
 EntityShape.prototype.hit_test = function (pt)

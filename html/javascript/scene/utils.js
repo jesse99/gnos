@@ -42,14 +42,14 @@ function compute_text_metrics(context, lines, styles)
 	context.save();
 	context.setTransform(1, 0, 0, 1, 0, 0);
 	
-	for (var i = 0; i < styles.length; ++i)
+	$.each(styles, function (i, style)
 	{
-		apply_styles(context, styles[i]);
+		apply_styles(context, style);
 		
 		var metrics = do_compute_line_metrics(context, lines[i]);
 		heights.push(metrics.line_height);
 		widths.push(metrics.width);
-	}
+	});
 	
 	context.restore();
 	return {heights: heights, widths: widths};
