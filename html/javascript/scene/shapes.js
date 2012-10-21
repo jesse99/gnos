@@ -36,23 +36,23 @@ function LineShape(context, line, styles, from_arrow, to_arrow)
 	context.save();
 	apply_styles(context, this.styles);
 	this.stroke_width = context.lineWidth;
-	context.restore();
 	
 	if (styles.indexOf("line-type:directed") >= 0)
 	{
 		this.from_arrow = {stem_height: 0, base_width: 0};
-		this.to_arrow = {stem_height: 15 + this.stroke_width, base_width: 12 + this.stroke_width};
+		this.to_arrow = {stem_height: context.arrow_height, base_width: context.arrow_width};
 	}
 	else if (styles.indexOf("line-type:bidirectional") >= 0)
 	{
-		this.from_arrow = {stem_height: 15 + this.stroke_width, base_width: 12 + this.stroke_width};
-		this.to_arrow = {stem_height: 15 + this.stroke_width, base_width: 12 + this.stroke_width};
+		this.from_arrow = {stem_height: context.arrow_height, base_width: context.arrow_width};
+		this.to_arrow = {stem_height: context.arrow_height, base_width: context.arrow_width};
 	}
 	else
 	{
 		this.from_arrow = {stem_height: 0, base_width: 0};
 		this.to_arrow = {stem_height: 0, base_width: 0};
 	}
+	context.restore();
 	
 	freezeProps(this);
 }

@@ -536,11 +536,11 @@ function map_renderer(element, model, model_names)
 					
 					if (relation.styles.indexOf("line-type:directed") >= 0)
 					{
-						line = line.shrink(0, 4);
+						line = line.shrink(0, 3);		// might want to add a style for the outdent
 					}
 					else if (relation.styles.indexOf("line-type:bidirectional") >= 0)
 					{
-						line = line.shrink(3, 4);
+						line = line.shrink(3, 3);
 					}
 					
 					var shape = new LineShape(context, line, relation.styles);
