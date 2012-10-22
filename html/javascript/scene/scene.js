@@ -5,6 +5,8 @@
 
 function Scene(context)
 {
+	// Might make sense to have a dialog allowing users to configure these settings,
+	// but from my (limited) testing it's difficult to do very much useful with them.
 	this.shapes = ['graph'];
 	this.particles = arbor.ParticleSystem(
 	{
