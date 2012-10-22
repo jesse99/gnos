@@ -170,7 +170,7 @@ priv fn add_entities(store: &Store)
 	
 	store.add(~"entities:winterfell", ~[
 		(~"gnos:entity",	StringValue(~"Winterfell", ~"")),
-		(~"gnos:style",		StringValue(~"font-size:large font-weight:bolder frame-blur:5", ~"")),
+		(~"gnos:style",		StringValue(~"font-size:large font-weight:bolder frame-blur:5 node-mass:3", ~"")),
 	]);
 	
 	store.add(~"entities:dreadfort", ~[
@@ -205,7 +205,7 @@ priv fn add_entities(store: &Store)
 	
 	store.add(~"entities:kings_landing", ~[
 		(~"gnos:entity",		StringValue(~"King's Landing", ~"")),
-		(~"gnos:style",			StringValue(~"font-size:x-large font-weight:bolder frame-blur:5", ~"")),
+		(~"gnos:style",			StringValue(~"font-size:x-large font-weight:bolder frame-blur:5 node-mass:5", ~"")),
 	]);
 	
 	store.add(~"entities:lannisport", ~[

@@ -78,6 +78,7 @@ function initMouseHandling()
 			if (dragged === null || dragged.node === undefined) return false;
 			if (dragged.node !== null) dragged.node.fixed = false;		// setting this to true doesn't seem to do anything
 			dragged.node.tempMass = 1000;
+			dragged.node.mass = 1.0e50;									// not sure that this does anything
 			dragged = null;
 			$('#map').unbind('mousemove', handlers.dragged);
 			$(window).unbind('mouseup', handlers.dropped);
@@ -471,6 +472,35 @@ function relations_query(solution)
 
 function map_renderer(element, model, model_names)
 {
+	function add_node_styles(shape, styles)
+	{
+		var map = document.getElementById('map');
+		$.each(styles, function (k, style)
+		{
+			if (style)
+			{
+				var i = style.indexOf(':');
+				assert(i > 0, "failed to find ':' in " + style);
+				
+				var name = style.slice(0, i);
+				var value = style.slice(i+1);
+				
+				if (name == "node-mass")
+				{
+					shape.mass = parseFloat(value);
+				}
+				else if (name == "node-start-x")
+				{
+					shape.x = parseFloat(value)*map.width;
+				}
+				else if (name == "node-start-y")
+				{
+					shape.y = parseFloat(value)*map.height;
+				}
+			}
+		});
+	}
+	
 	function get_nodes(contetx, model)
 	{
 		var max_entity = 0;
@@ -536,9 +566,10 @@ function map_renderer(element, model, model_names)
 			// Unfortunately we can't create this shape until after all the other sub-shapes are created.
 			// So it's simplest just to create the shape here.
 			var shape = new EntityShape(context, entity.target, Point.zero, entity.styles, child_shapes);
+			add_node_styles(shape, entity.styles);
 			nodes[entity.target] = shape;
 		});
-			
+		
 		// This is the only place where we know all of the levels of the entity infos.
 		// If the range has changed we update the slider accordingly. (It's a bit weird
 		// that we also use the slider value here but we can't do better).

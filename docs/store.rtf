@@ -129,40 +129,84 @@ Underlined predicates represent what are (more or less) primary keys.\
 The following affect entities:\
 
 \b frame-width
-\b0 :<width>\
+\b0 :<width=
+\i\fs34 1
+\i0\fs36 >\
 
 \b frame-color
-\b0 :<color>\
+\b0 :<color=
+\i black
+\i0 >			\
 
 \b frame-back-color
-\b0 :<color>\
+\b0 :<color=
+\i black
+\i0 >\
+\pard\pardeftab480\pardirnatural
 
-\b frame-blur
-\b0 :<width>\
+\b \cf0 frame-blur
+\b0 :<width=
+\i undefined
+\i0 >\
 
+\b \
+
+\b0 The following affect node layout:\
+
+\b node-mass
+\b0 :<number=
+\i 1.0
+\i0 >\
+
+\b node-start-x
+\b0 :<number=
+\i undefined
+\i0 >		\cf2 causes client errors\cf0 \
+\pard\pardeftab480\pardirnatural
+
+\b \cf0 node-start-y
+\b0 :<number=
+\i undefined
+\i0 >\
+\pard\pardeftab480\pardirnatural
+\cf0 Start position is normalized to [0, 1] from topLeft.
 \f1\fs24 \
+\
+\pard\pardeftab480\pardirnatural
 
-\f0\fs36 The following affect text rendering:\
+\f0\fs36 \cf0 The following affect text rendering:\
 
 \b font-size
-\b0 :xx-small, x-small, small, normal, medium, large, x-large, xx-large, smaller, larger\
+\b0 :xx-small, x-small, small, normal, medium, large, x-large, xx-large, smaller, larger, 
+\i 12
+\i0 \
 
 \b font-family
-\b0 :serif, sans-serif, cursive, fantasy, monospace\
+\b0 :serif, sans-serif, cursive, fantasy, monospace, 
+\i Arial
+\i0 \
 
 \b font-style
-\b0 :normal, italic, oblique\
+\b0 :
+\i normal
+\i0 , italic, oblique\
 
 \b font-weight
-\b0 :normal, bold, bolder, lighter, 100, 200, 300, 400, 500, 600, 700, 800, 900\
+\b0 :normal, bold, bolder, lighter, 100, 200, 300, 
+\i 400
+\i0 , 500, 600, 700, 800, 900\
 
 \b font-color
-\b0 :<color>\
+\b0 :<color=
+\i black
+\i0 >\
 \
 The following affect gauges:\
 
 \b gauge-bar-color
-\b0 :<color>\
+\b0 :<color=
+\i lightblue
+\i0 >\
 frame styles are also applied. Font styles are used with the title.\
 \
 The following affect alerts:\
@@ -173,19 +217,29 @@ The following affect alerts:\
 The following affect relations:\
 
 \b line-type
-\b0 :normal, directed (from left to right), bidirectional\
+\b0 :
+\i normal
+\i0 , directed (from left to right), bidirectional\
 
 \b line-width
-\b0 :<width>\
+\b0 :<width=
+\i 1
+\i0 >\
 
 \b line-arrow-width
-\b0 :<width>\
+\b0 :<width=
+\i 12+line-width
+\i0 >\
 
 \b line-arrow-height
-\b0 :<width>\
+\b0 :<width=
+\i 15+line-width
+\i0 >\
 
 \b line-color
-\b0 :<color>\
+\b0 :<color=
+\i black
+\i0 >\
 \
 Colors may be X11 color names ("red") or RGB in hex (FF0000). Alpha may be included\
 after a slash ("red/0.6"). Widths are in pixels and may be fractional numbers.\

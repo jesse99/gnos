@@ -146,10 +146,6 @@ Scene.prototype.do_adjust_graph_positions = function (context)
 	this.particles.eachNode(function (node, pt)
 	{
 		var center = new Point(pt.x, pt.y);
-		if (node.data.center == undefined)
-		{
-			console.log('undefined');
-		}
 		
 		if (node.data.center.distance_squared(center) >= 1)
 		{
