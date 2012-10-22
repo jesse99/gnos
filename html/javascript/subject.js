@@ -1,10 +1,12 @@
 // Page that shows predicates for a particular subject.
 "use strict";
 
+GNOS.store = undefined;
+
 $(document).ready(function()
 {
 	var table = $('#subject');
-	var store = table.attr("data-name");
+	GNOS.store = table.attr("data-name");
 	var about = table.attr("data-about");
 	
 	var query = '														\
@@ -19,7 +21,7 @@ WHERE 																\
 	BIND(IF(?is_url, rrdf:pname(?value), ?value) AS ?value_label)	\
 } ORDER BY ?predicate_label ?value_label'.format(about);
 
-	register_query("subject", ["subject"], store, [query], [subject_query]);
+	register_query("subject", ["subject"], GNOS.store, [query], [subject_query]);
 	
 	register_renderer("subject", ["subject"], "subject", subject_renderer);
 });
@@ -27,11 +29,9 @@ WHERE 																\
 function subject_query(solution)
 {
 	var html = '';
-	for (var i = 0; i < solution.length; ++i)
+	$.each(solution, function (i, row)
 	{
-		var row = solution[i];
-		//console.log('predicate_url: "{0}", predicate_label: "{1}", value_url: "{2}", 
-		//	value_label: "{3}"'.format(row.predicate_url, row.predicate_label, row.value_url, row.value_label));
+		console.log("{0}: {1:j}".format(i, row));
 		var klass = i & 1 ? "odd" : "even";
 		html += '<tr class="{0}">'.format(klass);
 		
@@ -60,7 +60,7 @@ function subject_query(solution)
 		html += '	</span></td>';
 		
 		html += '</tr>';
-	}
+	});
 	
 	return {subject: html};
 }
@@ -72,7 +72,7 @@ function subject_renderer(element, model, model_names)
 
 function make_link(url, label)
 {
-	if (url !== label)
+	if (label.indexOf("gnos:") === 0 || label.indexOf("xsd:") === 0)
 	{
 		// url: http://www.gnos.org/2012/schema#foo
 		// label: gnos:foo
@@ -80,22 +80,17 @@ function make_link(url, label)
 	}
 	else
 	{
-		if (url.indexOf("http://") === 0)
+		var parts = label.split(':');
+		if (parts.length == 2)
 		{
-			// url & value: http://some/random/web/site#foo
-			// Shouldn't normally hit this case.
-			return '<a href="{0}">{1}</a>'.format(encodeURI(url), escapeHtml(url.substr(0, url.length - 7)));
-		}
-		else if (url.indexOf("_:") === 0)
-		{
-			// url & value: _:blank-node
-			return '<a href="/subject/{0}">{1}</a>'.format(encodeURIComponent(url), escapeHtml(url));
+			// url: http://10.6.210.175:8080/map/primary/entities/wall
+			// label: entities:wall
+			return '<a href="http://localhost:8080/subject/{0}/{1}">{2}</a>'.format(GNOS.store, encodeURI(label), escapeHtml(label));
 		}
 		else
 		{
-			// url & value: something that isn't http
-			// Shouldn't hit this case.
-			return escapeHtml(label);
+			// url & value: http://some/random/web/site#foo
+			return '<a href="{0}">{1}</a>'.format(encodeURI(url), escapeHtml(url.substr(0, url.length - 7)));
 		}
 	}
 }
