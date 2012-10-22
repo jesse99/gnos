@@ -28,10 +28,7 @@ NoOpShape.prototype.toString = function ()
 // arrows are objects with stem_height and base_width properties
 function LineShape(context, line, styles, from_arrow, to_arrow)
 {
-	this.geometry = line;
 	this.styles = ['line-color:black'].concat(styles).filter(function (s) {return s.indexOf('line-') === 0;});
-	this.width = Math.abs(this.geometry.from.x - this.geometry.to.x);
-	this.height = Math.abs(this.geometry.from.y - this.geometry.to.y);
 	
 	context.save();
 	apply_styles(context, this.styles);
@@ -54,8 +51,15 @@ function LineShape(context, line, styles, from_arrow, to_arrow)
 	}
 	context.restore();
 	
-	freezeProps(this);
+	this.set_line(line);
 }
+
+LineShape.prototype.set_line = function (line)
+{
+	this.geometry = line;
+	this.width = Math.abs(this.geometry.from.x - this.geometry.to.x);
+	this.height = Math.abs(this.geometry.from.y - this.geometry.to.y);
+};
 
 // TODO: scene should take care of saving/restoring context
 LineShape.prototype.draw = function (context)
@@ -315,6 +319,7 @@ RectShape.prototype.hit_test = function (pt)
 };
 
 // Does an intersection of the perimeter of the shape with a line from center to other (center).
+// Returns undefined if there is no intersection (can happen with overlapping entities).
 RectShape.prototype.intersect_line = function (other)
 {
 	var g = this.geometry;
@@ -337,8 +342,10 @@ RectShape.prototype.intersect_line = function (other)
 		
 	// try bottom side
 	result = new Line(new Point(g.left, g.top + g.height), new Point(g.left + g.width, g.top + g.height)).intersection(line1);
-	assert(result, "{0} and {1} did not intersect".format(this, other));
-	return result;
+	if (result)
+		return result;
+	else
+		return undefined;
 };
 
 RectShape.prototype.toString = function ()

@@ -1,7 +1,7 @@
 // Page that shows a map of entities and the relations between them
 "use strict";
 
-GNOS.scene = new Scene();
+GNOS.scene = undefined;
 GNOS.timer_id = undefined;
 GNOS.last_update = undefined;
 GNOS.poll_interval = undefined;
@@ -10,8 +10,13 @@ GNOS.poll_interval = undefined;
 GNOS.entity_detail = undefined;
 GNOS.relation_detail = undefined;
 GNOS.loaded_entities = false;
+GNOS.screen_padding = 80;		// px
 
 $(document).ready(function(){
+	var map = document.getElementById('map');
+	var context = map.getContext('2d');
+	GNOS.scene = new Scene(context);
+	
 	resize_canvas();
 	window.onresize = resize_canvas;
 	
@@ -38,6 +43,7 @@ function resize_canvas()
 	if (!GNOS.loaded_entities)
 		set_loading_label();
 	map_renderer(map, GNOS.sse_model, []);
+	GNOS.scene.set_screen_size(map.width, map.height, GNOS.screen_padding);
 }
 
 function set_loading_label()
@@ -46,7 +52,7 @@ function set_loading_label()
 	var context = map.getContext('2d');
 	
 	var shape = new TextLineShape(context, new Point(map.width/2, map.height/2), 'Loading...', ["font-size:xx-large", "font-size:larger", "font-size:larger"]);
-	GNOS.scene.remove_all();
+	GNOS.scene.remove_statics();
 	GNOS.scene.append(shape);
 }
 
@@ -411,9 +417,10 @@ function relations_query(solution)
 
 function map_renderer(element, model, model_names)
 {
-	function add_shapes(contetx, model)
+	function get_nodes(contetx, model)
 	{
 		var max_entity = 0;
+		var nodes = {};
 		
 		// add entity shapes to the scene,
 		$.each(model.entities, function (k, entity)
@@ -474,10 +481,8 @@ function map_renderer(element, model, model_names)
 			
 			// Unfortunately we can't create this shape until after all the other sub-shapes are created.
 			// So it's simplest just to create the shape here.
-			var center = new Point(200 + 200*k, 50 + 200*k);
-//				var center = new Point(50 + 50*i * context.canvas.width, 50 + 50*i * context.canvas.height);
-			var shape = new EntityShape(context, entity.target, center, entity.styles, child_shapes);
-			GNOS.scene.append(shape);
+			var shape = new EntityShape(context, entity.target, Point.zero, entity.styles, child_shapes);
+			nodes[entity.target] = shape;
 		});
 			
 		// This is the only place where we know all of the levels of the entity infos.
@@ -485,19 +490,11 @@ function map_renderer(element, model, model_names)
 		// that we also use the slider value here but we can't do better).
 		GNOS.entity_detail.max = max_entity;
 		GNOS.entity_detail.hidden = max_entity === 0;
+		
+		return nodes;
 	}
 	
-	function find_entity(name)
-	{
-		return GNOS.scene.find(
-			function (shape)
-			{
-				if (shape.name == name)
-					return shape;
-			});
-	}
-	
-	function add_relations(context, model)
+	function get_edges(context, model)
 	{
 		function add_label(model, shapes, line, name, p, max_relation)
 		{
@@ -519,40 +516,29 @@ function map_renderer(element, model, model_names)
 			return max_relation;
 		}
 		
-		var shapes = [];
+		var edges = {};
 		var max_relation = 0;
 		
 		$.each(model.relations, function (i, relation)
 		{
-			var left = find_entity(relation.left);
-			var right = find_entity(relation.right);
-			if (left && right)
-			{
-				var left_pt = left.rect.intersect_line(right.center);	// TODO: need to offset centers if there are multiple relations between the entities
-				var right_pt = right.rect.intersect_line(left.center);
-				var line = new Line(left_pt, right_pt);
-				
-				if (relation.styles.indexOf("line-type:directed") >= 0)
-				{
-					line = line.shrink(0, 3);		// might want to add a style for the outdent
-				}
-				else if (relation.styles.indexOf("line-type:bidirectional") >= 0)
-				{
-					line = line.shrink(3, 3);
-				}
-				
-				var shape = new LineShape(context, line, relation.styles);
-				shapes.push(shape);
-				
-				max_relation = add_label(model, shapes, line, relation.left_label, 0.2, max_relation);
-				max_relation = add_label(model, shapes, line, relation.middle_label, 0.5, max_relation);
-				max_relation = add_label(model, shapes, line, relation.right_label, 0.8, max_relation);
-			}
+			var line = new Line(new Point(0, 0), new Point(1, 0));
+			var shape = new LineShape(context, line, relation.styles);
+			shape.from_node = relation.left;
+			shape.to_node = relation.right;
+			
+			if (!(relation.left in edges))
+				edges[relation.left] = {};
+			edges[relation.left][relation.right] = shape;
+			
+//			max_relation = add_label(model, shapes, line, relation.left_label, 0.2, max_relation);
+//			max_relation = add_label(model, shapes, line, relation.middle_label, 0.5, max_relation);
+//			max_relation = add_label(model, shapes, line, relation.right_label, 0.8, max_relation);
 		});
-		GNOS.scene.prepend_all(shapes);
 		
 		GNOS.relation_detail.max = max_relation;
 		GNOS.relation_detail.hidden = max_relation === 0;
+		
+		return edges;
 	}
 	
 	var map = document.getElementById('map');
@@ -561,10 +547,11 @@ function map_renderer(element, model, model_names)
 	
 	if (GNOS.loaded_entities)
 	{
-		GNOS.scene.remove_all();
-		add_shapes(context, model);
-		add_relations(context, model);
+		var nodes = get_nodes(context, model);
+		var edges = get_edges(context, model);
+		GNOS.scene.merge_graph({nodes: nodes, edges: edges});
 		
+		GNOS.scene.remove_statics();
 		if (model.globals && model.globals.error_count)
 			GNOS.scene.append(model.globals.error_count);
 		
@@ -581,7 +568,7 @@ function map_renderer(element, model, model_names)
 // Used to draw a device consisting of a RectShape and an array of arbitrary shapes.
 function EntityShape(context, name, center, styles, shapes)
 {
-	var width = 14 + shapes.reduce(function(value, shape)
+	this.width = 14 + shapes.reduce(function(value, shape)
 	{
 		return Math.max(value, shape.width);
 	}, 0);
@@ -590,15 +577,19 @@ function EntityShape(context, name, center, styles, shapes)
 		return value + shape.height;
 	}, 0);
 	
-	styles = ['frame-back-color:linen'].concat(styles);
+	this.styles = ['frame-back-color:linen'].concat(styles);
 	
-	this.rect = new RectShape(context, new Rect(center.x - width/2, center.y - this.total_height/2, width, this.total_height), styles);
-	this.center = center;
 	this.shapes = shapes;
 	this.name = name;
 	this.clickable = true;
-	freezeProps(this);
+	this.set_center(context, center);
 }
+
+EntityShape.prototype.set_center = function (context, center)
+{
+	this.rect = new RectShape(context, new Rect(center.x - this.width/2, center.y - this.total_height/2, this.width, this.total_height), this.styles);
+	this.center = center;
+};
 
 EntityShape.prototype.draw = function (context)
 {

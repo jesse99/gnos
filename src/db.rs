@@ -82,9 +82,24 @@ priv fn add_got(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: u1
 	add_infos(store, state_chan, poll_rate);
 	
 	// relations
-	add_relation(store, ~"entities:wall", ~"entities:winterfell", ~"line-type:bidirectional", ~"road", ~"");
-	add_relation(store, ~"entities:kings_landing", ~"entities:winterfell", ~"line-width:3 line-color:purple line-type:directed", ~"king's road", ~"straight and true");
+	add_relation(store, ~"entities:wall", ~"entities:winterfell", ~"line-type:normal", ~"", ~"");
+	add_relation(store, ~"entities:winterfell", ~"entities:hornwood", ~"line-type:normal", ~"", ~"");
+	add_relation(store, ~"entities:hornwood", ~"entities:dreadfort", ~"line-type:normal", ~"", ~"");
+	add_relation(store, ~"entities:dreadfort", ~"entities:karhold", ~"line-type:normal", ~"", ~"");
+	add_relation(store, ~"entities:winterfell", ~"entities:white_harbor", ~"line-type:normal", ~"", ~"");
 	
+	add_relation(store, ~"entities:white_harbor", ~"entities:moat_cailin", ~"line-type:normal", ~"", ~"");
+	add_relation(store, ~"entities:winterfell", ~"entities:moat_cailin", ~"line-type:normal", ~"", ~"");
+	add_relation(store, ~"entities:moat_cailin", ~"entities:harenhal", ~"line-width:3 line-color:purple line-type:normal", ~"king's road", ~"straight and true");
+	add_relation(store, ~"entities:harenhal", ~"entities:kings_landing", ~"line-width:3 line-color:purple line-type:normal", ~"king's road", ~"straight and true");
+	
+	add_relation(store, ~"entities:kings_landing", ~"entities:lannisport", ~"line-width:3 line-type:normal", ~"gold road", ~"");
+	add_relation(store, ~"entities:lannisport", ~"entities:crakehall", ~"line-type:normal", ~"", ~"");
+	add_relation(store, ~"entities:lannisport", ~"entities:clegane_hall", ~"line-type:normal", ~"", ~"");
+	
+	add_relation(store, ~"entities:kings_landing", ~"entities:highgarden", ~"line-width:3 line-type:normal", ~"rose road", ~"");
+	add_relation(store, ~"entities:highgarden", ~"entities:oldtown", ~"line-type:normal", ~"", ~"");
+
 	// details
 //	let map_summary = get_blank_name(store, ~"summary");
 //	store.add(map_summary, ~[
@@ -155,12 +170,67 @@ priv fn add_entities(store: &Store)
 	
 	store.add(~"entities:winterfell", ~[
 		(~"gnos:entity",	StringValue(~"Winterfell", ~"")),
+		(~"gnos:style",		StringValue(~"font-size:large font-weight:bolder frame-blur:5", ~"")),
+	]);
+	
+	store.add(~"entities:dreadfort", ~[
+		(~"gnos:entity",	StringValue(~"The Dreadfort", ~"")),
+		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
+	]);
+	
+	store.add(~"entities:karhold", ~[
+		(~"gnos:entity",	StringValue(~"Karhold", ~"")),
+		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
+	]);
+	
+	store.add(~"entities:hornwood", ~[
+		(~"gnos:entity",	StringValue(~"Hornwood", ~"")),
+		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
+	]);
+	
+	store.add(~"entities:white_harbor", ~[
+		(~"gnos:entity",	StringValue(~"White Harbor", ~"")),
+		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
+	]);
+	
+	store.add(~"entities:moat_cailin", ~[
+		(~"gnos:entity",	StringValue(~"Moat Cailin", ~"")),
+		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
+	]);
+	
+	store.add(~"entities:harenhal", ~[
+		(~"gnos:entity",	StringValue(~"Harenhal", ~"")),
 		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
 	]);
 	
 	store.add(~"entities:kings_landing", ~[
 		(~"gnos:entity",		StringValue(~"King's Landing", ~"")),
 		(~"gnos:style",			StringValue(~"font-size:x-large font-weight:bolder frame-blur:5", ~"")),
+	]);
+	
+	store.add(~"entities:lannisport", ~[
+		(~"gnos:entity",	StringValue(~"Lannisport", ~"")),
+		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
+	]);
+	
+	store.add(~"entities:crakehall", ~[
+		(~"gnos:entity",	StringValue(~"Crakehall", ~"")),
+		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
+	]);
+	
+	store.add(~"entities:clegane_hall", ~[
+		(~"gnos:entity",	StringValue(~"Clegane Hall", ~"")),
+		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
+	]);
+	
+	store.add(~"entities:highgarden", ~[
+		(~"gnos:entity",	StringValue(~"Highgarden", ~"")),
+		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
+	]);
+	
+	store.add(~"entities:oldtown", ~[
+		(~"gnos:entity",	StringValue(~"Oldtown", ~"")),
+		(~"gnos:style",		StringValue(~"font-weight:bolder frame-blur:5", ~"")),
 	]);
 }
 
