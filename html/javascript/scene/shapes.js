@@ -33,6 +33,7 @@ function LineShape(context, line, styles, from_arrow, to_arrow)
 	context.save();
 	apply_styles(context, this.styles);
 	this.stroke_width = context.lineWidth;
+	this.children = [];
 	
 	if (styles.indexOf("line-type:directed") >= 0)
 	{
@@ -59,6 +60,11 @@ LineShape.prototype.set_line = function (line)
 	this.geometry = line;
 	this.width = Math.abs(this.geometry.from.x - this.geometry.to.x);
 	this.height = Math.abs(this.geometry.from.y - this.geometry.to.y);
+};
+
+LineShape.prototype.add_shape = function (p, shape)
+{
+	this.children.push({p: p, shape: shape});
 };
 
 // TODO: scene should take care of saving/restoring context
@@ -89,8 +95,23 @@ LineShape.prototype.draw = function (context)
 		this.do_draw_arrow(context, unit, this.geometry.from, from_x, from_y, this.from_arrow);
 	if (this.to_arrow.stem_height > 0)
 		this.do_draw_arrow(context, unit, this.geometry.to, to_x, to_y, this.to_arrow);
-		
+	
 	context.restore();
+	
+	if (Math.max(this.width, this.height) > 1)
+	{
+		var self = this;
+		$.each(this.children, function (i, child)
+		{
+			context.save();
+			
+			var offset = self.geometry.relative_pt(child.p);
+			context.translate(offset.x, offset.y);
+			child.shape.draw(context);
+			
+			context.restore();
+		});
+	}
 };
 
 LineShape.prototype.hit_test = function (pt)

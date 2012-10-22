@@ -496,7 +496,7 @@ function map_renderer(element, model, model_names)
 	
 	function get_edges(context, model)
 	{
-		function add_label(model, shapes, line, name, p, max_relation)
+		function add_label(model, shape, line, name, p, max_relation)
 		{
 			if (name && name in model.labels)
 			{
@@ -505,11 +505,10 @@ function map_renderer(element, model, model_names)
 				
 				if (label.level <= GNOS.relation_detail.value)
 				{
-					var center = line.relative_pt(p);
 					var styles = ['frame-width:0', 'frame-back-color:white'];
 					var children = [label.shape];
-					var shape = new EntityShape(context, "", center, styles, children);
-					shapes.push(shape);
+					var child = new EntityShape(context, "", Point.zero, styles, children);
+					shape.add_shape(p, child);
 				}
 			}
 			
@@ -530,9 +529,9 @@ function map_renderer(element, model, model_names)
 				edges[relation.left] = {};
 			edges[relation.left][relation.right] = shape;
 			
-//			max_relation = add_label(model, shapes, line, relation.left_label, 0.2, max_relation);
-//			max_relation = add_label(model, shapes, line, relation.middle_label, 0.5, max_relation);
-//			max_relation = add_label(model, shapes, line, relation.right_label, 0.8, max_relation);
+			max_relation = add_label(model, shape, line, relation.left_label, 0.2, max_relation);
+			max_relation = add_label(model, shape, line, relation.middle_label, 0.5, max_relation);
+			max_relation = add_label(model, shape, line, relation.right_label, 0.8, max_relation);
 		});
 		
 		GNOS.relation_detail.max = max_relation;

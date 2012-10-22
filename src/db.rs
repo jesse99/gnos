@@ -368,15 +368,24 @@ priv fn add_relation(store: &Store, lhs: ~str, rhs: ~str, style: ~str, label1: ~
 {
 	let relation = get_blank_name(store, ~"relation");
 	
-	let info1 = get_blank_name(store, ~"relation-label");
-	store.add(info1, ~[
-		(~"gnos:target",	BlankValue(copy relation)),
-		(~"gnos:label",	StringValue(copy label1, ~"")),
-		(~"gnos:level",	IntValue(1)),
-		(~"gnos:priority",	IntValue(1)),
-	]);
+	let optional1 =
+		if label1.is_not_empty()
+		{
+			let info1 = get_blank_name(store, ~"relation-label");
+			store.add(info1, ~[
+				(~"gnos:target",	BlankValue(copy relation)),
+				(~"gnos:label",	StringValue(copy label1, ~"")),
+				(~"gnos:level",	IntValue(1)),
+				(~"gnos:priority",	IntValue(1)),
+			]);
+			~[(~"gnos:middle_info",	BlankValue(info1))]
+		}
+		else
+		{
+			~[]
+		};
 	
-	let optional =
+	let optional2 =
 		if label2.is_not_empty()
 		{
 			let info2 = get_blank_name(store, ~"relation-label");
@@ -397,6 +406,5 @@ priv fn add_relation(store: &Store, lhs: ~str, rhs: ~str, style: ~str, label1: ~
 		(~"gnos:left",			IriValue(copy lhs)),
 		(~"gnos:right",			IriValue(copy rhs)),
 		(~"gnos:style",			StringValue(copy style, ~"")),
-		(~"gnos:middle_info",	BlankValue(info1)),
-	] + optional);
+	] + optional1 + optional2);
 }
