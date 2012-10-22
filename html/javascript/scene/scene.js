@@ -9,7 +9,7 @@ function Scene(context)
 	this.particles = arbor.ParticleSystem(
 	{
 		repulsion: 50*1000,	// the force repelling nodes from each other (1000)
-		stifness: 600,		// the rigidity of the edges (600)
+		stiffness: 3*600,		// the rigidity of the edges (600)
 		friction: 0.5,			// the amount of damping in the system (0.5)
 		gravity: false,			// an additional force attracting nodes to the origin (false)
 		fps: 30,					// frames per second (55)

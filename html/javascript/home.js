@@ -32,7 +32,61 @@ $(document).ready(function(){
 	GNOS.timer_id = setInterval(update_time, 1000);
 	
 	set_loading_label();
+	initMouseHandling();
 });
+
+function initMouseHandling()
+{
+	var dragged = null;
+	
+	// set up a handler object that will initially listen for mousedowns then
+	// for moves and mouseups while dragging
+	var handlers =
+	{
+		clicked: function (e)
+		{
+			var pos = $('#map').offset();
+			var mouseP = arbor.Point(e.pageX - pos.left, e.pageY - pos.top);
+			dragged = GNOS.scene.particles.nearest(mouseP);
+			
+			if (dragged && dragged.node !== null)
+			{
+				// while we're dragging, don't let physics move the node
+				dragged.node.fixed = true;
+			}
+			
+			$('#map').bind('mousemove', handlers.dragged);
+			$(window).bind('mouseup', handlers.dropped);
+			
+			return false;
+		},
+		dragged: function (e)
+		{
+			var pos = $('#map').offset();
+			var s = arbor.Point(e.pageX - pos.left, e.pageY - pos.top);
+			
+			if (dragged && dragged.node !== null)
+			{
+				var p = GNOS.scene.particles.fromScreen(s);
+				dragged.node.p = p;
+			}
+			
+			return false;
+		},
+		dropped: function (e)
+		{
+			if (dragged === null || dragged.node === undefined) return false;
+			if (dragged.node !== null) dragged.node.fixed = false;		// setting this to true doesn't seem to do anything
+			dragged.node.tempMass = 1000;
+			dragged = null;
+			$('#map').unbind('mousemove', handlers.dragged);
+			$(window).unbind('mouseup', handlers.dropped);
+			return false;
+		}
+	};
+	
+	$('#map').mousedown(handlers.clicked);
+}
 
 function resize_canvas()
 {
