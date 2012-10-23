@@ -574,7 +574,7 @@ function map_renderer(element, model, model_names)
 		// If the range has changed we update the slider accordingly. (It's a bit weird
 		// that we also use the slider value here but we can't do better).
 		GNOS.entity_detail.max = max_entity;
-		GNOS.entity_detail.hidden = max_entity === 0;
+		show(['#entity_detail', '#entity_detail_label'], max_entity !== 0);
 		
 		return nodes;
 	}
@@ -620,7 +620,7 @@ function map_renderer(element, model, model_names)
 		});
 		
 		GNOS.relation_detail.max = max_relation;
-		GNOS.relation_detail.hidden = max_relation === 0;
+		show(['#relation_detail', '#relation_detail_label'], max_relation !== 0);
 		
 		return edges;
 	}

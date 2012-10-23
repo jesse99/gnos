@@ -212,3 +212,14 @@ function animated_draw(target, render)
 		});
 }
 
+// Uses jQuery to toggle the visibility of an array of elements.
+function show(elements, visible)
+{
+	$.each(elements, function (i, element)
+	{
+		if (visible)
+			$(element).removeAttr('hidden');
+		else
+			$(element).attr('hidden', 'hidden');
+	});
+}
