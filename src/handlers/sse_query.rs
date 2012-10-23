@@ -1,6 +1,7 @@
 /// Uses Server Sent Events to send solutions for a query after the model is updated.
 use std::json::ToJson;
 use std::json::to_str;
+use comm::{Chan, Port};
 use model::{Msg, DeregisterMsg, RegisterMsg};
 use rrdf::rrdf::*;
 use server = rwebserve::rwebserve;
@@ -26,7 +27,7 @@ use ResponseHandler = rwebserve::rwebserve::ResponseHandler;
 /// of JSON encoded solutions.
 ///
 /// If a query fails to compile the result will be a string with an error message.
-pub fn sse_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: server::PushChan) -> server::ControlChan
+pub fn sse_query(state_chan: Chan<Msg>, request: &server::Request, push: server::PushChan) -> server::ControlChan
 {
 	let name = copy *request.params.get(@~"name");
 	let queries = get_queries(request);
@@ -35,8 +36,8 @@ pub fn sse_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: s
 	|control_port: server::ControlPort|
 	{
 		info!("starting %s query stream", name);
-		let notify_port = comm::Port();
-		let notify_chan = comm::Chan(&notify_port);
+		let notify_port = Port();
+		let notify_chan = Chan(&notify_port);
 		
 		let key = fmt!("query %?", ptr::addr_of(&notify_port));
 		comm::send(state_chan, RegisterMsg(copy name, copy key, copy queries, notify_chan));
@@ -59,7 +60,7 @@ pub fn sse_query(state_chan: comm::Chan<Msg>, request: &server::Request, push: s
 				}
 				either::Left(result::Err(ref err)) =>
 				{
-					comm::send(push, fmt!("retry: 5000\ndata: %s\n\n", (~"Expected " + *err).to_json().to_str()));
+					comm::send(push, fmt!("retry: 5000\ndata: %s\n\n", err.to_json().to_str()));
 				}
 				either::Right(server::RefreshEvent) =>
 				{

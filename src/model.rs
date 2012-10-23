@@ -1,5 +1,6 @@
 /// Functions and types used to manage a task responsible for managing RDF stores.
 use std::map::{HashMap};
+use comm::{Chan, Port};
 use rrdf::rrdf::*;
 use Namespace = rrdf::solution::Namespace;
 
@@ -15,7 +16,7 @@ pub type UpdatesFn = fn~ (store: &[@Store], data: &str) -> bool;
 /// subsequent results back to the original task.
 ///
 /// In the case of an error only the initial result is sent.
-pub type RegisterChan = comm::Chan<result::Result<~[Solution], ~str>>;
+pub type RegisterChan = Chan<result::Result<~[Solution], ~str>>;
 
 /// Enum used to communicate with the model task.
 ///
@@ -23,15 +24,15 @@ pub type RegisterChan = comm::Chan<result::Result<~[Solution], ~str>>;
 /// server-sent events. Store should be "model" or "alerts".
 pub enum Msg
 {
-	QueryMsg(~str, ~str, comm::Chan<Solution>),		// store + SPARQL query + channel to send results back along (store prefixes are auto-added to the query)
-	UpdateMsg(~str, UpdateFn, ~str),						// store + function to use to update the store + data to use
-	UpdatesMsg(~[~str], UpdatesFn, ~str),				// stores + function to use to update the stores + data to use
+	QueryMsg(~str, ~str, Chan<Solution>),			// store + SPARQL query + channel to send results back along (store prefixes are auto-added to the query)
+	UpdateMsg(~str, UpdateFn, ~str),					// store + function to use to update the store + data to use
+	UpdatesMsg(~[~str], UpdatesFn, ~str),			// stores + function to use to update the stores + data to use
 	
-	RegisterMsg(~str, ~str, ~[~str], RegisterChan),		// store + key + SPARQL queries + channel to send results back along
-	DeregisterMsg(~str, ~str),								// store + key
+	RegisterMsg(~str, ~str, ~[~str], RegisterChan),	// store + key + SPARQL queries + channel to send results back along
+	DeregisterMsg(~str, ~str),							// store + key
 	
-	SyncMsg(comm::Chan<bool>),						// ensure the model task has processed all messages (for unit testing)
-	ExitMsg,												// exits the task (for unit testing)
+	SyncMsg(Chan<bool>),							// ensure the model task has processed all messages (for unit testing)
+	ExitMsg,											// exits the task (for unit testing)
 }
 
 /// Alerts are conditions that hold for a period of time (e.g. a router off line).
@@ -64,8 +65,9 @@ pub pure fn get_standard_store_names() -> ~[~str]
 /// Runs within a task and manages triple stores holding gnos state.
 ///
 /// Other tasks (e.g. views) can query or update the state this function manages.
-pub fn manage_state(port: comm::Port<Msg>, server: &str,  server_port: u16)
+pub fn manage_state(port: Port<Msg>, server: &str,  server_port: u16)
 {
+	// TODO: probably want to restart this task (and possibly others) on failure
 	let namespaces = ~[
 		Namespace {prefix: ~"gnos", path: ~"http://www.gnos.org/2012/schema#"},
 		Namespace {prefix: ~"map", path: fmt!("http://%s:%?/map/", server, server_port)},
@@ -127,24 +129,37 @@ pub fn manage_state(port: comm::Port<Msg>, server: &str,  server_port: u16)
 			}
 			RegisterMsg(copy name, copy key, copy exprs, channel) =>
 			{
-				match eval_queries(stores.get(copy name), queries, exprs)
+				// Normally queries should not fail, but users can construct custom queries
+				// in the client which can be totally nutso so we need to be careful to avoid
+				// failing.
+				if stores.contains_key(copy name)
 				{
-					result::Ok(copy solutions) =>
+					match eval_queries(stores.get(copy name), queries, exprs)
 					{
-						comm::send(channel, result::Ok(copy solutions));
-						
-						let added = registered[name].insert(key, {queries: exprs, channel: channel, solutions: @mut solutions});
-						assert added;
+						result::Ok(copy solutions) =>
+						{
+							comm::send(channel, result::Ok(copy solutions));
+							
+							let added = registered[name].insert(key, {queries: exprs, channel: channel, solutions: @mut solutions});
+							assert added;
+						}
+						result::Err(copy err) =>
+						{
+							comm::send(channel, result::Err(~"Expected " + err));
+						}
 					}
-					result::Err(copy err) =>
-					{
-						comm::send(channel, result::Err(err));
-					}
+				}
+				else
+				{
+					comm::send(channel, result::Err(fmt!("%s is not a valid store name", name)));
 				}
 			}
 			DeregisterMsg(ref name, copy key) =>
 			{
-				registered[*name].remove(key);
+				if registered.contains_key(copy *name)
+				{
+					registered[*name].remove(key);
+				}
 			}
 			SyncMsg(channel) =>
 			{
@@ -159,10 +174,10 @@ pub fn manage_state(port: comm::Port<Msg>, server: &str,  server_port: u16)
 }
 
 /// Helper used to query model state.
-pub fn get_state(name: &str, channel: comm::Chan<Msg>, query: &str) -> Solution
+pub fn get_state(name: &str, channel: Chan<Msg>, query: &str) -> Solution
 {
-	let port = comm::Port::<Solution>();
-	let chan = comm::Chan::<Solution>(&port);
+	let port = Port();
+	let chan = Chan(&port);
 	comm::send(channel, QueryMsg(name.to_unique(), query.to_unique(), chan));
 	let result = comm::recv(port);
 	return result;
