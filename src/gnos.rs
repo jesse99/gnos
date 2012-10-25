@@ -137,6 +137,7 @@ fn main()
 	// has problems with type inference woth closures and borrowed pointers.
 	let models_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, response: &Response, copy options| {get_models::get_models(&options, response, state_chan)};
 	let subject_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {get_subject::get_subject(&options, request, response)};
+	let details_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {get_details::get_details(&options, request, response)};
 	let home_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, response: &Response, copy options| {get_home::get_home(&options, response)};
 	let modeler_p: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {put_snmp::put_snmp(&options, state_chan, samples_chan, request, response)};
 	let query_store_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {get_query_store::get_query_store(&options, request, response)};
@@ -158,6 +159,7 @@ fn main()
 		resources_root: options.root,
 		routes: ~[
 			(~"GET", ~"/", ~"home"),
+			(~"GET", ~"/details/{name}/*subject", ~"details"),
 			(~"GET", ~"/interfaces/{managed_ip}/{direction}", ~"interfaces"),
 			(~"GET", ~"/shutdown", ~"shutdown"),		// TODO: enable this via debug cfg (or maybe via a command line option)
 			(~"GET", ~"/models", ~"models"),
@@ -167,6 +169,7 @@ fn main()
 		],
 		views: ~[
 			(~"home",  home_v),
+			(~"details",  details_v),
 			(~"interfaces",  interfaces_v),
 			(~"shutdown",  bail_v),
 			(~"models",  models_v),

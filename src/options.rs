@@ -92,7 +92,7 @@ pub fn parse_command_line(args: ~[~str]) -> Options
 		
 		network_name: network.network,
 		client: network.client,
-		server: network.server,
+		server: if opt_present(copy matched, ~"db") {~"localhost"} else {copy network.server},
 		port: network.port,
 		poll_rate: network.poll_rate,
 		devices: network.devices,

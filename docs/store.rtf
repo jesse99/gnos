@@ -92,16 +92,43 @@ gnos:style			xsd:string			"alert-type:error"\
 \b\fs50 _:text-detail0\
 
 \b0\fs36 gnos:target			xsd:anyURI		map:auto-fat/entities/10.1.0.1\
-\ul gnos:text\ulnone 				xsd:string			"blah\\nblah"\
-gnos:priority			xsd:float			0.1 (smaller values are displayed first)\
-gnos:title				xsd:string			"Foo" (can be empty)\
-gnos:open			xsd:string			"always", "yes", or "no" (uses disclosure widget if not "always")\
-gnos:key				xsd:string			arbitrary text (used by the client to keep widgets open on refresh)\
-gnos:style			xsd:string			"font-smaller font-style:italic" (optional)\
+\ul gnos:detail\ulnone 			xsd:string			see below\
 gnos:predicate		xsd:string			"" (optional)\
 \
-\cf2 also need details for lists, tables, images, etc\
-\cf0 \
+Detail is json in various forms:\
+\pard\pardeftab480\pardirnatural
+\cf0 \{\
+	"markdown": "blah"\
+\}\
+\{\
+	"accordion": [\
+		\{\
+			"title": "foo",				# can be empty\
+			"priority": 1.0,			# smaller values are displayed first\
+			"open": "always",		# or "yes" or "no" (uses disclosure widget if not "always")\
+			"key": "foo",				# arbitrary text (used by the client to keep widgets open on refresh)\
+			"markdown": "blah"	# or "detail" and a json body\
+		\}, \
+		...\
+	]\
+\}\
+\pard\pardeftab480\pardirnatural
+\cf0 \{\
+	"table": [\
+		\{\
+\pard\pardeftab480\pardirnatural
+\cf0 			"style": "plain",			# or "html" or "markdown" (plain and html are designed to help speed up the display of large tables)\
+			header: ["IP Address", "MAC Address"],\
+			rows: [\
+				["10.0.0.1", "01:02:..."],\
+				...\
+			]\
+\pard\pardeftab480\pardirnatural
+\cf0 		\}, \
+\pard\pardeftab480\pardirnatural
+\cf0 	]\
+\}\
+\
 
 \b\fs50 _:relation0\
 
@@ -142,9 +169,8 @@ The following affect entities:\
 \b0 :<color=
 \i black
 \i0 >\
-\pard\pardeftab480\pardirnatural
 
-\b \cf0 frame-blur
+\b frame-blur
 \b0 :<width=
 \i undefined
 \i0 >\
@@ -162,19 +188,16 @@ The following affect entities:\
 \b0 :<number=
 \i undefined
 \i0 >		\cf2 causes client errors, once this works may want to add node-fixed too\cf0 \
-\pard\pardeftab480\pardirnatural
 
-\b \cf0 node-start-y
+\b node-start-y
 \b0 :<number=
 \i undefined
 \i0 >\
-\pard\pardeftab480\pardirnatural
-\cf0 Start position is normalized to [0, 1] from topLeft.
+Start position is normalized to [0, 1] from topLeft.
 \f1\fs24 \
 \
-\pard\pardeftab480\pardirnatural
 
-\f0\fs36 \cf0 The following affect text rendering:\
+\f0\fs36 The following affect text rendering:\
 
 \b font-size
 \b0 :xx-small, x-small, small, normal, medium, large, x-large, xx-large, smaller, larger, 

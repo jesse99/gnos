@@ -29,6 +29,7 @@ mod task_runner;
 mod utils;
 mod handlers
 {
+	mod get_details;
 	mod get_home;
 	mod get_interfaces;
 	mod get_models;

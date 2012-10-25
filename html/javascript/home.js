@@ -11,6 +11,7 @@ GNOS.entity_detail = undefined;
 GNOS.relation_detail = undefined;
 GNOS.loaded_entities = false;
 GNOS.screen_padding = 80;		// px
+GNOS.windows = {};
 
 $(document).ready(function(){
 	var map = document.getElementById('map');
@@ -32,10 +33,27 @@ $(document).ready(function(){
 	GNOS.timer_id = setInterval(update_time, 1000);
 	
 	set_loading_label();
-	initMouseHandling();
+	initEntityDragging();
+	$('#map').dblclick(handle_dblclick);
 });
 
-function initMouseHandling()
+function handle_dblclick(e)
+{
+	var pos = $('#map').offset();
+	var mouseP = arbor.Point(e.pageX - pos.left, e.pageY - pos.top);
+	var obj = GNOS.scene.particles.nearest(mouseP);
+	
+	if (obj && obj.node !== null)
+	{
+		var url = obj.node.name.replace("/map/", "/details/");
+		if (url in GNOS.windows && !GNOS.windows[url].closed)
+			GNOS.windows[url].focus();
+		else
+			GNOS.windows[url] = window.open(url, obj.node.name);
+	}
+}
+
+function initEntityDragging()
 {
 	var dragged = null;
 	
@@ -501,7 +519,7 @@ function map_renderer(element, model, model_names)
 		});
 	}
 	
-	function get_nodes(contetx, model)
+	function get_nodes(model)
 	{
 		var max_entity = 0;
 		var nodes = {};
@@ -631,7 +649,7 @@ function map_renderer(element, model, model_names)
 	
 	if (GNOS.loaded_entities)
 	{
-		var nodes = get_nodes(context, model);
+		var nodes = get_nodes(model);
 		var edges = get_edges(context, model);
 		GNOS.scene.merge_graph({nodes: nodes, edges: edges});
 		

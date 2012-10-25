@@ -80,47 +80,22 @@ priv fn add_got(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: u1
 	add_globals(store, poll_rate);
 	add_entities(store);
 	add_infos(store, state_chan, poll_rate);
-	
-	// relations
-	add_relation(store, ~"entities:wall", ~"entities:winterfell", ~"line-type:normal", ~"", ~"");
-	add_relation(store, ~"entities:winterfell", ~"entities:hornwood", ~"line-type:normal", ~"", ~"");
-	add_relation(store, ~"entities:hornwood", ~"entities:dreadfort", ~"line-type:normal", ~"", ~"");
-	add_relation(store, ~"entities:dreadfort", ~"entities:karhold", ~"line-type:normal", ~"", ~"");
-	add_relation(store, ~"entities:winterfell", ~"entities:white_harbor", ~"line-type:normal", ~"", ~"");
-	
-	add_relation(store, ~"entities:white_harbor", ~"entities:moat_cailin", ~"line-type:normal", ~"", ~"");
-	add_relation(store, ~"entities:winterfell", ~"entities:moat_cailin", ~"line-type:normal", ~"", ~"");
-	add_relation(store, ~"entities:moat_cailin", ~"entities:harenhal", ~"line-width:3 line-color:purple line-type:normal", ~"king's road", ~"straight and true");
-	add_relation(store, ~"entities:harenhal", ~"entities:kings_landing", ~"line-width:3 line-color:purple line-type:normal", ~"king's road", ~"straight and true");
-	
-	add_relation(store, ~"entities:kings_landing", ~"entities:lannisport", ~"line-width:3 line-type:normal", ~"gold road", ~"");
-	add_relation(store, ~"entities:lannisport", ~"entities:crakehall", ~"line-type:normal", ~"", ~"");
-	add_relation(store, ~"entities:lannisport", ~"entities:clegane_hall", ~"line-type:normal", ~"", ~"");
-	
-	add_relation(store, ~"entities:kings_landing", ~"entities:highgarden", ~"line-width:3 line-type:normal", ~"rose road", ~"");
-	add_relation(store, ~"entities:highgarden", ~"entities:oldtown", ~"line-type:normal", ~"", ~"");
+	add_relations(store);
+	add_details(store);
+}
 
-	// details
-//	let map_summary = get_blank_name(store, ~"summary");
-//	store.add(map_summary, ~[
-//		(~"gnos:title",       StringValue(~"Game of Thrones", ~"")),
-//		(~"gnos:target",    IriValue(~"gnos:map")),
-//		(~"gnos:detail",    StringValue(~"<p class='summary'>A song of ice and fire.</p>", ~"")),
-//		(~"gnos:weight",  FloatValue(0.9f64)),
-//		(~"gnos:open",     StringValue(~"always", ~"")),
-//		(~"gnos:key",     StringValue(~"d1", ~"")),
-//	]);
-//	
-//	let wall_summary = get_blank_name(store, ~"summary");
-//	store.add(wall_summary, ~[
-//		(~"gnos:title",       StringValue(~"Night's Watch Vows", ~"")),
-//		(~"gnos:target",    IriValue(wall)),
-//		(~"gnos:detail",    StringValue(~"<p class='summary'><em>Night gathers, and now my watch begins. It shall not end until my death. I shall take no wife, hold no lands, father no children. I shall wear no crowns and win no glory. I shall live and die at my post. I am the sword in the darkness. I am the watcher on the walls. I am the fire that burns against the cold, the light that brings the dawn, the horn that wakes the sleepers, the shield that guards the realms of men. I pledge my life and honor to the Night's Watch, for this night and all nights to come.</em></p>", ~"")),
-//		(~"gnos:weight",  FloatValue(0.1f64)),
-//		(~"gnos:open",     StringValue(~"yes", ~"")),
-//		(~"gnos:key",     StringValue(~"d2", ~"")),
-//	]);
-//	
+// targets: entities:wall, entities:winterfell, entities:kings_landing
+priv fn add_details(store: &Store)
+{
+	// markdown
+	store.add(get_blank_name(store, ~"wall-detail"), ~[
+		(~"gnos:target",	IriValue(~"entities:wall")),
+		(~"gnos:detail",	StringValue(~"{\"markdown\": \"*Night gathers, and now my watch begins. It shall not end until my death. I shall take no wife, hold no lands, father no children. I shall wear no crowns and win no glory. I shall live and die at my post. I am the sword in the darkness. I am the watcher on the walls. I am the fire that burns against the cold, the light that brings the dawn, the horn that wakes the sleepers, the shield that guards the realms of men. I pledge my life and honor to the Night's Watch, for this night and all nights to come.*\"}", ~"")),
+	]);
+	
+
+
+
 //	let winterfell_summary = get_blank_name(store, ~"summary");
 //	store.add(winterfell_summary, ~[
 //		(~"gnos:title",       StringValue(~"Winterfell Description", ~"")),
@@ -150,6 +125,27 @@ priv fn add_got(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: u1
 //		(~"gnos:open",     StringValue(~"no", ~"")),
 //		(~"gnos:key",     StringValue(~"d5", ~"")),
 //	]);
+}
+
+priv fn add_relations(store: &Store)
+{
+	add_relation(store, ~"entities:wall", ~"entities:winterfell", ~"line-type:normal", ~"", ~"");
+	add_relation(store, ~"entities:winterfell", ~"entities:hornwood", ~"line-type:normal", ~"", ~"");
+	add_relation(store, ~"entities:hornwood", ~"entities:dreadfort", ~"line-type:normal", ~"", ~"");
+	add_relation(store, ~"entities:dreadfort", ~"entities:karhold", ~"line-type:normal", ~"", ~"");
+	add_relation(store, ~"entities:winterfell", ~"entities:white_harbor", ~"line-type:normal", ~"", ~"");
+	
+	add_relation(store, ~"entities:white_harbor", ~"entities:moat_cailin", ~"line-type:normal", ~"", ~"");
+	add_relation(store, ~"entities:winterfell", ~"entities:moat_cailin", ~"line-type:normal", ~"", ~"");
+	add_relation(store, ~"entities:moat_cailin", ~"entities:harenhal", ~"line-width:3 line-color:purple line-type:normal", ~"king's road", ~"straight and true");
+	add_relation(store, ~"entities:harenhal", ~"entities:kings_landing", ~"line-width:3 line-color:purple line-type:normal", ~"king's road", ~"straight and true");
+	
+	add_relation(store, ~"entities:kings_landing", ~"entities:lannisport", ~"line-width:3 line-type:normal", ~"gold road", ~"");
+	add_relation(store, ~"entities:lannisport", ~"entities:crakehall", ~"line-type:normal", ~"", ~"");
+	add_relation(store, ~"entities:lannisport", ~"entities:clegane_hall", ~"line-type:normal", ~"", ~"");
+	
+	add_relation(store, ~"entities:kings_landing", ~"entities:highgarden", ~"line-width:3 line-type:normal", ~"rose road", ~"");
+	add_relation(store, ~"entities:highgarden", ~"entities:oldtown", ~"line-type:normal", ~"", ~"");
 }
 
 priv fn add_globals(store: &Store, poll_rate: u16)

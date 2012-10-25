@@ -31,7 +31,6 @@ function subject_query(solution)
 	var html = '';
 	$.each(solution, function (i, row)
 	{
-		console.log("{0}: {1:j}".format(i, row));
 		var klass = i & 1 ? "odd" : "even";
 		html += '<tr class="{0}">'.format(klass);
 		
