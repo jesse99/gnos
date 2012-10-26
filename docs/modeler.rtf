@@ -1,0 +1,184 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1138\cocoasubrtf470
+{\fonttbl\f0\froman\fcharset0 Times-Roman;\f1\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;\red255\green0\blue0;}
+\deftab480
+\pard\pardeftab480\pardirnatural
+
+\f0\fs36 \cf0 Modelers are bits of code that PUT JSON to the server. Currently these are Python scripts running on machines acting as gateways to a LAN but they can be anything including Javascript embedded in a gnos client.\
+\
+The JSON should be formatted like this:\
+\{\
+\pard\pardeftab480\pardirnatural
+\cf0 	"
+\b entities
+\b0 ":\
+	[\
+		\{\
+			"
+\b id
+\b0 ": "device-1", 		\cf2 # id should be unique\cf0 \
+			"
+\b style
+\b0 ": "font-size:larger font-weight:bolder", 	\cf2 # optional\cf0 \
+			"
+\b predicate
+\b0 ": ""			\cf2 # optional\cf0 \
+		\},\
+		...\
+	],\
+	"
+\b relations
+\b0 ":\
+	[\
+		\{\
+			"
+\b left-entity-id
+\b0 ": "device-1", \
+			"
+\b right-entity-id
+\b0 ": "device-2", \
+			"
+\b left-label
+\b0 ": \{...\}, 			\cf2 # if present formatted as a labels element\cf0 \
+			"
+\b middle-label
+\b0 ": \{...\}, 		\cf2 # if present formatted as a labels element\cf0 \
+			"
+\b right-label
+\b0 ": \{...\}, 		\cf2 # if present formatted as a labels element\cf0 \
+			"
+\b style
+\b0 ": "line-type:directed line-width:4 line-color:blue", 	\cf2 # optional\cf0 \
+			"
+\b predicate
+\b0 ": "OSPF"		\cf2 # optional\cf0 \
+		\},\
+		...\
+	],\
+	"
+\b labels
+\b0 ":\
+	[\
+		\{\
+			"
+\b target-id
+\b0 ": "device-1", 	\cf2 # may be an entity or relation id\cf0 \
+			"
+\b label
+\b0 ": "10.0.1.1",			\cf2 # may include new-lines\cf0 \
+			"
+\b level
+\b0 ": 0, 					\cf2 # clients use a slider to control which levels to show\cf0 \
+			"
+\b priority
+\b0 ": 1, 				\cf2 # lower priorities are displayed before higher priorities\cf0 \
+			"
+\b style
+\b0 ": "", 					\cf2 # optional\cf0 \
+			"
+\b predicate
+\b0 ": ""				\cf2 # optional\cf0 \
+		\},\
+		...\
+	],\
+	"
+\b gauges
+\b0 ":\
+	[\
+		\{\
+			"
+\b entity-id
+\b0 ": "device-1", \
+			"
+\b label
+\b0 ": "10.0.1.1", \
+			"
+\b value
+\b0 ": 0.8, 						\cf2 # [0, 1.0] (how full the bar is)\cf0 \
+			"
+\b level
+\b0 ": 0, 							\cf2 # clients use a slider to control which levels to show\cf0 \
+			"
+\b priority
+\b0 ": 1, 						\cf2 # lower priorities are displayed before higher priorities\cf0 \
+			"
+\b style
+\b0 ": "gauge-bar-color:red", 	\cf2 # optional\cf0 \
+			"
+\b predicate
+\b0 ": ""						\cf2 # optional\cf0 \
+		\},\
+		...\
+	],\
+	"
+\b details
+\b0 ":\
+	[\
+		\{\
+			"
+\b entity-id
+\b0 ": "device-1", \
+			"
+\b label
+\b0 ": "interfaces", 		\cf2 # ignored if open is "always"\cf0 \
+			"
+\b detail
+\b0 ": "blah", 			\cf2 # markdown (can also be a table if formatted as JSON)\cf0 \
+			"
+\b open
+\b0 ": "always", 			\cf2 # or "yes" or "no"\cf0 \
+			"
+\b priority
+\b0 ": 1, 				\cf2 # lower priorities are displayed before higher priorities\cf0 \
+			"
+\b id
+\b0 ": "d1"						\cf2 # unique id used by clients to remember which details are open\cf0 \
+		\},\
+		...\
+	],\
+	"
+\b alerts
+\b0 ":\
+	[\
+\cf2 		# open alert formatting\cf0 \
+		\{\
+			"
+\b entity-id
+\b0 ": "device-1", \
+			"
+\b key
+\b0 ": "device down check", \
+			"
+\b mesg
+\b0 ": "The device is not responding to snmp
+\f1\fs24 .
+\f0\fs36 ", \
+			"
+\b resolution
+\b0 ": "Whack it with a hammer or restart snmpd
+\f1\fs24 .
+\f0\fs36 ", \
+			"
+\b style
+\b0 ": "alert-type:error"\
+		\},\
+\
+\cf2 		# closed alert formatting (closes any open alerts with matching id and key)\cf0 \
+		\{\
+			"
+\b entity-id
+\b0 ": "device-1", \
+			"
+\b key
+\b0 ": "down-check"\
+		\},\
+		...\
+	],\
+\pard\pardeftab480\pardirnatural
+\cf0 \}\
+\
+All the top level items except entites are optional. Style and predicates are as in the server.rtf doc.\
+\
+
+\i It would be possible to have the modelers PUT RDF directly into the server using something like Turtle, but modelers would then be directly tied to the internal data representation of the server and it's difficult to beat JSON's ease of use in Python and Javascript. Because modelers should be as easy as possible to write (even by those with no real knowledge of gnos internals) JSON was selected.\
+}

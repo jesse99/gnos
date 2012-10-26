@@ -4,58 +4,12 @@
 \deftab480
 \pard\pardeftab480\pardirnatural
 
-\f0\fs36 \cf0 The goals on the client side are as follows:\
+\f0\fs36 \cf0 The client is used to display information from the server. This is done with the aid of HTML5 server-sent events: the client registers a SPARQL RDF query with the server and SSEs are used to dynamically push new information to the client when the solution to the query changes.\
 \
-\'95\'a0All information about the network is displayed on a single web page.\
-\'95\'a0The web page should support different information densities; ranging from a Tufte supergraphic sort of thing down to a very low information density view representing a single aspect of the network.\
-\'95\'a0The raw data should be visible (time series data, snmp, etc).\
-\'95\'a0Assumptions and caveats should be visible (e.g. sample interval for modelers).\
-\'95 New devices, relations, and statistics can be added to the backend and displayed on the client without changing the client.\'a0\
+The primary interface on the client is an HTML5 canvas map displaying the most important bits of information about the knowledge base. Sliders are used to control the amount of detail shown about entities and about relations. Checkboxes are used together with predicates from the RDF to filter the type of data shown (this isn't implemented yet).\
 \
-The client deals with a map (a network), objects (hosts and routers), and relations between devices (links and routes). Each of these have multiple datasets associated with them. Some datasets are time-series data (bytes sent to an interface) others are textural (logs or alerts).\
-\
-The page has two primary views. On top is a map showing objects, object specific indicators, and relations between the objects. On the bottom is a dynamic view displaying information about the selection(s) or the network if there is no selection. \
-\
-
-\b\fs50 Map
-\b0\fs36 \
-Would be cool to have a time slider. Ideally this would be handled client side (and maybe just in the map view).\
-\
-
-\b\fs50 objects\
-
-\b0\fs36 Objects are displayed as one or more lines of text. Most likely a filled circle or ellipse is used for the background. Objects can be re-positioned by dragging them. Positions should be locally persisted (would have to use the map name as a key). \cf2 What if the network changes? Maybe include a hash of device names when saving?\cf0 \
-\
-
-\b\fs50 relations\
-
-\b0\fs36 Relations can be undirected, bidirectional, or unidirectional. Undirected relations are drawn with a simple line. Bidirectional are drawn with a red arrowed line if the relation exists in only one direction, and with a simple line if the relation exists in both directions. Unidirectional relations are drawn with an arrowed line.\
-\
-Relations should, by default, show numeric values (e.g. route cost or link bandwidth used).\
+Double clicking on an entity brings up a new window displaying detailed information about that entity.\
 \
 \pard\pardeftab480\pardirnatural
-\cf2 Will need one to many relations for shared mediums.\cf0 \
-\
-\pard\pardeftab480\pardirnatural
-
-\b\fs50 \cf0 indicators\
-
-\b0\fs36 These are annotations attached to objects and relations. They can be a progress bar sort of thing (e.g. for file system usage or bandwidth used), an exclamation (e.g. if there are open error alerts), or a text note. Clicking on at least some indicators changes the current info view.\
-\
-
-\b\fs50 legend\
-
-\b0\fs36 At least some settings will require legends. For example, to explain the color coding for different relations.\
-\
-
-\b\fs50 Inspectors
-\b0\fs36 \
-The map has an associated inspector "window". This is a draggable overlay that sits on top of the map. The contents of the inspector change according to the selection. The inspector is used to filter content in or out of the views.\
-\
-
-\b\fs50 Info Views
-\b0\fs36 \
-Shows information about the entire map or the selection (maybe also selections). Inspectors control what is shown. Click or maybe a double click could display the view in a new window.\
-\
-Would be nice if the default network view showed a lot of information. Maybe using a grid of sparklines.\
+\cf2 Probably should talk about the various routes available.\cf0 \
 }
