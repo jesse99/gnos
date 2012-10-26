@@ -8,11 +8,16 @@
 \
 The JSON should be formatted like this:\
 \{\
+	\cf2 # if present old RDF statements generated with this source are removed \
+	# before new statements are added\cf0 \
+\pard\pardeftab480\pardirnatural
+\cf0 	"
+\b source
+\b0 ": "snmp",		\
 \pard\pardeftab480\pardirnatural
 \cf0 	"
 \b entities
-\b0 ":\
-	[\
+\b0 ": [\
 		\{\
 			"
 \b id
@@ -28,8 +33,7 @@ The JSON should be formatted like this:\
 	],\
 	"
 \b relations
-\b0 ":\
-	[\
+\b0 ": [\
 		\{\
 			"
 \b left-entity-id
@@ -57,8 +61,7 @@ The JSON should be formatted like this:\
 	],\
 	"
 \b labels
-\b0 ":\
-	[\
+\b0 ": [\
 		\{\
 			"
 \b target-id
@@ -83,8 +86,7 @@ The JSON should be formatted like this:\
 	],\
 	"
 \b gauges
-\b0 ":\
-	[\
+\b0 ": [\
 		\{\
 			"
 \b entity-id
@@ -112,8 +114,7 @@ The JSON should be formatted like this:\
 	],\
 	"
 \b details
-\b0 ":\
-	[\
+\b0 ": [\
 		\{\
 			"
 \b entity-id
@@ -138,8 +139,8 @@ The JSON should be formatted like this:\
 	],\
 	"
 \b alerts
-\b0 ":\
-	[\
+\b0 ": [\
+\pard\pardeftab480\pardirnatural
 \cf2 		# open alert formatting\cf0 \
 		\{\
 			"
@@ -174,10 +175,9 @@ The JSON should be formatted like this:\
 		\},\
 		...\
 	],\
-\pard\pardeftab480\pardirnatural
-\cf0 \}\
+\}\
 \
-All the top level items except entites are optional. Style and predicates are as in the server.rtf doc.\
+All the top level items except entities are optional. Style and predicates are as in the server.rtf doc.\
 \
 
 \i It would be possible to have the modelers PUT RDF directly into the server using something like Turtle, but modelers would then be directly tied to the internal data representation of the server and it's difficult to beat JSON's ease of use in Python and Javascript. Because modelers should be as easy as possible to write (even by those with no real knowledge of gnos internals) JSON was selected.\
