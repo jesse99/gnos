@@ -49,8 +49,9 @@ gnos:option			xsd:string			"ospf" (0-N arity)\
 \pard\pardeftab480\pardirnatural
 
 \f0\b\fs50 \cf0 map:<store>/entities/<name>\
+\pard\pardeftab480\pardirnatural
 
-\b0\fs36 \ul \ulc0 gnos:entity\ulnone 			xsd:string			"Router 1"\
+\b0\fs36 \cf0 \ul \ulc0 gnos:entity\ulnone 			xsd:string			"Router 1"\
 gnos:style			xsd:string			"font-size:larger font-weight:bolder" (optional)\
 gnos:predicate		xsd:string			"" (optional)\
 \
@@ -90,40 +91,31 @@ gnos:style			xsd:string			"alert-type:error"\
 \
 
 \b\fs50 _:text-detail0\
-
-\b0\fs36 gnos:target			xsd:anyURI		map:auto-fat/entities/10.1.0.1\
-\ul gnos:detail\ulnone 			xsd:string			see below\
-\
-Detail is json in various forms:\
 \pard\pardeftab480\pardirnatural
-\cf0 \{\
-	"markdown": "blah"			# note that tables are supported\
-\}\
+
+\b0\fs36 \cf0 gnos:target			xsd:anyURI		map:auto-fat/entities/10.1.0.1\
+\pard\pardeftab480\pardirnatural
+\cf0 gnos:title				xsd:string			"blah" (can be empty)\
+\pard\pardeftab480\pardirnatural
+\cf0 \ul gnos:detail\ulnone 			xsd:string			"*blah*" (either markdown or a json table)\
+\pard\pardeftab480\pardirnatural
+\cf0 gnos:open			xsd:string			"always" (or "yes" or "no")\
+gnos:priority			xsd:integer		1 (smaller values are displayed first)\
+gnos:key				xsd:string			"m1" (used by the client to keep widgets open on refresh)\
+\pard\pardeftab480\pardirnatural
+\cf0 \
+For tables detail is json formatted as:\
 \{\
-	"accordion": [\
-		\{\
-			"title": "foo",				# can be empty\
-			"open": "always",		# or "yes" or "no" (uses disclosure widget if not "always")\
-			"key": "foo",				# arbitrary text (used by the client to keep widgets open on refresh)\
-			"markdown": "blah"	# or "detail" and a json body\
-		\}, \
-		...\
+	"style": "plain",			# or "html" or "markdown" (plain and html are designed to help speed up the display of large tables)\
+	header: ["IP Address", "MAC Address"],\
+	rows: [\
+\pard\pardeftab480\pardirnatural
+\cf0 		["10.0.0.1", "12:34:56:78:9A:BC"],\
+\pard\pardeftab480\pardirnatural
+\cf0 		...\
 	]\
 \}\
-\pard\pardeftab480\pardirnatural
-\cf0 \{\
-	"table": \{\
-\pard\pardeftab480\pardirnatural
-\cf0 		"style": "plain",			# or "html" or "markdown" (plain and html are designed to help speed up the display of large tables)\
-		header: ["IP Address", "MAC Address"],\
-		rows: [\
-			["10.0.0.1", "01:02:..."],\
-			...\
-		]\
-\pard\pardeftab480\pardirnatural
-\cf0 	\},\
-\pard\pardeftab480\pardirnatural
-\cf0 \}\
+(with no leading whitespace).\
 \
 
 \b\fs50 _:relation0\
@@ -138,9 +130,8 @@ gnos:predicate		xsd:string			"options.ospf selection.name '10.1.0.4'
 \f1\fs24  
 \f0\fs36 == and" (optional)\
 \
-Multiple relations can exist between entities.\
-\
-Underlined predicates represent what are (more or less) primary keys.\
+Multiple relations can exist between entities. Underlined predicates represent what are \
+(more or less) primary keys.\
 
 \f1\fs24 ------------------------------------------------------------------------------------------------------------------------------\
 \

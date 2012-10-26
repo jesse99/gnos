@@ -17,11 +17,15 @@ $(document).ready(function()
 	
 	var queries = ['					\
 SELECT 								\
-	?detail								\
+	?detail ?title ?open ?priority ?key	\
 WHERE 								\
 {										\
 	?subject gnos:target {0} . 			\
 	?subject gnos:detail ?detail . 		\
+	?subject gnos:title ?title .	 		\
+	?subject gnos:open ?open .	 	\
+	?subject gnos:priority ?priority .	 \
+	?subject gnos:key ?key .	 		\
 }'.format(target),
 'SELECT 											\
 	?mesg ?resolution ?style ?begin ?end			\
@@ -46,21 +50,77 @@ WHERE 											\
 	register_renderer("details", model_names, "body", details_renderer);
 });
 
+// solution rows have 
+// required fields: detail, title, open, priority, key
 function details_query(solution)
 {
-	var html = '';
+	var items = [];
 	$.each(solution, function (i, row)
 	{
-		var data = JSON.parse(row.detail);
-		html += detail_to_html(data);
+		var inner = detail_to_html(row.detail);
+		
+		if (row.open === "always")
+		{
+			var html = inner;
+		}
+		else
+		{
+			var open = GNOS.opened[row.key] || row.open === "yes";
+			GNOS.opened[row.key] = open;
+			
+			var handler = "GNOS.opened['{0}'] = !GNOS.opened['{0}']".format(row.key);
+			if (open)
+				var html = '<details open="open" onclick = "{0}">\n'.format(handler);
+			else
+				var html = '<details onclick = "{0}">\n'.format(handler);
+				
+			if (row.title)
+				html += '<summary>{0}</summary>\n'.format(escapeHtml(row.title));
+				
+			html += '{0}\n'.format(inner);
+			html += '</details>\n';
+		}
+		
+		items.push({priority: row.priority, html: html});
 	});
+	
+	items.sort(function (x, y)
+	{
+		return x.priority - y.priority;
+	});
+	
+	var items = items.map(function (x) {return x.html;});
+	var html = items.join('\n');
 	
 	if (!html)
 		html = "<p>No details</p>";
 	
-	html = "<h2>{0}</h2>\n{1}".format(escapeHtml(GNOS.label), html);
-	
 	return {details: html};
+}
+
+function detail_to_html(detail)
+{
+	var html = '';
+	
+	if (detail && detail[0] === '{')
+	{
+		try
+		{
+			var data = JSON.parse(detail);
+			html = table_to_html(data);
+		}
+		catch (e)
+		{
+			// rare case where markdown starts with {
+			html = markdown.toHTML(detail);
+		}
+	}
+	else
+	{
+		html = markdown.toHTML(detail);
+	}
+	
+	return html;
 }
 
 // solution rows have 
@@ -163,71 +223,6 @@ function alerts_query(solution)
 	return {alerts: html};
 }
 
-function detail_to_html(data)
-{
-	var html = '';
-	
-	if ('markdown' in data)
-	{
-		html = "<p>" + markdown.toHTML(data.markdown) + "</p>";
-	}
-	else if ('accordion' in data)
-	{
-		html = accordion_to_html(data.accordion);
-	}
-	else if ('table' in data)
-	{
-		html = table_to_html(data.table);
-	}
-	else
-	{
-		console.log("bad detail: {0:j}".format(data));
-	}
-	
-	return html;
-}
-
-// required: title (may be empty), open, key
-// optional: markdown, detail
-function accordion_to_html(accordion)
-{
-	var html = '';
-	
-	$.each(accordion, function (i, data)
-	{
-		assert('markdown' in data || 'detail' in data, "expected markdown or detail in {0:j}".format(data));
-		
-		if ('markdown' in data)
-			var inner = markdown.toHTML(data.markdown);
-		else
-			var inner = detail_to_html(data.detail);
-		
-		if (data.open === "always")
-		{
-			html += inner;
-		}
-		else
-		{
-			var open = GNOS.opened[data.key] || data.open === "yes";
-			GNOS.opened[data.key] = open;
-			
-			var handler = "GNOS.opened['{0}'] = !GNOS.opened['{0}']".format(data.key);
-			if (open)
-				html += '<details open="open" onclick = "{0}">\n'.format(handler);
-			else
-				html += '<details onclick = "{0}">\n'.format(handler);
-				
-			if (data.title)
-				html += '<summary>{0}</summary>\n'.format(escapeHtml(data.title));
-				
-			html += '{0}\n'.format(inner);
-			html += '</details>\n';
-		}
-	});
-	
-	return html;
-}
-
 // required: style, header, rows
 function table_to_html(table)
 {
@@ -288,11 +283,12 @@ function table_to_html(table)
 
 function details_renderer(element, model, model_names)
 {
-	var html = '';
+	var html = "<h2>{0}</h2>\n".format(escapeHtml(GNOS.label));
 	
 	if (model.alerts)
 	{
 		html += model.alerts + '\n';
+		html += '<br>\n';
 	}
 	
 	html += model.details;
