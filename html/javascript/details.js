@@ -10,21 +10,40 @@ $(document).ready(function()
 	GNOS.store = table.attr("data-name");
 	GNOS.label = table.attr("data-label");
 	var about = table.attr("data-about");
-console.log('store: {0}'.format(GNOS.store));
-console.log('about: {0}'.format(about));
 	
-	var query = '						\
+	var target = about.replace('/', ':');
+	var oldest = new Date();
+	oldest.setDate(oldest.getDate() - 7);	// show alerts for the last week
+	
+	var queries = ['					\
 SELECT 								\
 	?detail								\
 WHERE 								\
 {										\
 	?subject gnos:target {0} . 			\
 	?subject gnos:detail ?detail . 		\
-}'.format(about.replace('/', ':'));
+}'.format(target),
+'SELECT 											\
+	?mesg ?resolution ?style ?begin ?end			\
+WHERE 											\
+{													\
+	?subject gnos:target {0} .						\
+	?subject gnos:begin ?begin .					\
+	?subject gnos:mesg ?mesg .					\
+	?subject gnos:resolution ?resolution .			\
+	?subject gnos:style ?style .						\
+	OPTIONAL									\
+	{												\
+		?subject gnos:end ?end					\
+	}												\
+	FILTER (?begin >= "{1}"^^xsd:dateTime)	\
+} ORDER BY ?begin ?mesg'.format(target, oldest.toISOString())
+];
 
-	register_query("details", ["details"], GNOS.store, [query], [details_query]);
+	var model_names = ['details', 'alerts'];
+	register_query("details", model_names, GNOS.store, queries, [details_query, alerts_query]);
 	
-	register_renderer("details", ["details"], "body", details_renderer);
+	register_renderer("details", model_names, "body", details_renderer);
 });
 
 function details_query(solution)
@@ -42,6 +61,106 @@ function details_query(solution)
 	html = "<h2>{0}</h2>\n{1}".format(escapeHtml(GNOS.label), html);
 	
 	return {details: html};
+}
+
+// solution rows have 
+// required fields: mesg, resolution, style, begin
+// optional fields: end, target
+function alerts_query(solution)
+{
+	function add_alert(row, options)
+	{
+		var html = "";
+		if (options.styles.indexOf(row.style) >= 0 && (options.kind === "inactive") === 'end' in row)
+		{
+			if ('end' in row)
+				var date = new Date(row.end);
+			else
+				var date = new Date(row.begin);
+				
+			if ('target' in row)
+			{
+				var i = row.target.lastIndexOf('#');
+				if (i < 0)
+					i = row.target.lastIndexOf('/');
+					
+				if (i >= 0)
+					var target = "{0}: ".format(row.target.slice(i+1));
+				else
+					var target = "{0}: ".format(row.target);
+			}
+			else
+				var target = "";
+				
+			var lines = row.mesg.split("\n");
+			for (var i = 0; i < lines.length; ++i)
+			{
+				var attributes = '';
+				var classes = row.style.replace(':', '-');
+				if (i === 0)
+				{
+					var targets = escapeHtml(target);
+					if (row.resolution)
+					{
+						classes += ' tooltip';
+						attributes += ' data-tooltip=" {0}"'.format(escapeHtml(row.resolution));
+					}
+					var dates = " ({0})".format(dateToStr(date));
+				}
+				else
+				{
+					var targets = "";
+					classes += ' indent';
+					var dates = "";
+				}
+				
+				html += '<li class="{0}"{1}">{2}{3}{4}</li>\n'.format(
+					classes, attributes, targets, escapeHtml(lines[i]), dates);
+			}
+		}
+		return html;
+	}
+	
+	function add_widget(inner, title, open)
+	{
+		var html = "";
+		
+		if (inner)
+		{
+			if (open)
+				html += '<details open="open">\n';
+			else
+				html += '<details>\n';
+			html += '	<summary>{0}</summary>\n'.format(title);
+			html += "		<ul class='sequence'>\n";
+			html += inner;
+			html += "		</ul>\n";
+			html += '</details>\n';
+		}
+		
+		return html;
+	}
+	
+	var error_alerts = "";
+	var warning_alerts = "";
+	var info_alerts = "";
+	var closed_alerts = "";
+	
+	$.each(solution, function (i, row)
+	{
+		error_alerts      += add_alert(row, {styles: ["alert-type:error"], kind: "active"});
+		warning_alerts += add_alert(row, {styles: ["alert-type:warning"], kind: "active"});
+		info_alerts 		+= add_alert(row, {styles: ["alert-type:info"], kind: "active"});
+		closed_alerts    += add_alert(row, {styles: ["alert-type:error", "alert-type:warning"], kind: "inactive"});
+	});
+	
+	var html = "";
+	html += add_widget(error_alerts, "Error Alerts", true);
+	html += add_widget(warning_alerts, "Warning Alerts", false);
+	html += add_widget(info_alerts, "Info Alerts", false);
+	html += add_widget(closed_alerts, "Closed Alerts", false);
+	
+	return {alerts: html};
 }
 
 function detail_to_html(data)
@@ -169,5 +288,14 @@ function table_to_html(table)
 
 function details_renderer(element, model, model_names)
 {
-	$('#body').html(model.details);
+	var html = '';
+	
+	if (model.alerts)
+	{
+		html += model.alerts + '\n';
+	}
+	
+	html += model.details;
+	
+	$('#body').html(html);
 }

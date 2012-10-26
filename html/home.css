@@ -6,12 +6,6 @@
 	border: thin inset #aaaaaa;
 }
 
-.error-alert
-{
-	font-weight: bold;
-	color: crimson;
-}
-
 #header
 {
 	display: -webkit-flex;

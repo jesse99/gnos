@@ -1,1 +1,8 @@
 @import "common.css";
+
+.alert-type-error
+{
+	font-weight: bold;
+	color: crimson;
+}
+
