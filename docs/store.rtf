@@ -93,7 +93,6 @@ gnos:style			xsd:string			"alert-type:error"\
 
 \b0\fs36 gnos:target			xsd:anyURI		map:auto-fat/entities/10.1.0.1\
 \ul gnos:detail\ulnone 			xsd:string			see below\
-gnos:predicate		xsd:string			"" (optional)\
 \
 Detail is json in various forms:\
 \pard\pardeftab480\pardirnatural
@@ -104,7 +103,6 @@ Detail is json in various forms:\
 	"accordion": [\
 		\{\
 			"title": "foo",				# can be empty\
-			"priority": 1.0,			# smaller values are displayed first\
 			"open": "always",		# or "yes" or "no" (uses disclosure widget if not "always")\
 			"key": "foo",				# arbitrary text (used by the client to keep widgets open on refresh)\
 			"markdown": "blah"	# or "detail" and a json body\
@@ -114,20 +112,18 @@ Detail is json in various forms:\
 \}\
 \pard\pardeftab480\pardirnatural
 \cf0 \{\
-	"table": [\
-		\{\
+	"table": \{\
 \pard\pardeftab480\pardirnatural
-\cf0 			"style": "plain",			# or "html" or "markdown" (plain and html are designed to help speed up the display of large tables)\
-			header: ["IP Address", "MAC Address"],\
-			rows: [\
-				["10.0.0.1", "01:02:..."],\
-				...\
-			]\
+\cf0 		"style": "plain",			# or "html" or "markdown" (plain and html are designed to help speed up the display of large tables)\
+		header: ["IP Address", "MAC Address"],\
+		rows: [\
+			["10.0.0.1", "01:02:..."],\
+			...\
+		]\
 \pard\pardeftab480\pardirnatural
-\cf0 		\}, \
+\cf0 	\},\
 \pard\pardeftab480\pardirnatural
-\cf0 	]\
-\}\
+\cf0 \}\
 \
 
 \b\fs50 _:relation0\

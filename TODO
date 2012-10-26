@@ -132,6 +132,8 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- description could summarize most important options and have a link to man page
 	- ping, tcpdump, mping, mgen, traceroute
 	- config probably also needs something for results, either display stdout or download file
+* Would be nice to support more entity shapes: rect, oval, circle, none
+* Semantic styles would allow user customization
 * Front page needs to use a rather fancy query:
 	- page contains list of <device name> <status> <note>
 	- where status is "UP" or "DOWN"

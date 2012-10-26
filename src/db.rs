@@ -84,7 +84,6 @@ priv fn add_got(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: u1
 	add_details(store);
 }
 
-// targets: entities:wall, entities:winterfell, entities:kings_landing
 priv fn add_details(store: &Store)
 {
 	// markdown
@@ -93,38 +92,40 @@ priv fn add_details(store: &Store)
 		(~"gnos:detail",	StringValue(~"{\"markdown\": \"*Night gathers, and now my watch begins. It shall not end until my death. I shall take no wife, hold no lands, father no children. I shall wear no crowns and win no glory. I shall live and die at my post. I am the sword in the darkness. I am the watcher on the walls. I am the fire that burns against the cold, the light that brings the dawn, the horn that wakes the sleepers, the shield that guards the realms of men. I pledge my life and honor to the Night's Watch, for this night and all nights to come.*\"}", ~"")),
 	]);
 	
-
-
-
-//	let winterfell_summary = get_blank_name(store, ~"summary");
-//	store.add(winterfell_summary, ~[
-//		(~"gnos:title",       StringValue(~"Winterfell Description", ~"")),
-//		(~"gnos:target",    IriValue(winterfell)),
-//		(~"gnos:detail",    StringValue(~"<p class='summary'>Winterfell is the ancestral castle and seat of power of House Stark and is considered to be the capital of the North. It is located in the center of the northern province of the Seven Kingdoms, on the Kingsroad that runs from King's Landing to the Wall.</p>", ~"")),
-//		(~"gnos:weight",  FloatValue(0.9f64)),
-//		(~"gnos:open",     StringValue(~"yes", ~"")),
-//		(~"gnos:key",     StringValue(~"d3", ~"")),
-//	]);
-//	
-//	let kings_landing_summary = get_blank_name(store, ~"summary");
-//	store.add(kings_landing_summary, ~[
-//		(~"gnos:title",       StringValue(~"King's Landing Description", ~"")),
-//		(~"gnos:target",    IriValue(copy kings_landing)),
-//		(~"gnos:detail",    StringValue(~"<p class='summary'>King's Landing is the capital of the Seven Kingdoms, located on the east coast of Westeros, overlooking Blackwater Bay. It is the site of the Iron Throne and the Red Keep, the seat of the King. The main city is surrounded by a wall, manned by the City Watch of King's Landing, also known as the Gold Cloaks. Poorer smallfolk build shanty settlements outside the city. King's Landing is extremely populous, but rather unsightly and dirty compared to other cities. The stench of the city's waste can be smelled far beyond its walls. It is the principal harbor of the Seven Kingdoms, rivaled only by Oldtown.</p>", ~"")),
-//		(~"gnos:weight",  FloatValue(0.9f64)),
-//		(~"gnos:open",     StringValue(~"yes", ~"")),
-//		(~"gnos:key",     StringValue(~"d4", ~"")),
-//	]);
-//	
-//	let kings_landing_places = get_blank_name(store, ~"places");
-//	store.add(kings_landing_places, ~[
-//		(~"gnos:title",       StringValue(~"King's Landing Places", ~"")),
-//		(~"gnos:target",    IriValue(kings_landing)),
-//		(~"gnos:detail",    StringValue(~"<dl><dt>Red Keep</dt><dd>The royal castle located on top of Aegon's Hill</dd><dt>Great Sept of Baelor</dt><dd>Where the Most Devout convene with the High Septon. It is the holiest sept of the Seven. It is located on Visenya's Hill.</dd><dt>Dragonpit</dt><dd>A huge dome, now collapsed, that used to hold the Targaryen dragons. Its bronze doors have not been opened for more than a century. It is found on Rhaenys's Hill. The Street of Sisters runs between it and the Great Sept of Baelor.</dd><dt>Alchemist's Guildhall</dt><dd>Beneath Rhaenys's Hill, stretching right to the foot of Visenya's Hill, along the Street of Sisters. Beneath it is where the Alchemists create and store the wildfire.</dd><dt>Flea Bottom</dt>	<dd>Slum area of King's Landing, a downtrodden area of town. It has pot-shops along the alleys where one can get a 'bowl o' brown.' It has a stench of pigsties and stables, tanner's sheds mixed in the smell of winesinks and whorehouses.</dd></dl>", ~"")),
-//		(~"gnos:weight",  FloatValue(0.4f64)),
-//		(~"gnos:open",     StringValue(~"no", ~"")),
-//		(~"gnos:key",     StringValue(~"d5", ~"")),
-//	]);
+	// accordion
+	store.add(get_blank_name(store, ~"kings_landing-detail"), ~[
+		(~"gnos:target",	IriValue(~"entities:kings_landing")),
+		(~"gnos:detail",	StringValue(~"{\"accordion\": 
+[
+	{
+		\"title\": \"King's Landing Description\",
+		\"open\": \"yes\",
+		\"key\": \"d1\",
+		\"markdown\": \"King's Landing is the capital of the Seven Kingdoms, located on the east coast of Westeros, overlooking Blackwater Bay. It is the site of the Iron Throne and the Red Keep, the seat of the King. The main city is surrounded by a wall, manned by the City Watch of King's Landing, also known as the Gold Cloaks. Poorer smallfolk build shanty settlements outside the city. King's Landing is extremely populous, but rather unsightly and dirty compared to other cities. The stench of the city's waste can be smelled far beyond its walls. It is the principal harbor of the Seven Kingdoms, rivaled only by Oldtown.\"
+	},
+	{
+		\"title\": \"King's Landing Places\",
+		\"open\": \"no\",
+		\"key\": \"d2\",
+		\"markdown\": \"- **Red Keep** The royal castle located on top of Aegon's Hill.\\n- **Great Sept of Baelor** Where the Most Devout convene with the High Septon. It is the holiest sept of the Seven. It is located on Visenya's Hill.\\n- **Dragonpit** A huge dome, now collapsed, that used to hold the Targaryen dragons. Its bronze doors have not been opened for more than a century. It is found on Rhaenys's Hill. The Street of Sisters runs between it and the Great Sept of Baelor.\\n- **Alchemist's Guildhall** Beneath Rhaenys's Hill, stretching right to the foot of Visenya's Hill, along the Street of Sisters. Beneath it is where the Alchemists create and store the wildfire.\\n- **Flea Bottom** Slum area of King's Landing, a downtrodden area of town. It has pot-shops along the alleys where one can get a `bowl o' brown.` It has a stench of pigsties and stables, tanner's sheds mixed in the smell of winesinks and whorehouses.\"
+	}
+]}", ~"")),
+	]);
+	
+	// markdown
+	store.add(get_blank_name(store, ~"winterfell-detail"), ~[
+		(~"gnos:target",	IriValue(~"entities:winterfell")),
+		(~"gnos:detail",	StringValue(~"{\"table\": 
+{
+	\"style\": \"plain\",
+	\"header\": [\"Name\", \"Nickname\", \"Wolf\"],
+	\"rows\": [
+		[\"Jon\", \"Lord\", \"Ghost\"],
+		[\"Arya\", \"Underfoot\", \"Nymeria\"],
+		[\"Sansa\", \"\", \"Lady\"]
+	]
+}}", ~"")),
+	]);
 }
 
 priv fn add_relations(store: &Store)
