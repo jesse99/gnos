@@ -43,8 +43,9 @@ The schema is defined with the aid of a couple of different namespace prefixes:\
 \b xsd
 \b0  - http://www.w3.org/2001/XMLSchema#\
 \
+\pard\pardeftab480\pardirnatural
 
-\b\fs50 map:<store>/globals\
+\b\fs50 \cf0 map:<store>/globals\
 \pard\pardeftab480\pardirnatural
 
 \b0\fs36 \cf0 gnos:poll_interval	xsd:integer		30 (seconds, optional)\
@@ -68,7 +69,7 @@ gnos:predicate		xsd:string			"" (optional)\
 \b0\fs36 gnos:target			xsd:anyURI		map:auto-fat/entities/10.1.0.1\
 \ul gnos:label\ulnone 			xsd:string			"10.1.0.1" (may include new lines)\
 gnos:level			xsd:integer		1 (0 is displayed by default)\
-gnos:priority			xsd:integer		1 (smaller values are displayed first)\
+gnos:sort_key		xsd:string			"1" (keys that sort before other keys appear first)\
 gnos:style			xsd:string			"" (optional)\
 gnos:predicate		xsd:string			"" (optional)\
 \
@@ -79,8 +80,10 @@ gnos:predicate		xsd:string			"" (optional)\
 \ul gnos:gauge\ulnone 			xsd:float			0.8\
 gnos:title				xsd:string			"CPU"\
 gnos:level			xsd:integer		0\
-gnos:priority			xsd:integer		1 (smaller values are displayed first)\
-gnos:style			xsd:string			"gauge-bar-color:red" (optional)\
+\pard\pardeftab480\pardirnatural
+\cf0 gnos:sort_key		xsd:string			"1" (keys that sort before other keys appear first)\
+\pard\pardeftab480\pardirnatural
+\cf0 gnos:style			xsd:string			"gauge-bar-color:red" (optional)\
 gnos:predicate		xsd:string			"" (optional)\
 \
 
@@ -103,8 +106,10 @@ gnos:style			xsd:string			"alert-type:error"\
 gnos:title				xsd:string			"blah" (can be empty)\
 \ul gnos:detail\ulnone 			xsd:string			"*blah*" (either markdown or a json table)\
 gnos:open			xsd:string			"always" (or "yes" or "no")\
-gnos:priority			xsd:integer		1 (smaller values are displayed first)\
-gnos:key				xsd:string			"m1" (used by the client to keep widgets open on refresh)\
+\pard\pardeftab480\pardirnatural
+\cf0 gnos:sort_key		xsd:string			"1" (keys that sort before other keys appear first)\
+\pard\pardeftab480\pardirnatural
+\cf0 gnos:key				xsd:string			"m1" (used by the client to keep widgets open on refresh)\
 \
 For tables detail is json formatted as:\
 \{\

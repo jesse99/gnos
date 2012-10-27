@@ -8,8 +8,6 @@ pub struct Device
 	pub name: ~str,
 	pub managed_ip: ~str,
 	pub community: ~str,
-	pub center_x: float,
-	pub center_y: float,
 	pub style: ~str,
 }
 
@@ -199,8 +197,6 @@ priv fn get_network_device(path: &Path, name: &str, value: &std::json::Json) -> 
 				name: name.to_unique(),
 				managed_ip: get_network_str(path, *value, &~"ip"),
 				community: get_network_str(path, *value, &~"community"),
-				center_x: get_network_float(path, *value, &~"center_x"),
-				center_y: get_network_float(path, *value, &~"center_y"),
 				style: get_network_str(path, *value, &~"type"),
 			}
 		}

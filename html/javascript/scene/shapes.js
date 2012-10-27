@@ -139,11 +139,11 @@ LineShape.prototype.do_draw_arrow = function(context, unit, tip, x, y, arrow)
 
 // ---- GaugeShape class ------------------------------------------------
 // value should be in [0, 1].
-function GaugeShape(context, center, value, title, styles, priority)
+function GaugeShape(context, center, value, title, styles, sort_key)
 {
 	assert(value >= 0 && value <= 1, "value is oor: " + value);
 	this.base_styles = styles;
-	this.priority = priority;
+	this.sort_key = sort_key;
 	
 	this.label = new TextLineShape(context, center, title, ['font-size:small'].concat(styles));
 	this.base_width = 1.3*this.label.width;
@@ -380,12 +380,12 @@ RectShape.prototype.toString = function ()
 //              Or a function taking a this argument returning a Point.
 // text - The string to draw.
 // style - Array of style name:value
-function TextLineShape(context, center, text, styles, priority)
+function TextLineShape(context, center, text, styles, sort_key)
 {
 	this.geometry = Point.zero;
 	this.text = text;
 	this.styles = ['font-color:black'].concat(styles).filter(function (s) {return s.indexOf('font-') === 0;});
-	this.priority = priority;
+	this.sort_key = sort_key;
 	
 	this.stats = this.do_prep_center_text(context);
 	this.width = this.stats.width;

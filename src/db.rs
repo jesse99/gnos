@@ -92,7 +92,7 @@ priv fn add_details(store: &Store)
 		(~"gnos:title",			StringValue(~"Vows", ~"")),
 		(~"gnos:detail",		StringValue(~"*Night gathers, and now my watch begins. It shall not end until my death. I shall take no wife, hold no lands, father no children. I shall wear no crowns and win no glory. I shall live and die at my post. I am the sword in the darkness. I am the watcher on the walls. I am the fire that burns against the cold, the light that brings the dawn, the horn that wakes the sleepers, the shield that guards the realms of men. I pledge my life and honor to the Night's Watch, for this night and all nights to come.*", ~"")),
 		(~"gnos:open",		StringValue(~"always", ~"")),
-		(~"gnos:priority",		IntValue(1)),
+		(~"gnos:sort_key",	StringValue(~"1", ~"")),
 		(~"gnos:key",			StringValue(~"w1", ~"")),
 	]);
 	
@@ -102,7 +102,7 @@ priv fn add_details(store: &Store)
 		(~"gnos:title",			StringValue(~"King's Landing Description", ~"")),
 		(~"gnos:detail",		StringValue(~"King's Landing is the capital of the Seven Kingdoms, located on the east coast of Westeros, overlooking Blackwater Bay. It is the site of the Iron Throne and the Red Keep, the seat of the King. The main city is surrounded by a wall, manned by the City Watch of King's Landing, also known as the Gold Cloaks. Poorer smallfolk build shanty settlements outside the city. King's Landing is extremely populous, but rather unsightly and dirty compared to other cities. The stench of the city's waste can be smelled far beyond its walls. It is the principal harbor of the Seven Kingdoms, rivaled only by Oldtown.", ~"")),
 		(~"gnos:open",		StringValue(~"yes", ~"")),
-		(~"gnos:priority",		IntValue(1)),
+		(~"gnos:sort_key",	StringValue(~"1", ~"")),
 		(~"gnos:key",			StringValue(~"a1", ~"")),
 	]);
 	
@@ -111,7 +111,7 @@ priv fn add_details(store: &Store)
 		(~"gnos:title",			StringValue(~"King's Landing Places", ~"")),
 		(~"gnos:detail",		StringValue(~"- **Red Keep** The royal castle located on top of Aegon's Hill.\\n- **Great Sept of Baelor** Where the Most Devout convene with the High Septon. It is the holiest sept of the Seven. It is located on Visenya's Hill.\\n- **Dragonpit** A huge dome, now collapsed, that used to hold the Targaryen dragons. Its bronze doors have not been opened for more than a century. It is found on Rhaenys's Hill. The Street of Sisters runs between it and the Great Sept of Baelor.\\n- **Alchemist's Guildhall** Beneath Rhaenys's Hill, stretching right to the foot of Visenya's Hill, along the Street of Sisters. Beneath it is where the Alchemists create and store the wildfire.\\n- **Flea Bottom** Slum area of King's Landing, a downtrodden area of town. It has pot-shops along the alleys where one can get a `bowl o' brown.` It has a stench of pigsties and stables, tanner's sheds mixed in the smell of winesinks and whorehouses.", ~"")),
 		(~"gnos:open",		StringValue(~"no", ~"")),
-		(~"gnos:priority",		IntValue(2)),
+		(~"gnos:sort_key",	StringValue(~"2", ~"")),
 		(~"gnos:key",			StringValue(~"a2", ~"")),
 	]);
 	
@@ -129,7 +129,7 @@ priv fn add_details(store: &Store)
 	]
 }", ~"")),
 		(~"gnos:open",	StringValue(~"always", ~"")),
-		(~"gnos:priority",	IntValue(1)),
+		(~"gnos:sort_key",StringValue(~"1", ~"")),
 		(~"gnos:key",		StringValue(~"w1", ~"")),
 	]);
 }
@@ -244,7 +244,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 		(~"gnos:target",	IriValue(~"entities:wall")),
 		(~"gnos:label",	StringValue(~"guards the realms of men", ~"")),
 		(~"gnos:level",	IntValue(2)),
-		(~"gnos:priority",	IntValue(1)),
+		(~"gnos:sort_key",StringValue(~"1", ~"")),
 	]);
 	
 	// winterfell labels
@@ -252,14 +252,14 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 		(~"gnos:target",	IriValue(~"entities:winterfell")),
 		(~"gnos:label",	StringValue(~"House Stark", ~"")),
 		(~"gnos:level",	IntValue(1)),
-		(~"gnos:priority",	IntValue(1)),
+		(~"gnos:sort_key",StringValue(~"1", ~"")),
 	]);
 	
 	store.add(get_blank_name(store, ~"winterfell-label"), ~[
 		(~"gnos:target",	IriValue(~"entities:winterfell")),
 		(~"gnos:label",	StringValue(~"constructed by Brandon the Builder", ~"")),
 		(~"gnos:level",	IntValue(2)),
-		(~"gnos:priority",	IntValue(2)),
+		(~"gnos:sort_key",StringValue(~"2", ~"")),
 	]);
 	
 	// kings_landing labels
@@ -267,7 +267,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 		(~"gnos:target",	IriValue(~"entities:kings_landing")),
 		(~"gnos:label",	StringValue(~"Capitol of Westoros", ~"")),
 		(~"gnos:level",	IntValue(1)),
-		(~"gnos:priority",	IntValue(1)),
+		(~"gnos:sort_key",StringValue(~"1", ~"")),
 	]);
 	
 	// wall gauges
@@ -276,7 +276,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 		(~"gnos:gauge",	FloatValue(1.0f64)),
 		(~"gnos:title",		StringValue(~"m/f ratio", ~"")),
 		(~"gnos:level",	IntValue(2)),
-		(~"gnos:priority",	IntValue(3)),
+		(~"gnos:sort_key",StringValue(~"3", ~"")),
 	]);
 	
 	store.add(get_blank_name(store, ~"wall-gauge"), ~[
@@ -284,7 +284,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 		(~"gnos:gauge",	FloatValue(0.3f64)),
 		(~"gnos:title",		StringValue(~"loyalty", ~"")),
 		(~"gnos:level",	IntValue(2)),
-		(~"gnos:priority",	IntValue(4)),
+		(~"gnos:sort_key",StringValue(~"4", ~"")),
 		(~"gnos:style",		StringValue(~"gauge-bar-color:orange", ~"")),
 	]);
 	
@@ -294,7 +294,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 		(~"gnos:gauge",	FloatValue(0.7f64)),
 		(~"gnos:title",		StringValue(~"m/f ratio", ~"")),
 		(~"gnos:level",	IntValue(2)),
-		(~"gnos:priority",	IntValue(3)),
+		(~"gnos:sort_key",StringValue(~"3", ~"")),
 	]);
 	
 	let winterfell_loyalty_subject = get_blank_name(store, ~"winterfell-gauge");
@@ -304,7 +304,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 		(~"gnos:gauge",	FloatValue(winterfell_loyalty_value)),
 		(~"gnos:title",		StringValue(~"loyalty", ~"")),
 		(~"gnos:level",	IntValue(2)),
-		(~"gnos:priority",	IntValue(4)),
+		(~"gnos:sort_key",StringValue(~"4", ~"")),
 		(~"gnos:style",		StringValue(~"gauge-bar-color:lime", ~"")),
 	]);
 	
@@ -314,7 +314,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 		(~"gnos:gauge",	FloatValue(0.5f64)),
 		(~"gnos:title",		StringValue(~"m/f ratio", ~"")),
 		(~"gnos:level",	IntValue(2)),
-		(~"gnos:priority",	IntValue(3)),
+		(~"gnos:sort_key",StringValue(~"3", ~"")),
 	]);
 	
 	let kings_landing_loyalty_subject = get_blank_name(store, ~"kings_landing-gauge");
@@ -324,7 +324,7 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 		(~"gnos:gauge",	FloatValue(kings_landing_loyalty_value)),
 		(~"gnos:title",		StringValue(~"loyalty", ~"")),
 		(~"gnos:level",	IntValue(2)),
-		(~"gnos:priority",	IntValue(4)),
+		(~"gnos:sort_key",StringValue(~"4", ~"")),
 		(~"gnos:style",		StringValue(~"gauge-bar-color:lime", ~"")),
 	]);
 	
@@ -379,7 +379,7 @@ priv fn add_relation(store: &Store, lhs: ~str, rhs: ~str, style: ~str, label1: ~
 				(~"gnos:target",	BlankValue(copy relation)),
 				(~"gnos:label",	StringValue(copy label1, ~"")),
 				(~"gnos:level",	IntValue(1)),
-				(~"gnos:priority",	IntValue(1)),
+				(~"gnos:sort_key",StringValue(~"1", ~"")),
 			]);
 			~[(~"gnos:middle_info",	BlankValue(info1))]
 		}
@@ -396,7 +396,7 @@ priv fn add_relation(store: &Store, lhs: ~str, rhs: ~str, style: ~str, label1: ~
 				(~"gnos:target",	BlankValue(copy relation)),
 				(~"gnos:label",	StringValue(copy label2, ~"")),
 				(~"gnos:level",	IntValue(2)),
-				(~"gnos:priority",	IntValue(2)),
+				(~"gnos:sort_key",StringValue(~"2", ~"")),
 			]);
 			~[(~"gnos:left_info",	BlankValue(info2))]
 		}

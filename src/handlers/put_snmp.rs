@@ -256,8 +256,6 @@ priv fn add_device(network: &Network, managed_ip: &str, device: &LinearMap<~str,
 			let time = snmp.new_time;
 			
 			let entries = ~[
-				(~"gnos:center_x", FloatValue(options_device.center_x as f64)),
-				(~"gnos:center_y", FloatValue(options_device.center_y as f64)),
 				(~"gnos:style", StringValue(copy options_device.style, ~"")),
 				
 				(~"gnos:primary_label", StringValue(copy options_device.name, ~"")),

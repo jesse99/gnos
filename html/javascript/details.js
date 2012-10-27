@@ -15,17 +15,17 @@ $(document).ready(function()
 	var oldest = new Date();
 	oldest.setDate(oldest.getDate() - 7);	// show alerts for the last week
 	
-	var queries = ['					\
-SELECT 								\
-	?detail ?title ?open ?priority ?key	\
-WHERE 								\
-{										\
-	?subject gnos:target {0} . 			\
-	?subject gnos:detail ?detail . 		\
-	?subject gnos:title ?title .	 		\
-	?subject gnos:open ?open .	 	\
-	?subject gnos:priority ?priority .	 \
-	?subject gnos:key ?key .	 		\
+	var queries = ['						\
+SELECT 									\
+	?detail ?title ?open ?sort_key ?key	\
+WHERE 									\
+{											\
+	?subject gnos:target {0} . 				\
+	?subject gnos:detail ?detail . 			\
+	?subject gnos:title ?title .	 			\
+	?subject gnos:open ?open .	 		\
+	?subject gnos:sort_key ?sort_key .	 \
+	?subject gnos:key ?key .	 			\
 }'.format(target),
 'SELECT 											\
 	?mesg ?resolution ?style ?begin ?end			\
@@ -51,7 +51,7 @@ WHERE 											\
 });
 
 // solution rows have 
-// required fields: detail, title, open, priority, key
+// required fields: detail, title, open, sort_key, key
 function details_query(solution)
 {
 	var items = [];
@@ -81,12 +81,17 @@ function details_query(solution)
 			html += '</details>\n';
 		}
 		
-		items.push({priority: row.priority, html: html});
+		items.push({sort_key: row.sort_key, html: html});
 	});
 	
 	items.sort(function (x, y)
 	{
-		return x.priority - y.priority;
+		if (x.sort_key < y.sort_key)
+			return -1;
+		else if (x.sort_key > y.sort_key)
+			return 1;
+		else
+			return 0;
 	});
 	
 	var items = items.map(function (x) {return x.html;});

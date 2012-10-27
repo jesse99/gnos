@@ -178,13 +178,13 @@ WHERE 														\
 }',
 	'															\
 SELECT 														\
-	?subject ?label ?target ?level ?priority ?style ?predicate	\
+	?subject ?label ?target ?level ?sort_key ?style ?predicate	\
 WHERE 														\
 {																\
 	?subject gnos:label ?label .								\
 	?subject gnos:target ?target .								\
 	?subject gnos:level ?level .								\
-	?subject gnos:priority ?priority .							\
+	?subject gnos:sort_key ?sort_key .						\
 	OPTIONAL												\
 	{															\
 		?subject gnos:style ?style .								\
@@ -196,14 +196,14 @@ WHERE 														\
 }',
 	'															\
 SELECT 														\
-	?value ?target ?title ?level ?priority ?style ?predicate		\
+	?value ?target ?title ?level ?sort_key ?style ?predicate		\
 WHERE 														\
 {																\
 	?gauge gnos:gauge ?value .								\
 	?gauge gnos:target ?target .								\
 	?gauge gnos:title ?title .									\
 	?gauge gnos:level ?level .									\
-	?gauge gnos:priority ?priority .							\
+	?gauge gnos:sort_key ?sort_key .							\
 	OPTIONAL												\
 	{															\
 		?gauge gnos:style ?style .								\
@@ -378,7 +378,7 @@ function entities_query(solution)
 }
 
 // solution rows have 
-// required fields: subject, label, target, level, priority
+// required fields: subject, label, target, level, sort_key
 // optional fields: style, predicate
 function labels_query(solution)
 {
@@ -390,7 +390,7 @@ function labels_query(solution)
 	{
 		var style = row.style || "";
 		var styles = style.split(' ');
-		var label = new TextLineShape(context, Point.zero, row.label, styles, row.priority);
+		var label = new TextLineShape(context, Point.zero, row.label, styles, row.sort_key);
 		
 		labels[row.subject] = {target: row.target, shape: label, level: row.level, predicate: row.predicate || ""};
 	});
@@ -399,7 +399,7 @@ function labels_query(solution)
 }
 
 // solution rows have 
-// required fields: value, target, title, level, priority
+// required fields: value, target, title, level, sort_key
 // optional fields: style, predicate
 function gauges_query(solution)
 {
@@ -411,7 +411,7 @@ function gauges_query(solution)
 	{
 		var style = row.style || "";
 		var styles = style.split(' ');
-		var gauge = new GaugeShape(context, Point.zero, row.value, row.title, styles, row.priority);
+		var gauge = new GaugeShape(context, Point.zero, row.value, row.title, styles, row.sort_key);
 		
 		gauges.push({target: row.target, shape: gauge, level: row.level, predicate: row.predicate || ""});
 	});
@@ -571,9 +571,9 @@ function map_renderer(element, model, model_names)
 			child_shapes.sort(
 				function (x, y)
 				{
-					if (x.priority < y.priority)
+					if (x.sort_key < y.sort_key)
 						return -1;
-					else if (x.priority > y.priority)
+					else if (x.sort_key > y.sort_key)
 						return 1;
 					else
 						return 0;
