@@ -25,6 +25,7 @@ except:
 # TODO: not sure using pysnmp is the best way to go:
 # 1) The documentation is truly horrible once you go beyond very basic usage.
 # 2) There are way too many hoops you have to jump through for anything non-trivial.
+# Might be easier to use use snmpwalk.
 try:
 	from pysnmp.entity.rfc3413.oneliner import cmdgen
 except:
@@ -62,6 +63,9 @@ def process_snmpv2(ip, data, contents):
 	
 	add_label(data, target, get_value(contents, "contact: %s", 'sysContact'), key, level = 4, style = 'font-size:x-small')
 	add_label(data, target, get_value(contents, "location: %s", 'sysLocation'), key, level = 4, style = 'font-size:x-small')
+	
+def process_ip(ip, data, contents):
+	dump_snmp(ip, 'IP-MIB', contents)
 	
 def add_label(data, target, label, key, level = 0, style = ''):
 	if label:
@@ -143,7 +147,7 @@ class DeviceThread(threading.Thread):
 		self.__community = community
 		self.__mib_names = mib_names
 		self.__generator = cmdgen.CommandGenerator()	# http://pysnmp.sourceforge.net/quickstart.html
-		self.results = None					# mapping from mib name to results of the query for that mib
+		self.results = None									# mapping from mib name to results of the query for that mib
 		
 	def run(self):
 		self.results = {}
@@ -205,6 +209,7 @@ class Poll(object):
 		self.__args = args
 		self.__config = config
 		self.__startTime = time.time()
+		self.__handlers = {'SNMPv2-MIB': process_snmpv2, 'IP-MIB': process_ip}
 	
 	def run(self):
 		rate = self.__config['poll-rate']
@@ -226,7 +231,6 @@ class Poll(object):
 	# fine most of the time.
 	def __process_threads(self, threads):
 		data = {'modeler': 'snmp', 'entities': [], 'relations': [], 'labels': [], 'gauges': [], 'details': [], 'alerts': []}
-		handlers = {'SNMPv2-MIB': process_snmpv2}
 		for thread in threads:
 			thread.join(3.0)
 			
@@ -234,7 +238,7 @@ class Poll(object):
 			if not thread.isAlive():
 				close_alert(data, target, key = 'device down')
 				for (mib, contents) in thread.results.items():
-					handlers[mib](thread.ip, data, contents)
+					self.__handlers[mib](thread.ip, data, contents)
 			else:
 				open_alert(data, target, key = 'device down', mesg = 'Device is down.', resolution = 'Check the power cable, power it on if it is off, check the IP address, verify routing.', kind = 'error')
 		return data
@@ -244,7 +248,7 @@ class Poll(object):
 	def __spawn_threads(self):
 		threads = []
 		for (name, device) in self.__config["devices"].items():
-			thread = DeviceThread(device['ip'], device['community'], ['SNMPv2-MIB'])
+			thread = DeviceThread(device['ip'], device['community'], self.__handlers.keys())
 			thread.start()
 			threads.append(thread)
 		return threads

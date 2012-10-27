@@ -1,4 +1,8 @@
 .DS_Store
 bin
 html/generated
+cisco-snmp.log
+grs-snmp.log
+trimmed-cisco-snmp.log
+trimmed-grs-snmp.log
 
