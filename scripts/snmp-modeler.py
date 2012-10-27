@@ -7,14 +7,16 @@
 #
 # We use a Python script instead of simply doing this within gnos for a few
 # different reasons:
-# 1) There are already Python snmp wrapper libraries.
+# 1) There are already Python snmp wrapper libraries. (This was written when
+# the code still used pysnmp. Unfortunately pysnmp is not documented very well
+# once you start doing anything sophisticated. It also has a rather ridiculous API).
 # 2) Using a separate script will make it easier for gnos to manage multiple LANs.
 # 3) This separation simplifies development. In particular gnos can run on a 
 # developer machine and the script can run on an arbitrary machine connected
 # to an arbitrary LAN.
 # 4) This design makes it easy for users to write custom modelers using ssh
 # or whatever.
-import json, itertools, httplib, logging, logging.handlers, socket, sys, threading, time
+import json, itertools, httplib, logging, logging.handlers, re, socket, subprocess, sys, threading, time
 
 try:
 	import argparse
@@ -22,34 +24,30 @@ except:
 	sys.stderr.write("This script requires Python 2.7 or later\n")
 	sys.exit(2)
 
-# TODO: not sure using pysnmp is the best way to go:
-# 1) The documentation is truly horrible once you go beyond very basic usage.
-# 2) There are way too many hoops you have to jump through for anything non-trivial.
-# Might be easier to use use snmpwalk.
-try:
-	from pysnmp.entity.rfc3413.oneliner import cmdgen
-except:
-	sys.stderr.write("pysnmp is missing: install python-pysnmp4\n")
-	sys.exit(2)
-	
 logger = logging.getLogger('snmp-modeler')
 connection = None
 
 # http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput=sysDescr&translate=Translate&submitValue=SUBMIT&submitClicked=true
-# sysDescr  Linux RTR4 2.6.39.4 #1 Fri Apr 27 02:41:53 PDT 2012 i686
-# sysObjectID  1.3.6.1.4.1.8072.3.2.10
-# sysUpTime  389960053					The time (in hundredths of a second) since the network management portion of the system was last re-initialized.
-# sysContact  support@blargh.com
-# sysName  RTR
-# sysLocation  closet
-# sysORLastChange  1					The value of sysUpTime at the time of the most recent change in state or value of any instance of sysORID (within sysORTable)
-# sysORTable								The (conceptual) table listing the capabilities of the local SNMP application acting as a command responder with respect to various MIB modules
-#    ...
-def process_snmpv2(ip, data, contents):
-	#dump_snmp(ip, 'SNMPv2-MIB', contents)
+# SNMPv2-MIB::sysDescr.0 Linux RTR-4 2.6.39.4 #1 Fri Apr 27 02:41:53 PDT 2012 i686
+# SNMPv2-MIB::sysObjectID.0 NET-SNMP-MIB::netSnmpAgentOIDs.10
+# DISMAN-EVENT-MIB::sysUpTimeInstance 397724214
+# SNMPv2-MIB::sysContact.0 support@blargh.com
+# SNMPv2-MIB::sysName.0 RTR
+# SNMPv2-MIB::sysLocation.0 closet
+# SNMPv2-MIB::sysORLastChange.0 1
+# SNMPv2-MIB::sysORID[1] IP-MIB::ip
+# ...
+# SNMPv2-MIB::sysORDescr[1] The MIB module for managing IP and ICMP implementations
+# ...
+# SNMPv2-MIB::sysORUpTime[1] 0
+# ...
+def process_system(ip, data, contents):
+	#dump_snmp(ip, 'system', contents)
 	target = 'entities:%s' % ip
 	key = 'alpha'		# want these to appear before most other labels
 	up_time = get_value(contents, "%s", 'sysUpTime')
+	if not up_time:
+		up_time = get_value(contents, "%s", 'sysUpTimeInstance')
 	if up_time:
 		up_time = float(up_time)/100.0
 		add_label(data, target, 'uptime: %s' % secs_to_str(up_time), key, level = 2, style = 'font-size:small')
@@ -59,13 +57,69 @@ def process_snmpv2(ip, data, contents):
 		else:
 			close_alert(data, target, key = 'uptime')
 		
-	add_label(data, target, get_value(contents, 'description: %s', 'sysDescr'), key, level = 3, style = 'font-size:x-small')
+	add_label(data, target, get_value(contents, '%s', 'sysDescr'), key, level = 3, style = 'font-size:x-small')
 	
-	add_label(data, target, get_value(contents, "contact: %s", 'sysContact'), key, level = 4, style = 'font-size:x-small')
-	add_label(data, target, get_value(contents, "location: %s", 'sysLocation'), key, level = 4, style = 'font-size:x-small')
+	add_label(data, target, get_value(contents, "%s", 'sysContact'), key, level = 4, style = 'font-size:x-small')
+	add_label(data, target, get_value(contents, "located in %s", 'sysLocation'), key, level = 4, style = 'font-size:x-small')
 	
+# A lot of these stats are deprecated in favor of entries in ipSystemStatsTable. But that isn't always available.
+# IP-MIB::ipForwarding.0 forwarding
+# IP-MIB::ipDefaultTTL.0 64
+# IP-MIB::ipInReceives.0 26551558
+# IP-MIB::ipInHdrErrors.0 0
+# IP-MIB::ipInAddrErrors.0 0
+# IP-MIB::ipForwDatagrams.0 0
+# IP-MIB::ipInUnknownProtos.0 0
+# IP-MIB::ipInDiscards.0 0
+# IP-MIB::ipInDelivers.0 26550457
+# IP-MIB::ipOutRequests.0 25867018
+# IP-MIB::ipOutDiscards.0 0
+# IP-MIB::ipOutNoRoutes.0 0
+# IP-MIB::ipReasmTimeout.0 0
+# IP-MIB::ipReasmReqds.0 0
+# IP-MIB::ipReasmOKs.0 0
+# IP-MIB::ipReasmFails.0 0
+# IP-MIB::ipFragOKs.0 0
+# IP-MIB::ipFragFails.0 0
+# IP-MIB::ipFragCreates.0 0
+# IP-MIB::ipRoutingDiscards.0 0
+# IP-MIB::ipAdEntAddr[10.0.4.2] 10.0.4.2
+# ...
+# IP-MIB::ipAdEntIfIndex[10.0.4.2] 7
+# ...
+# IP-MIB::ipAdEntNetMask[10.0.4.2] 255.255.255.0
+# ...
+# IP-MIB::ipAdEntBcastAddr[10.0.4.2] 1
+# ...
+# RFC1213-MIB::ipRouteDest[10.0.4.0] 10.0.4.0
+# ...
+# RFC1213-MIB::ipRouteIfIndex[10.0.4.0] 7
+# ...
+# RFC1213-MIB::ipRouteMetric1[10.0.4.0] 0
+# ...
+# RFC1213-MIB::ipRouteNextHop[10.0.4.0] 0.0.0.0
+# ...
+# RFC1213-MIB::ipRouteType[10.0.4.0] direct
+# ...
+# RFC1213-MIB::ipRouteProto[10.0.4.0] local
+# ...
+# RFC1213-MIB::ipRouteMask[10.0.4.0] 255.255.255.0
+# ...
+# RFC1213-MIB::ipRouteInfo[10.0.4.0] SNMPv2-SMI::zeroDotZero
+# ...
+# IP-MIB::ipNetToMediaIfIndex[5][10.104.0.254] 5
+# ...
+# IP-MIB::ipNetToMediaPhysAddress[5][10.104.0.254] 0:19:bb:5f:59:8a
+# ...
+# IP-MIB::ipNetToMediaNetAddress[5][10.104.0.254] 10.104.0.254
+# ...
+# IP-MIB::ipNetToMediaType[5][10.104.0.254] dynamic
+# ...
 def process_ip(ip, data, contents):
-	dump_snmp(ip, 'IP-MIB', contents)
+	#dump_snmp(ip, 'ip', contents)
+	target = 'entities:%s' % ip
+	key = 'zeppo'
+	add_label(data, target, get_value(contents, '%s', 'ipForwarding'), key, level = 5, style = 'font-size:x-small')
 	
 def add_label(data, target, label, key, level = 0, style = ''):
 	if label:
@@ -81,17 +135,23 @@ def open_alert(data, target, key, mesg, resolution, kind):
 def close_alert(data, target, key):
 	data['alerts'].append({'entity-id': target, 'key': key})
 
+# In general lines look like:
+#    IP-MIB::icmpOutErrors.0 0
+#    TCP-MIB::tcpConnLocalAddress[127.0.0.1][2601][0.0.0.0][0] 127.0.0.1
+# where the stuff in brackets is optional.
 def get_value(contents, fmt, name):
-	# Kind of lame to do a linear search but symbol isn't unique.
-	for (symbol, index, value) in contents:
-		if symbol == name:
-			return fmt % value
+	# Not clear whether it's faster to split the lines and match as we iterate
+	# or to use regexen. But splitting large amounts of text is rather slow 
+	# and often relatively little of the MIB is used.
+	expr = re.compile(r'::%s (?= \W) .*? \ (.+)$' % name, re.MULTILINE | re.VERBOSE)	# TODO: faster to cache these
+	match = re.search(expr, contents)
+	if match:
+		return fmt % match.group(1)
 	return None
 
 def dump_snmp(ip, name, contents):
 	logger.debug('%s %s:' % (ip, name))
-	for (symbol, index, value) in contents:
-		logger.debug('   %s %s %s' % (symbol, index, value))
+	logger.debug('%s' % (contents))
 		
 def secs_to_str(secs):
 	if secs >= 365.25*86400:
@@ -140,13 +200,20 @@ def send_entities(config):
 		entities.append(entity)
 	send_update(config, {"modeler": "config", "entities": entities})
 
+def run_process(command):
+	process = subprocess.Popen(command, bufsize = 8*1024, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+	(outData, errData) = process.communicate()
+	if process.returncode != 0:
+		logger.error(errData)
+		raise ValueError('return code was %s:' % process.returncode)
+	return outData
+
 class DeviceThread(threading.Thread):
 	def __init__(self, ip, community, mib_names):
 		threading.Thread.__init__(self)
 		self.ip = ip
 		self.__community = community
 		self.__mib_names = mib_names
-		self.__generator = cmdgen.CommandGenerator()	# http://pysnmp.sourceforge.net/quickstart.html
 		self.results = None									# mapping from mib name to results of the query for that mib
 		
 	def run(self):
@@ -154,62 +221,23 @@ class DeviceThread(threading.Thread):
 		for name in self.__mib_names:
 			self.results[name] = self.__walk_mib(name)
 		
+	# When only a few items are used it would be faster to use something like:
+	# snmpbulkget -v2c -c public 10.101.0.2 -Oq -Ot -OU -OX ipRouteMask ipFragFails ipDefaultTTL
 	def __walk_mib(self, name):
+		command = 'snmpbulkwalk -v2c -c "%s" %s -Oq -Ot -OU -OX %s' % (self.__community, self.ip, name)
 		try:
-			errorIndication, errorStatus, errorIndex, table = self.__generator.nextCmd(	# http://www.opensource.apple.com/source/net_snmp/net_snmp-9/net-snmp/mibs/IF-MIB.txt
-				cmdgen.CommunityData('gnos-agent', self.__community),
-				cmdgen.UdpTransportTarget((self.ip, 161)),
-				((name, ''), ))
-				
-			result = self.__processResult(name, errorIndication, errorStatus, errorIndex, table)
+			result = run_process(command)
 		except:
-			logger.error("Error walking %s" % name, exc_info = True)
-			result = []
+			logger.error("Error executing `%s`" % command, exc_info = True)
+			result = ''
 		return result
-		
-	def __processResult(self, name, errorIndication, errorStatus, errorIndex, table):
-		if errorIndication:
-			logger.error("Error processing %s for %s: %s" % (name, self.ip, errorIndication))
-			return []
-		elif errorStatus:
-			logger.error("Error processing %s for %s: %s at %s" % (name, self.ip, errorStatus.prettyPrint(), errorIndex and table[int(errorIndex)-1] or '?'))
-			return []
-		else:
-			result = []
-			for row in table:
-				for oid, val in row:
-					try:
-						(symbol, module), index = self.__oidToMibName(self.__generator.mibViewController, oid)		# module will be 'IF-MIB'
-						value = cmdgen.mibvar.cloneFromMibValue(self.__generator.mibViewController, module, symbol, val)	# for stuff like ifOperStatus val will be a number and value will be something human readable
-						if value:
-							result.append((symbol, index, value.prettyPrint()))
-						else:
-							result.append((symbol, index, ''))
-					except:
-						logger.error("Error proccessing oid %s" % (".".join([str(o) for o in oid])), exc_info = True)
-			return result
-	
-	# This is similar to the oidToMibName function in pysnmp except that instead of raising
-	# an exception if the entire oid cannot be converted it returns the unconverted bits in
-	# the last element. This is neccesary because there are OIDs that we care about (such
-	# as ipAdEntAddr) where the last values are actually components of an ip address.
-	def __oidToMibName(self, mibView, oid):
-		_oid, label, suffix = mibView.getNodeNameByOid(tuple(oid))
-		modName, symName, __suffix = mibView.getNodeLocation(_oid)
-		mibNode, = mibView.mibBuilder.importSymbols(modName, symName)
-		if not suffix:
-			return (symName, modName), '.'.join(map(lambda v: v.prettyPrint(), suffix))
-		elif suffix == (0,): # scalar
-			return (symName, modName), ''
-		else:
-			return (symName, modName), '.'.join([str(v) for v in suffix])
 
 class Poll(object):
 	def __init__(self, args, config):
 		self.__args = args
 		self.__config = config
 		self.__startTime = time.time()
-		self.__handlers = {'SNMPv2-MIB': process_snmpv2, 'IP-MIB': process_ip}
+		self.__handlers = {'system': process_system, 'ip': process_ip}
 	
 	def run(self):
 		rate = self.__config['poll-rate']
