@@ -67,18 +67,9 @@ priv fn handle_update(options: &Options, remote_addr: &str, store: &Store, body:
 					{
 						modeler = prune_modeler(store, d.get_ref(&~"modeler"));
 					}
-					if d.contains_key(&~"entities")
-					{
-						add_entities(store, &modeler, d.get_ref(&~"entities"));
-					}
-//					if d.contains_key(&~"labels")
-//					{
-//						add_labels(store, &modeler, d.get_ref(&~"labels"));
-//					}
-//					if d.contains_key(&~"alerts")
-//					{
-//						add_alerts(store, &modeler, d.get_ref(&~"alerts"));
-//					}
+					do process_list(data, ~"entities") |list| {add_entities(store, &modeler, list);};
+//					do process_list(data, ~"labels") |list| {add_labels(store, &modeler, list);};
+//					do process_list(data, ~"alerts") |list| {add_alerts(store, &modeler, list);};
 				}
 				_ =>
 				{
@@ -97,69 +88,29 @@ priv fn handle_update(options: &Options, remote_addr: &str, store: &Store, body:
 	true
 }
 
-fn add_entities(store: &Store, modeler: &Option<Object>, value: &Json)
+fn add_entities(store: &Store, modeler: &Option<Object>, list: &json::List)
 {
-	fn add_entity(store: &Store, modeler: &Option<Object>, value: &Json)
+	fn add_entity(store: &Store, modeler: &Option<Object>, object: &Json)
 	{
-		match *value
+		let mut entries = ~[];
+		if modeler.is_some()
 		{
-			json::Object(ref entity) =>
-			{
-				let mut entries = ~[];
-				if modeler.is_some()
-				{
-					entries.push((~"gnos:modeler-subject", modeler.get()));
-				}
-				entries.push((~"gnos:entity", StringValue(get_str(*entity, ~"label"), ~"")));
-				if entity.contains_key(&~"style")
-				{
-					entries.push((~"gnos:style", StringValue(get_str(*entity, ~"style"), ~"")));
-				}
-				if entity.contains_key(&~"predicate")
-				{
-					entries.push((~"gnos:predicate", StringValue(get_str(*entity, ~"predicate"), ~"")));
-				}
-				
-				let subject = ~"entities:" + get_str(*entity, ~"id");
-				store.add(subject, entries);
-			}
-			_ =>
-			{
-				error!("Expected an Object but found %?", value);
-			}
+			entries.push((~"gnos:modeler-subject", modeler.get()));
 		}
+		do process_str(object, ~"label") |value| 		{entries.push((~"gnos:entity", StringValue(copy *value, ~"")))};
+		do process_str(object, ~"style") |value| 		{entries.push((~"gnos:style", StringValue(copy *value, ~"")))};
+		do process_str(object, ~"predicate") |value|	{entries.push((~"gnos:predicate", StringValue(copy *value, ~"")))};
+		
+		do process_str(object, ~"id") |value|
+		{
+			let subject = ~"entities:" + *value;
+			store.add(subject, entries);
+		};
 	}
 	
-	match *value
+	for list.each |entity|
 	{
-		json::List(ref list) =>
-		{
-			for list.each |entity|
-			{
-				add_entity(store, modeler, entity);
-			}
-		}
-		_ =>
-		{
-			error!("Expected a List but found %?", value);
-		}
-	}
-}
-
-fn get_str(data: &json::Object, name: ~str) -> ~str
-{
-	let value = data.get_ref(&name);
-	match *value
-	{
-		json::String(ref s) =>
-		{
-			copy *s
-		}
-		_ =>
-		{
-			error!("Expected a String but found %?", value);
-			~""
-		}
+		add_entity(store, modeler, entity);
 	}
 }
 
@@ -185,6 +136,64 @@ fn prune_modeler(store: &Store, value: &Json) -> Option<Object>
 	}
 	
 	mine
+}
+
+fn process_str(value: &Json, key: ~str, callback: fn (value: &~str))
+{
+	match *value
+	{
+		json::Object(ref object) =>
+		{
+			if object.contains_key(&key)
+			{
+				let entry = object.get_ref(&key);
+				match *entry
+				{
+					json::String(ref s) =>
+					{
+						callback(s);
+					}
+					_ =>
+					{
+						error!("Expected a List but String %?", *entry);
+					}
+				}
+			}
+		}
+		_ =>
+		{
+			error!("Expected an Object but found %?", *value);
+		}
+	}
+}
+
+fn process_list(value: &Json, key: ~str, callback: fn (value: &json::List))
+{
+	match *value
+	{
+		json::Object(ref object) =>
+		{
+			if object.contains_key(&key)
+			{
+				let entry = object.get_ref(&key);
+				match *entry
+				{
+					json::List(ref list) =>
+					{
+						callback(list);
+					}
+					_ =>
+					{
+						error!("Expected a List but found %?", *entry);
+					}
+				}
+			}
+		}
+		_ =>
+		{
+			error!("Expected an Object but found %?", *value);
+		}
+	}
 }
 
 //priv fn updates_snmp(options: &Options, samples_chan: SamplesChan, remote_addr: &str, stores: &[@Store], body: &str, old: &Solution) -> bool
