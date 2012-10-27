@@ -11,7 +11,8 @@ GNOS.loaded_entities = false;
 GNOS.screen_padding = 80;		// px
 GNOS.windows = {};
 
-$(document).ready(function(){
+$(document).ready(function()
+{
 	var map = document.getElementById('map');
 	var context = map.getContext('2d');
 	GNOS.scene = new Scene(context);
@@ -44,6 +45,9 @@ function handle_dblclick(e)
 	if (obj && obj.node !== null)
 	{
 		var url = obj.node.name.replace("/map/", "/details/");
+		var i = url.indexOf('/details/');
+		if (i > 0)
+			url = url.slice(i);
 		if (url in GNOS.windows && !GNOS.windows[url].closed)
 			GNOS.windows[url].focus();
 		else
@@ -280,6 +284,10 @@ function globals_query(solution)
 			var error_count = create_globals_err_label(num_errors);
 		
 		return {globals: {poll_interval: poll_interval, error_count: error_count}};
+	}
+	else
+	{
+		return {};
 	}
 }
 

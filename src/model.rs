@@ -269,7 +269,7 @@ pub fn close_alert(store: &Store, target: &str, id: &str) -> bool
 		{
 			?subject gnos:end ?end
 		}
-	}", get_prefixes(store), id, target];
+	}" , get_prefixes(store),id, target];
 	
 	match eval_query(store, expr)
 	{

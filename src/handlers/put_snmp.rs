@@ -67,9 +67,9 @@ priv fn handle_update(options: &Options, remote_addr: &str, store: &Store, body:
 					{
 						modeler = prune_modeler(store, d.get_ref(&~"modeler"));
 					}
-					do process_list(data, ~"entities") |list| {add_entities(store, &modeler, list);};
-//					do process_list(data, ~"labels") |list| {add_labels(store, &modeler, list);};
-//					do process_list(data, ~"alerts") |list| {add_alerts(store, &modeler, list);};
+					do optional_list(data, ~"entities") |list| {add_entities(store, &modeler, list);};
+					do optional_list(data, ~"labels") |list| {add_labels(store, &modeler, list);};
+					do optional_list(data, ~"alerts") |list| {add_alerts(store, list);};
 				}
 				_ =>
 				{
@@ -97,20 +97,75 @@ fn add_entities(store: &Store, modeler: &Option<Object>, list: &json::List)
 		{
 			entries.push((~"gnos:modeler-subject", modeler.get()));
 		}
-		do process_str(object, ~"label") |value| 		{entries.push((~"gnos:entity", StringValue(copy *value, ~"")))};
-		do process_str(object, ~"style") |value| 		{entries.push((~"gnos:style", StringValue(copy *value, ~"")))};
-		do process_str(object, ~"predicate") |value|	{entries.push((~"gnos:predicate", StringValue(copy *value, ~"")))};
+		entries.push((~"gnos:entity", StringValue(get_str(object, ~"label"), ~"")));
+		do optional_str(object, ~"style") |value| 		{entries.push((~"gnos:style", StringValue(value, ~"")))};
+		do optional_str(object, ~"predicate") |value|	{entries.push((~"gnos:predicate", StringValue(value, ~"")))};
 		
-		do process_str(object, ~"id") |value|
-		{
-			let subject = ~"entities:" + *value;
-			store.add(subject, entries);
-		};
+		let subject = ~"entities:" + get_str(object, ~"id");
+		store.add(subject, entries);
 	}
 	
 	for list.each |entity|
 	{
 		add_entity(store, modeler, entity);
+	}
+}
+
+fn add_labels(store: &Store, modeler: &Option<Object>, list: &json::List)
+{
+	fn add_label(store: &Store, modeler: &Option<Object>, object: &Json)
+	{
+		let mut entries = ~[];
+		if modeler.is_some()
+		{
+			entries.push((~"gnos:modeler-subject", modeler.get()));
+		}
+		entries.push((~"gnos:target",		IriValue(get_str(object, ~"target-id"))));
+		entries.push((~"gnos:label",		StringValue(get_str(object, ~"label"), ~"")));
+		entries.push((~"gnos:level", 		IntValue(get_int(object, ~"level"))));
+		entries.push((~"gnos:sort_key",	StringValue(get_str(object, ~"sort-key"), ~"")));
+		do optional_str(object, ~"style") |value| 		{entries.push((~"gnos:style", StringValue(value, ~"")))};
+		do optional_str(object, ~"predicate") |value|	{entries.push((~"gnos:predicate", StringValue(value, ~"")))};
+		
+		store.add(get_blank_name(store, ~"label"), entries);
+	}
+	
+	for list.each |label|
+	{
+		add_label(store, modeler, label);
+	}
+}
+
+fn add_alerts(store: &Store, list: &json::List)
+{
+	fn open_alert(store: &Store, object: &Json)
+	{
+		let alert = model::Alert
+		{
+			target: get_str(object, ~"entity-id"),
+			id: get_str(object, ~"key"),
+			mesg: get_str(object, ~"mesg"),
+			resolution: get_str(object, ~"resolution"),
+			level: get_str(object, ~"kind"),
+		};
+		model::open_alert(store, &alert);
+	}
+	
+	fn close_alert(store: &Store, object: &Json)
+	{
+		model::close_alert(store, get_str(object, ~"entity-id"), get_str(object, ~"key"));
+	}
+	
+	for list.each |alert|
+	{
+		if has_value(alert, ~"mesg")
+		{
+			open_alert(store, alert);
+		}
+		else
+		{
+			close_alert(store, alert);
+		}
 	}
 }
 
@@ -138,7 +193,7 @@ fn prune_modeler(store: &Store, value: &Json) -> Option<Object>
 	mine
 }
 
-fn process_str(value: &Json, key: ~str, callback: fn (value: &~str))
+fn optional_str(value: &Json, key: ~str, callback: fn (value: ~str))
 {
 	match *value
 	{
@@ -149,13 +204,13 @@ fn process_str(value: &Json, key: ~str, callback: fn (value: &~str))
 				let entry = object.get_ref(&key);
 				match *entry
 				{
-					json::String(ref s) =>
+					json::String(copy s) =>
 					{
 						callback(s);
 					}
 					_ =>
 					{
-						error!("Expected a List but String %?", *entry);
+						error!("Expected a String but found %?", *entry);
 					}
 				}
 			}
@@ -167,7 +222,88 @@ fn process_str(value: &Json, key: ~str, callback: fn (value: &~str))
 	}
 }
 
-fn process_list(value: &Json, key: ~str, callback: fn (value: &json::List))
+fn get_str(value: &Json, key: ~str) -> ~str
+{
+	match *value
+	{
+		json::Object(ref object) =>
+		{
+			if object.contains_key(&key)
+			{
+				let entry = object.get_ref(&key);
+				match *entry
+				{
+					json::String(copy s) =>
+					{
+						s
+					}
+					_ =>
+					{
+						fail fmt!("Expected a String but found %?", *entry)
+					}
+				}
+			}
+			else
+			{
+				fail fmt!("%s key is missing from %?", key, value)
+			}
+		}
+		_ =>
+		{
+			fail fmt!("Expected an Object but found %?", *value)
+		}
+	}
+}
+
+fn has_value(value: &Json, key: ~str) -> bool
+{
+	match *value
+	{
+		json::Object(ref object) =>
+		{
+			object.contains_key(&key)
+		}
+		_ =>
+		{
+			false
+		}
+	}
+}
+
+fn get_int(value: &Json, key: ~str) -> i64
+{
+	match *value
+	{
+		json::Object(ref object) =>
+		{
+			if object.contains_key(&key)
+			{
+				let entry = object.get_ref(&key);
+				match *entry
+				{
+					json::Number(n) =>
+					{
+						n as i64
+					}
+					_ =>
+					{
+						fail fmt!("Expected a Number but found %?", *entry)
+					}
+				}
+			}
+			else
+			{
+				fail fmt!("%s key is missing from %?", key, value)
+			}
+		}
+		_ =>
+		{
+			fail fmt!("Expected an Object but found %?", *value)
+		}
+	}
+}
+
+fn optional_list(value: &Json, key: ~str, callback: fn (value: &json::List))
 {
 	match *value
 	{
@@ -386,11 +522,6 @@ fn process_list(value: &Json, key: ~str, callback: fn (value: &json::List))
 // "ipNetToMediaType": "dynamic(3)", 
 // "ipOutDiscards": "1", 
 // "ipOutRequests": "325767", 
-// "sysContact": "support@xyz.com", 
-// "sysDescr": "Linux Router-A 2.6.39.4 #1 Wed Apr 4 02:43:16 PDT 2012 i686", 
-// "sysLocation": "closet", 
-// "sysName": "Router", 
-// "sysUpTime": "5080354"
 //priv fn add_device(network: &Network, managed_ip: &str, device: &LinearMap<~str, Json>, old: &Solution, old_subject: &str, template: mustache::Template, script: &mut ~str, charts: &mut ~[samples::Chart])
 //{
 //	match network.options.devices.find(|d| {str::eq_slice(d.managed_ip, managed_ip)})
@@ -422,8 +553,6 @@ fn process_list(value: &Json, key: ~str, callback: fn (value: &json::List))
 //			];
 //			add_value_entries(network.store, old_subject, entries);
 //			
-//			toggle_device_uptime_alert(network.alerts_store, managed_ip, time);
-//			
 //			let interfaces = device.find(&~"interfaces");
 //			if interfaces.is_some()
 //			{
@@ -440,23 +569,6 @@ fn process_list(value: &Json, key: ~str, callback: fn (value: &json::List))
 //			error!("Couldn't find %s in the network json file", managed_ip);
 //		}
 //	};
-//}
-
-//priv fn toggle_device_uptime_alert(alerts_store: &Store, managed_ip: &str, time: Value)
-//{
-//	let device = fmt!("devices:%s", managed_ip);
-//	let id = ~"uptime";
-//	
-//	if time.value >= 0.0 && time < from_units(60.0, Second)		// only reboot if we actually got an up time
-//	{
-//		// TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
-//		let mesg = ~"Device rebooted.";		// we can't add the time here because alerts aren't changed when re-opened (and the mesg doesn't change when they are closed)
-//		model::open_alert(alerts_store, &model::Alert {target: device, id: id, level: ~"warning", mesg: mesg, resolution: ~""});
-//	}
-//	else
-//	{
-//		model::close_alert(alerts_store, device, id);
-//	}
 //}
 
 //priv fn toggle_device_down_alert(alerts_store: &Store, managed_ip: &str, up: bool)

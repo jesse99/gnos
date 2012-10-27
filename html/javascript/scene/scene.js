@@ -10,7 +10,7 @@ function Scene(context)
 	this.shapes = ['graph'];
 	this.particles = arbor.ParticleSystem(
 	{
-		repulsion: 50*1000,	// the force repelling nodes from each other (1000)
+		repulsion: 5*1000,	// the force repelling nodes from each other (1000)
 		stiffness: 3*600,		// the rigidity of the edges (600)
 		friction: 0.5,			// the amount of damping in the system (0.5)
 		gravity: false,			// an additional force attracting nodes to the origin (false)

@@ -46,20 +46,22 @@ connection = None
 #    ...
 def process_snmpv2(ip, data, contents):
 	#dump_snmp(ip, 'SNMPv2-MIB', contents)
+	target = 'entities:%s' % ip
 	key = 'alpha'		# want these to appear before most other labels
 	up_time = get_value(contents, "%s", 'sysUpTime')
 	if up_time:
 		up_time = float(up_time)/100.0
-		add_label(data, ip, 'uptime: %s' % secs_to_str(up_time), key, level = 2)
+		add_label(data, target, 'uptime: %s' % secs_to_str(up_time), key, level = 2, style = 'font-size:small')
 		if up_time < 60.0:
-			open_alert(data, ip, key = 'uptime', mesg = 'Device rebooted.', resolution = '', style = 'alert-type:error')
+			# TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
+			open_alert(data, target, key = 'uptime', mesg = 'Device rebooted.', resolution = '', kind = 'error')
 		else:
-			close_alert(data, ip, key = 'uptime')
+			close_alert(data, target, key = 'uptime')
 		
-	add_label(data, ip, get_value(contents, 'description: %s', 'sysDescr'), key, level = 3)
+	add_label(data, target, get_value(contents, 'description: %s', 'sysDescr'), key, level = 3, style = 'font-size:x-small')
 	
-	add_label(data, ip, get_value(contents, "contact: %s", 'sysContact'), key, level = 4)
-	add_label(data, ip, get_value(contents, "location: %s", 'sysLocation'), key, level = 4)
+	add_label(data, target, get_value(contents, "contact: %s", 'sysContact'), key, level = 4, style = 'font-size:x-small')
+	add_label(data, target, get_value(contents, "location: %s", 'sysLocation'), key, level = 4, style = 'font-size:x-small')
 	
 def add_label(data, target, label, key, level = 0, style = ''):
 	if label:
@@ -69,8 +71,8 @@ def add_label(data, target, label, key, level = 0, style = ''):
 		else:
 			data['labels'].append({'target-id': target, 'label': label, 'level': level, 'sort-key': sort_key})
 		
-def open_alert(data, target, key, mesg, resolution, style):
-	data['alerts'].append({'entity-id': target, 'key': key, 'mesg': mesg, 'resolution': resolution, 'style': style})
+def open_alert(data, target, key, mesg, resolution, kind):
+	data['alerts'].append({'entity-id': target, 'key': key, 'mesg': mesg, 'resolution': resolution, 'kind': kind})
 
 def close_alert(data, target, key):
 	data['alerts'].append({'entity-id': target, 'key': key})
@@ -227,12 +229,14 @@ class Poll(object):
 		handlers = {'SNMPv2-MIB': process_snmpv2}
 		for thread in threads:
 			thread.join(3.0)
+			
+			target = 'entities:%s' % thread.ip
 			if not thread.isAlive():
-				close_alert(data, thread.ip, key = 'device down')
+				close_alert(data, target, key = 'device down')
 				for (mib, contents) in thread.results.items():
 					handlers[mib](thread.ip, data, contents)
 			else:
-				open_alert(data, thread.ip, key = 'device down', mesg = 'Device is down.', resolution = 'Check the power cable, power it on if it is off, check the IP address, verify routing.', style = 'alert-type:error')
+				open_alert(data, target, key = 'device down', mesg = 'Device is down.', resolution = 'Check the power cable, power it on if it is off, check the IP address, verify routing.', kind = 'error')
 		return data
 	
 	# This could be a lot of threads but they spend nearly all their time blocked so

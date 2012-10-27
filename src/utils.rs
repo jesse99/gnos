@@ -29,7 +29,6 @@ pub fn remove_entry_if<K: cmp::Eq to_bytes::IterBytes hash::Hash Copy, V: Copy>(
 	
 	for remove.each |key|
 	{
-error!("removing %?", key);
 		map.remove(*key);
 	}
 }
