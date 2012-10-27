@@ -43,7 +43,7 @@ The schema is defined with the aid of a couple of different namespace prefixes:\
 \b xsd
 \b0  - http://www.w3.org/2001/XMLSchema#\
 \
-\pard\pardeftab480\pardirnatural
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
 
 \b\fs50 \cf0 map:<store>/globals\
 \pard\pardeftab480\pardirnatural
@@ -80,10 +80,8 @@ gnos:predicate		xsd:string			"" (optional)\
 \ul gnos:gauge\ulnone 			xsd:float			0.8\
 gnos:title				xsd:string			"CPU"\
 gnos:level			xsd:integer		0\
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:sort_key		xsd:string			"1" (keys that sort before other keys appear first)\
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:style			xsd:string			"gauge-bar-color:red" (optional)\
+gnos:sort_key		xsd:string			"1" (keys that sort before other keys appear first)\
+gnos:style			xsd:string			"gauge-bar-color:red" (optional)\
 gnos:predicate		xsd:string			"" (optional)\
 \
 
@@ -106,10 +104,8 @@ gnos:style			xsd:string			"alert-type:error"\
 gnos:title				xsd:string			"blah" (can be empty)\
 \ul gnos:detail\ulnone 			xsd:string			"*blah*" (either markdown or a json table)\
 gnos:open			xsd:string			"always" (or "yes" or "no")\
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:sort_key		xsd:string			"1" (keys that sort before other keys appear first)\
-\pard\pardeftab480\pardirnatural
-\cf0 gnos:key				xsd:string			"m1" (used by the client to keep widgets open on refresh)\
+gnos:sort_key		xsd:string			"1" (keys that sort before other keys appear first)\
+gnos:key				xsd:string			"m1" (used by the client to keep widgets open on refresh)\
 \
 For tables detail is json formatted as:\
 \{\

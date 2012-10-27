@@ -132,7 +132,7 @@ def send_entities(config):
 		entity = {"id": device['ip'], "label": name, "style": style}
 		logger.debug("entity: %s" % entity)
 		entities.append(entity)
-	send_update(config, {"source": "config", "entities": entities})
+	send_update(config, {"modeler": "config", "entities": entities})
 
 class DeviceThread(threading.Thread):
 	def __init__(self, ip, community, mib_names):
@@ -223,7 +223,7 @@ class Poll(object):
 	# so simply joining them one after another isn't great, but it's simple and should work
 	# fine most of the time.
 	def __process_threads(self, threads):
-		data = {'source': 'snmp', 'entities': [], 'relations': [], 'labels': [], 'gauges': [], 'details': [], 'alerts': []}
+		data = {'modeler': 'snmp', 'entities': [], 'relations': [], 'labels': [], 'gauges': [], 'details': [], 'alerts': []}
 		handlers = {'SNMPv2-MIB': process_snmpv2}
 		for thread in threads:
 			thread.join(3.0)

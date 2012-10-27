@@ -15,6 +15,25 @@ pub fn title_case(s: &str) -> ~str
 	}
 }
 
+pub fn remove_entry_if<K: cmp::Eq to_bytes::IterBytes hash::Hash Copy, V: Copy>(map: HashMap<K, V>, predicate: fn (key: K, value: V) -> bool)
+{
+	let mut remove = ~[];
+	
+	for map.each |key, value|
+	{
+		if predicate(key, value)
+		{
+			vec::push(&mut remove, key);
+		}
+	}
+	
+	for remove.each |key|
+	{
+error!("removing %?", key);
+		map.remove(*key);
+	}
+}
+
 /// Returns an error if the files cannot be copied.
 pub fn scp_files(files: &[~Path], user: &str, host: &str) -> option::Option<~str>
 {
@@ -23,7 +42,7 @@ pub fn scp_files(files: &[~Path], user: &str, host: &str) -> option::Option<~str
 		return option::Some(~"No files were found to copy");
 	}
 	
-	let args = do files.map |f| {(*f).to_str()} + ~[fmt!("%s@%s:", user, host)];	// need to de-reference f or we get a ~ in front of the string
+	let args = do files.map |f| {(**f).to_str()} + ~[fmt!("%s@%s:", user, host)];	// need to de-reference f or we get a ~ in front of the string
 	
 	info!("scp %s", str::connect(args, ~" "));
 	run_command(~"scp", args)
@@ -46,8 +65,7 @@ pub fn run_remote_command(user: &str, host: &str, command: &str) -> option::Opti
 pub fn list_dir_path(dir: &Path, extensions: &[~str]) -> ~[~Path]
 {
 	let files = core::os::list_dir_path(dir);
-	do files.filter
-	|file|
+	do files.filter |file|
 	{
 		let ftype = file.filetype();
 		assert ftype.is_none() || ftype.get().starts_with(".");
@@ -144,11 +162,11 @@ priv fn run_command(tool: &str, args: &[~str]) -> option::Option<~str>
 		}
 		{status: code, out: _, err: ~""} =>
 		{
-			option::Some(fmt!("result code was %?", code))
+			option::Some(fmt!("%s result code was %?", tool, code))
 		}
 		{status: code, out: _, err: ref err} =>
 		{
-			option::Some(fmt!("result code was %? (%s)", code, *err))
+			option::Some(fmt!("%s result code was %? (%s)", tool, code, *err))
 		}
 	}
 }
