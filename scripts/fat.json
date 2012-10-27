@@ -11,32 +11,24 @@
 		{
 			"ip": "10.101.0.2",
 			"community": "public",
-			"center_x": 0.25,
-			"center_y": 0.50,
 			"type": "router"
 		},
 		"GRS-2":
 		{
 			"ip": "10.102.0.2",
 			"community": "public",
-			"center_x": 0.50,
-			"center_y": 0.25,
 			"type": "router"
 		},
 		"GRS-3":
 		{
 			"ip": "10.103.0.2",
 			"community": "public",
-			"center_x": 0.75,
-			"center_y": 0.50,
 			"type": "router"
 		},
 		"GRS-4":
 		{
 			"ip": "10.104.0.2",
 			"community": "public",
-			"center_x": 0.50,
-			"center_y": 0.75,
 			"type": "router"
 		}
 	}
