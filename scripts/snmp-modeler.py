@@ -16,7 +16,7 @@
 # to an arbitrary LAN.
 # 4) This design makes it easy for users to write custom modelers using ssh
 # or whatever.
-import json, itertools, httplib, logging, logging.handlers, re, socket, subprocess, sys, threading, time
+import cgi, json, itertools, httplib, logging, logging.handlers, re, socket, subprocess, sys, threading, time
 
 try:
 	import argparse
@@ -35,12 +35,10 @@ connection = None
 # SNMPv2-MIB::sysName.0 RTR
 # SNMPv2-MIB::sysLocation.0 closet
 # SNMPv2-MIB::sysORLastChange.0 1
-# SNMPv2-MIB::sysORID[1] IP-MIB::ip
-# ...
+#
+# SNMPv2-MIB::sysORID[1] IP-MIB::ip		will be one of these for each MIB supported by the device
 # SNMPv2-MIB::sysORDescr[1] The MIB module for managing IP and ICMP implementations
-# ...
 # SNMPv2-MIB::sysORUpTime[1] 0
-# ...
 def process_system(ip, data, contents, context):
 	#dump_snmp(ip, 'system', contents)
 	target = 'entities:%s' % ip
@@ -83,57 +81,93 @@ def process_system(ip, data, contents, context):
 # IP-MIB::ipFragFails.0 0
 # IP-MIB::ipFragCreates.0 0
 # IP-MIB::ipRoutingDiscards.0 0
-# IP-MIB::ipAdEntAddr[10.0.4.2] 10.0.4.2
-# ...
+#
+# IP-MIB::ipAdEntAddr[10.0.4.2] 10.0.4.2			will be one of these for each interface
 # IP-MIB::ipAdEntIfIndex[10.0.4.2] 7
-# ...
 # IP-MIB::ipAdEntNetMask[10.0.4.2] 255.255.255.0
-# ...
 # IP-MIB::ipAdEntBcastAddr[10.0.4.2] 1
-# ...
-# RFC1213-MIB::ipRouteDest[10.0.4.0] 10.0.4.0
-# ...
-# RFC1213-MIB::ipRouteIfIndex[10.0.4.0] 7
-# ...
-# RFC1213-MIB::ipRouteMetric1[10.0.4.0] 0
-# ...
-# RFC1213-MIB::ipRouteNextHop[10.0.4.0] 0.0.0.0
-# ...
-# RFC1213-MIB::ipRouteType[10.0.4.0] direct
-# ...
-# RFC1213-MIB::ipRouteProto[10.0.4.0] local
-# ...
-# RFC1213-MIB::ipRouteMask[10.0.4.0] 255.255.255.0
-# ...
-# RFC1213-MIB::ipRouteInfo[10.0.4.0] SNMPv2-SMI::zeroDotZero
-# ...
 # IP-MIB::ipNetToMediaIfIndex[5][10.104.0.254] 5
-# ...
 # IP-MIB::ipNetToMediaPhysAddress[5][10.104.0.254] 0:19:bb:5f:59:8a
-# ...
 # IP-MIB::ipNetToMediaNetAddress[5][10.104.0.254] 10.104.0.254
-# ...
 # IP-MIB::ipNetToMediaType[5][10.104.0.254] dynamic
-# ...
+#
+# RFC1213-MIB::ipRouteDest[10.0.4.0] 10.0.4.0	will be one of these for each route
+# RFC1213-MIB::ipRouteIfIndex[10.0.4.0] 7
+# RFC1213-MIB::ipRouteMetric1[10.0.4.0] 0
+# RFC1213-MIB::ipRouteNextHop[10.0.4.0] 0.0.0.0
+# RFC1213-MIB::ipRouteType[10.0.4.0] direct
+# RFC1213-MIB::ipRouteProto[10.0.4.0] local
+# RFC1213-MIB::ipRouteMask[10.0.4.0] 255.255.255.0
+# RFC1213-MIB::ipRouteInfo[10.0.4.0] SNMPv2-SMI::zeroDotZero
 def process_ip(admin_ip, data, contents, context):
 	#dump_snmp(admin_ip, 'ip', contents)
 	target = 'entities:%s' % admin_ip
 	key = 'zeppo'
 	add_label(data, target, get_value(contents, '%s', 'ipForwarding'), key, level = 5, style = 'font-size:x-small')
 	
-	# create a mapping from device ip to admin ip
-	ips = get_values(contents, "ipAdEntAddr")
-	for ip in ips.keys():
+	ips = get_values(contents, "ipAdEntIfIndex")
+	for (ip, if_index) in ips.items():
+		# create a mapping from device ip to admin ip
 		context['ips'][ip] = admin_ip
+		
+		# create a mapping from if index => device ip
+		context['if_indexes'][admin_ip + if_index] = ip
 	
-	# create a table for routing
+	# create a mapping from device ip to network mask
+	masks = get_values(contents, "ipAdEntNetMask")
+	for (ip, mask) in masks.items():
+		context['netmasks'][ip] = mask
+	
+	# create a table for routing (we can't build relations until we finish building the device to admin ip mapping)
 	nexts = get_values(contents, "ipRouteNextHop")
 	metrics = get_values(contents, "ipRouteMetric1")
 	protocols = get_values(contents, "ipRouteProto")	
 	for dest_ip in nexts.keys():
-		entry = {'src': admin_ip, 'next hop': nexts[dest_ip], 'dest': dest_ip, 'metric': metrics[dest_ip], 'protocol': protocols[dest_ip]}
+		entry = {'src': admin_ip, 'next hop': nexts.get(dest_ip, ''), 'dest': dest_ip, 'metric': metrics.get(dest_ip, ''), 'protocol': protocols.get(dest_ip, '')}
 		context['routes'].append(entry)
 	
+# IF-MIB::ifNumber.0 13				will be one of these for each interface
+# IF-MIB::ifDescr[1] lo			
+# IF-MIB::ifType[1] softwareLoopback or tunnel or ethernetCsmacd
+# IF-MIB::ifMtu[1] 16436
+# IF-MIB::ifSpeed[1] 10000000
+# IF-MIB::ifPhysAddress[1] blank or c2:25:a1:a0:30:9b
+# IF-MIB::ifAdminStatus[1] up
+# IF-MIB::ifOperStatus[1] up
+# IF-MIB::ifLastChange[1] 0 or 219192
+# IF-MIB::ifInOctets[1] 9840
+# IF-MIB::ifInUcastPkts[1] 120
+# IF-MIB::ifInNUcastPkts[1] 0 		seems to always be 0
+# IF-MIB::ifInDiscards[1] 0			seems to always be 0
+# IF-MIB::ifInErrors[1] 0
+# IF-MIB::ifInUnknownProtos[1] 0
+# IF-MIB::ifOutOctets[1] 9840
+# IF-MIB::ifOutUcastPkts[6] 8447505
+# IF-MIB::ifOutNUcastPkts[1] 0		seems to always be 0
+# IF-MIB::ifOutDiscards[1] 0
+# IF-MIB::ifOutErrors[1] 0
+# IF-MIB::ifOutQLen[1] 0			seems to always be 0
+# IF-MIB::ifSpecific[1] SNMPv2-SMI::zeroDotZero
+def process_interfaces(admin_ip, data, contents, context):
+	#dump_snmp(admin_ip, 'interfaces', contents)
+	
+	# create an interfaces table (we can't build details until we know ip addresses)
+	descs = get_values(contents, "ifDescr")
+	macs = get_values(contents, "ifPhysAddress")
+	speeds = get_values(contents, "ifSpeed")
+	mtus = get_values(contents, "ifMtu")
+	in_octets = get_values(contents, "ifInOctets")
+	out_octets = get_values(contents, "ifOutOctets")
+	qlens = get_values(contents, "ifOutQLen")
+	status = get_values(contents, "ifOperStatus")
+	for index in descs.keys():
+		if status.get(index, '') == 'up' or status.get(index, '') == 'dormant':
+			entry = {'if_index': index, 'name': descs.get(index, ''), 'mac': sanitize_mac(macs.get(index, '')), 'speed': speeds.get(index, ''), 'mtu': mtus.get(index, ''), 'in_octets': in_octets.get(index, ''), 'out_octets': out_octets.get(index, ''), 'qlen': qlens.get(index, '')}
+			if admin_ip in context['interfaces']:
+				context['interfaces'][admin_ip].append(entry)
+			else:
+				context['interfaces'][admin_ip] = [entry]
+
 def add_label(data, target, label, key, level = 0, style = ''):
 	if label:
 		sort_key = '%s-%s' % (level, key)
@@ -142,6 +176,9 @@ def add_label(data, target, label, key, level = 0, style = ''):
 		else:
 			data['labels'].append({'target-id': target, 'label': label, 'level': level, 'sort-key': sort_key})
 		
+def add_details(data, target, label, detail, opened, sort_key, key):
+	data['details'].append({'entity-id': target, 'label': label, 'detail': detail, 'open': opened, 'sort-key': sort_key, 'id': key})
+
 def add_relation(data, left, right, style = '', left_label = None, middle_label = None, right_label = None):
 	relation = {'left-entity-id': left, 'right-entity-id': right, 'style': style}
 	if left_label:
@@ -183,6 +220,17 @@ def get_values(contents, name):
 	
 	return values
 
+# Matches second bracketed expression:
+# IP-MIB::ipNetToMediaPhysAddress[5][10.104.0.254] 0:19:bb:5f:59:8a
+def get_values2(contents, name):
+	values = {}
+	
+	expr = re.compile(r'::%s \[ [^\]]+ \] \[ ([^\]]+) \] \  (.+)$' % name, re.MULTILINE | re.VERBOSE)
+	for match in re.finditer(expr, contents):
+		values[match.group(1)] = match.group(2)
+	
+	return values
+
 def dump_snmp(ip, name, contents):
 	logger.debug('%s %s:' % (ip, name))
 	logger.debug('%s' % (contents))
@@ -202,6 +250,63 @@ def secs_to_str(secs):
 		return '%.0f seconds' % secs
 	else:
 		return '%.3f msecs' % (1000*secs)
+		
+# MAC addresses are normally lower case which is kind of ugly and
+# also are not always two digits which is also ugly, but even more
+# important causes problems when we try to match up information
+# from different MIBs.
+def sanitize_mac(mac):
+	result = []
+	for part in mac.split(':'):		# classier to do this with map but lambda are weak in Python
+		part = part.upper()
+		if len(part) == 1:
+			result.append('0' + part)
+		else:
+			result.append(part)
+	return ':'.join(result)
+
+def add_units(table, name, unit):
+	result = table.get(name, '')
+	if result:
+		result += ' ' + unit
+	return result
+			
+def count_leading_ones(mask):
+	count = 0
+	
+	bit = 1 << 31
+	while bit > 0:
+		if mask & bit == bit:
+			count += 1
+			bit >>= 1
+		else:
+			break
+	
+	return count
+
+def count_trailing_zeros(mask):
+	count = 0
+	
+	bit = 1
+	while bit < (1 << 32):
+		if mask & bit == 0:
+			count += 1
+			bit <<= 1
+		else:
+			break
+	
+	return count;
+
+def get_subnet(s):
+	parts = s.split('.')
+	bytes = map(lambda p: int(p), parts)
+	mask = reduce(lambda sum, current: 256*sum + current, bytes, 0)
+	leading = count_leading_ones(mask)
+	trailing = count_trailing_zeros(mask)
+	if leading + trailing == 32:
+		return leading
+	else:
+		return s		# unusual netmask where 0s and 1s are mixed.
 
 def send_update(config, data):
 	logger.debug("sending update")
@@ -271,7 +376,8 @@ class Poll(object):
 		self.__args = args
 		self.__config = config
 		self.__startTime = time.time()
-		self.__handlers = {'system': process_system, 'ip': process_ip}
+		self.__handlers = {'system': process_system, 'ip': process_ip, 'interfaces': process_interfaces}
+		self.__context = {}
 	
 	def run(self):
 		rate = self.__config['poll-rate']
@@ -280,20 +386,48 @@ class Poll(object):
 			if not self.__args.put:
 				logger.info("-" * 60)
 				
-			self.__context = {}
-			self.__context['ips'] = {}
-			self.__context['routes'] = []
+			self.__context['ips'] = {}			# device ip => admin ip
+			self.__context['netmasks'] = {}	# device ip => network mask
+			self.__context['if_indexes'] = {}	# admin ip + if index => device ip
+			self.__context['interfaces'] = {}	# admin ip => [{'if_index':, 'name':, 'mac':, 'speed':, 'mtu':, 'in_octets':, 'out_octets', 'qlen'}]
+			self.__context['routes'] = []		# list of {'src':, 'next hop':, 'dest':, 'metric':, 'protocol':}
 			
 			threads = self.__spawn_threads()
 			data = self.__process_threads(threads)
-			self.__add_next_hops(data)
+			self.__add_next_hop_relations(data)
+			self.__add_interfaces_table(data)
 			send_update(self.__config, data)
 			
 			elapsed = time.time() - currentTime
 			logger.info('elapsed: %.1f seconds' % elapsed)
 			time.sleep(max(rate - elapsed, 5))
 			
-	def __add_next_hops(self, data):
+	def __add_interfaces_table(self, data):
+		for (admin_ip, interfaces) in self.__context['interfaces'].items():
+			detail = {}
+			detail['style'] = 'html'
+			detail['header'] = ['Name', 'IP Address', 'Mac Address', 'Speed', 'MTU', 'In Octets', 'Out Octets', 'Out QLen']
+			
+			rows = []
+			for interface in interfaces:
+				name = cgi.escape(interface['name'])
+				ip = self.__context['if_indexes'].get(admin_ip + interface['if_index'], '')
+				subnet = get_subnet(self.__context['netmasks'].get(ip))
+				if ip == admin_ip:
+					ip = '<strong>%s/%s</strong>' % (ip, subnet)
+				else:
+					ip = '%s/%s' % (ip, subnet)
+				speed = interface.get('speed', '')
+				if speed:
+					speed = float(speed)/1000000
+					speed = '%.1f Mbps' % speed
+				rows.append([name, ip, interface['mac'], speed, add_units(interface, 'mtu', 'B'), add_units(interface, 'in_octets', 'B'), add_units(interface, 'out_octets', 'B'), add_units(interface, 'qlen', 'p')])
+			detail['rows'] = sorted(rows, key = lambda row: row[0])
+			
+			target = 'entities:%s' % admin_ip
+			add_details(data, target, 'Interfaces', json.dumps(detail), opened = 'yes', sort_key = 'alpha', key = 'interfaces table')
+			
+	def __add_next_hop_relations(self, data):
 		next_hops = []
 		metrics = {}
 		protocols = {}

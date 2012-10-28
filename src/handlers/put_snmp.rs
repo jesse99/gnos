@@ -69,6 +69,7 @@ priv fn handle_update(options: &Options, remote_addr: &str, store: &Store, body:
 					}
 					do optional_list(data, ~"entities") |list| {add_entities(store, &modeler, list);};
 					do optional_list(data, ~"labels") |list| {add_labels(store, &modeler, list);};
+					do optional_list(data, ~"details") |list| {add_details(store, &modeler, list);};
 					do optional_list(data, ~"relations") |list| {add_relations(store, &modeler, list);};
 					do optional_list(data, ~"alerts") |list| {add_alerts(store, list);};
 				}
@@ -134,6 +135,31 @@ fn add_labels(store: &Store, modeler: &Option<Object>, list: &json::List)
 	for list.each |label|
 	{
 		add_label(store, modeler, label);
+	}
+}
+
+fn add_details(store: &Store, modeler: &Option<Object>, list: &json::List)
+{
+	fn add_detail(store: &Store, modeler: &Option<Object>, object: &Json)
+	{
+		let mut entries = ~[];
+		if modeler.is_some()
+		{
+			entries.push((~"gnos:modeler-subject", modeler.get()));
+		}
+		entries.push((~"gnos:target",		IriValue(get_str(object, ~"entity-id"))));
+		entries.push((~"gnos:title",		StringValue(get_str(object, ~"label"), ~"")));
+		entries.push((~"gnos:detail",		StringValue(get_str(object, ~"detail"), ~"")));
+		entries.push((~"gnos:open",		StringValue(get_str(object, ~"open"), ~"")));
+		entries.push((~"gnos:sort_key",	StringValue(get_str(object, ~"sort-key"), ~"")));
+		entries.push((~"gnos:key",		StringValue(get_str(object, ~"id"), ~"")));
+		
+		store.add(get_blank_name(store, ~"detail"), entries);
+	}
+	
+	for list.each |detail|
+	{
+		add_detail(store, modeler, detail);
 	}
 }
 
@@ -411,71 +437,6 @@ fn optional_list(value: &Json, key: ~str, callback: fn (value: &json::List))
 	}
 }
 
-//priv fn updates_snmp(options: &Options, samples_chan: SamplesChan, remote_addr: &str, stores: &[@Store], body: &str, old: &Solution) -> bool
-//{
-//	match json::from_str(body)
-//	{
-//		result::Ok(ref data) =>
-//		{
-//			match *data
-//			{
-//				json::Object(ref d) =>
-//				{
-//					let network = Network
-//					{
-//						options: options,
-//						samples_chan: samples_chan,
-//						remote_addr: remote_addr.to_unique(),
-//						store: &*stores[0],
-//						alerts_store: &*stores[2],
-//						snmp_store: &*stores[1],
-//						snmp: *d,
-//					};
-//					
-//					json_to_primary(&network, *d, old);
-//					json_to_snmp(&network);
-//					samples_chan.send(samples::SyncMsg);
-//				}
-//				_ =>
-//				{
-//					error!("Data from %s was expected to be a dict but is a %?", remote_addr, data);	// TODO: probably want to add errors to store
-//				}
-//			}
-//		}
-//		result::Err(err) =>
-//		{
-//			let intro = fmt!("Malformed json on line %? col %? from %s", err.line, err.col, remote_addr);
-//			error!("Error getting new modeler data:");
-//			error!("%s: %s", intro, *err.msg);
-//		}
-//	}
-//	
-//	true
-//}
-
-//priv fn query_old_info(state_chan: Chan<Msg>) -> Solution
-//{
-//	let po = Port();
-//	let ch = Chan(&po);
-//	
-//	let query = ~"
-//PREFIX gnos: <http://www.gnos.org/2012/schema#>
-//PREFIX sname: <http://snmp-name/>
-//SELECT
-//	?subject ?name ?value
-//WHERE
-//{
-//	?subject gnos:internal-info ?old .
-//	?old ?predicate ?value .
-//	BIND(rrdf:pname(?predicate) AS ?name) 
-//}";
-//	
-//	comm::send(state_chan, QueryMsg(~"primary", query, ch));
-//	let solution = comm::recv(po);
-//	//for solution.eachi |i, r| {error!("%?: %?", i, r)}
-//	solution
-//}
-
 // Format is:
 // {
 //    "10.101.100.2": 			managed ip address
@@ -607,23 +568,6 @@ fn optional_list(value: &Json, key: ~str, callback: fn (value: &json::List))
 //	{
 //		option::Some(ref options_device) =>
 //		{
-//			let old_url = option::Some(IriValue(~"http://network/" + managed_ip));
-//			let snmp = Snmp(device, device, copy *old,  ~"sname:", old_url);
-//			let time = snmp.new_time;
-//			
-//			let entries = ~[
-//				(~"gnos:style", StringValue(copy options_device.style, ~"")),
-//				
-//				(~"gnos:primary_label", StringValue(copy options_device.name, ~"")),
-//				(~"gnos:secondary_label", StringValue(managed_ip.to_unique(), ~"")),
-//				(~"gnos:tertiary_label", StringValue(get_device_label(&snmp).trim(), ~"")),
-//			];
-//			let subject = fmt!("devices:%s", managed_ip);
-//			network.store.add(subject, entries);
-//			
-//			// These are undocumented because they not intended to be used by clients.
-//			network.store.add_triple(~[], {subject: subject, predicate: ~"gnos:internal-info", object: BlankValue(old_subject.to_unique())});
-//			
 //			let entries = [
 //				(~"gnos:timestamp", option::Some(snmp.new_time)),
 //				(~"sname:ipInReceives", snmp.get_value(&~"ipInReceives", Packet)),
@@ -665,28 +609,6 @@ fn optional_list(value: &Json, key: ~str, callback: fn (value: &json::List))
 //		let resolution = ~"Check the power cable, power it on if it is off, check the IP address, verify routing.";
 //		model::open_alert(alerts_store, &model::Alert {target: device, id: id, level: ~"error", mesg: mesg, resolution: resolution});
 //	}
-//}
-
-//priv fn add_device_notes(network: &Network, managed_ip: &str, _device: &LinearMap<~str, Json>)
-//{
-//	// summary
-//	let html = #fmt["
-//<p class='summary'>
-//	The name and ip address are from the network json file. All the other info is from <a href='./subject/snmp/snmp:%s'>SNMP</a>.
-//	<a href='http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput=ipInReceives&translate=Translate&submitValue=SUBMIT&submitClicked=true'>Received </a> is the number of packets received on interfaces.
-//	<a href='http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput=ipForwDatagrams&translate=Translate&submitValue=SUBMIT&submitClicked=true'>Forwarded </a> is the number of packets received but not destined for the device.
-//	<a href='http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput=ipInDelivers&translate=Translate&submitValue=SUBMIT&submitClicked=true'>Delivered </a> is the number of packets sent to a local IP protocol.
-//</p>", managed_ip];
-//	
-//	let subject = get_blank_name(network.store, ~"summary");
-//	network.store.add(subject, ~[
-//		(~"gnos:title",       StringValue(~"notes", ~"")),
-//		(~"gnos:target",    IriValue(fmt!("devices:%s", managed_ip))),
-//		(~"gnos:detail",    StringValue(html, ~"")),
-//		(~"gnos:weight",  FloatValue(0.1f64)),
-//		(~"gnos:open",     StringValue(~"no", ~"")),
-//		(~"gnos:key",       StringValue(~"device notes", ~"")),
-//	]);
 //}
 
 //priv fn get_device_label(snmp: &Snmp) -> ~str
@@ -735,33 +657,8 @@ fn optional_list(value: &Json, key: ~str, callback: fn (value: &json::List))
 //			let rows = std::sort::merge_sort(|lhs, rhs| {lhs.first() <= rhs.first()}, rows);
 //			let hrows = do rows.map |r| {r.second()};
 //			
-//			let mut html = ~"";
-//			html += ~"<table border='1' class = 'details'>\n";
-//				html += ~"<tr>\n";
-//					html += ~"<th>Name</th>\n";
-//					html += ~"<th>IP Address</th>\n";
-//					html += ~"<th>In (kbps)</th>\n";
-//					html += ~"<th>Out (kbps)</th>\n";
-//					html += ~"<th>Speed</th>\n";
-//					html += ~"<th>MAC Address</th>\n";
-//					html += ~"<th>MTU</th>\n";
-//					html += ~"<th>SNMP</th>\n";
-//				html += ~"</tr>\n";
-//				html += str::connect(hrows, ~"\n");
-//			html += ~"</table>\n";
+//			// this went below the interfaces table
 //			html += ~"<p class='note'>The shaded area in the sparklines is the inter-quartile range: the bounds within which half the samples fall.</p>";
-//			
-//			let subject = get_blank_name(network.store, ~"interfaces");
-//			network.store.add(subject, ~[
-//				(~"gnos:title",       StringValue(~"interfaces", ~"")),
-//				(~"gnos:target",    IriValue(fmt!("devices:%s", managed_ip))),
-//				(~"gnos:detail",    StringValue(html, ~"")),
-//				(~"gnos:weight",  FloatValue(0.8f64)),
-//				(~"gnos:open",     StringValue(~"no", ~"")),
-//				(~"gnos:key",       StringValue(~"interfaces", ~"")),
-//			]);
-//			
-//			interfaces.is_not_empty()
 //		}
 //		_ =>
 //		{
@@ -1056,34 +953,6 @@ fn optional_list(value: &Json, key: ~str, callback: fn (value: &json::List))
 //	}
 //}
 
-//priv fn get_subnet(interface: &LinearMap<~str, Json>) -> ~str
-//{
-//	match lookup(interface, &~"ipAdEntNetMask", ~"")
-//	{
-//		~"" =>
-//		{
-//			~"/?"
-//		}
-//		ref s =>
-//		{
-//			let parts = s.split_char('.');
-//			let bytes = do parts.map |p| {uint::from_str(*p).get()};		// TODO: probably shouldn't fail for malformed json
-//			let mask = do bytes.foldl(0) |sum, current| {256*(*sum) + *current};
-//			let leading = count_leading_ones(mask);
-//			let trailing = count_trailing_zeros(mask);
-//			if leading + trailing == 32
-//			{
-//				fmt!("/%?", leading)
-//			}
-//			else
-//			{
-//				// Unusual netmask where 0s and 1s are mixed.
-//				fmt!("/%s", *s)
-//			}
-//		}
-//	}
-//}
-
 //#[test]
 //fn test_get_subnet()
 //{
@@ -1103,48 +972,6 @@ fn optional_list(value: &Json, key: ~str, callback: fn (value: &json::List))
 //	assert get_subnet(&interface) == ~"/255.0.1.0";
 //}
 
-//priv fn count_leading_ones(mask: uint) -> int
-//{
-//	let mut count = 0;
-//	
-//	let mut bit = 1u << 31;
-//	while bit > 0
-//	{
-//		if mask & bit == bit
-//		{
-//			count += 1;
-//			bit >>= 1;
-//		}
-//		else
-//		{
-//			break;
-//		}
-//	}
-//	
-//	return count;
-//}
-
-//priv fn count_trailing_zeros(mask: uint) -> int
-//{
-//	let mut count = 0;
-//	
-//	let mut bit = 1u;
-//	while bit < 1u << 32
-//	{
-//		if mask & bit == 0
-//		{
-//			count += 1;
-//			bit <<= 1;
-//		}
-//		else
-//		{
-//			break;
-//		}
-//	}
-//	
-//	return count;
-//}
-
 //priv fn add_value_entries(store: &Store, subject: &str, entries: &[(~str, option::Option<Value>)])
 //{
 //	let entries = do entries.filter_map
@@ -1160,115 +987,6 @@ fn optional_list(value: &Json, key: ~str, callback: fn (value: &json::List))
 //		}
 //	};
 //	store.add(subject, entries);
-//}
-
-// We store snmp data for various objects in the raw so that views are able to use it
-// and so admins can view the complete raw data.
-//priv fn json_to_snmp(network: &Network)
-//{
-//	network.snmp_store.clear();
-//	
-//	for network.snmp.each
-//	|key, value|
-//	{
-//		match *value
-//		{
-//			json::Object(ref d) =>
-//			{
-//				device_to_snmp(network, *key, *d);
-//			}
-//			_ =>
-//			{
-//				error!("%s was expected to have a device map but %s was %?", network.remote_addr, *key, value);
-//			}
-//		}
-//	}
-//}
-
-//priv fn device_to_snmp(network: &Network, managed_ip: &str, data: &LinearMap<~str, Json>)
-//{
-//	let mut entries = ~[];
-//	vec::reserve(&mut entries, data.len());
-//	
-//	for data.each		// unfortunately HashMap doesn't support the base_iter protocol so there's no nice way to do this
-//	|name, value|
-//	{
-//		match *value
-//		{
-//			json::String(ref s) =>
-//			{
-//				vec::push(&mut entries, (~"sname:" + name.to_unique(), StringValue(copy *s, ~"")));
-//			}
-//			json::List(ref interfaces) =>
-//			{
-//				interfaces_to_snmp(network, managed_ip, *interfaces);
-//			}
-//			_ =>
-//			{
-//				error!("%s device was expected to contain string or list but %s was %?", network.remote_addr, *name, value);
-//			}
-//		}
-//	};
-//	
-//	let subject = fmt!("snmp:%s", managed_ip);
-//	network.snmp_store.add(subject, entries);
-//}
-
-//priv fn interfaces_to_snmp(network: &Network, managed_ip: &str, interfaces: &[Json])
-//{
-//	for interfaces.each
-//	|data|
-//	{
-//		match *data
-//		{
-//			json::Object(ref interface) =>
-//			{
-//				interface_to_snmp(network, managed_ip, *interface);
-//			}
-//			_ =>
-//			{
-//				error!("%s interfaces was expected to contain string or list but found %?", network.remote_addr, data);
-//			}
-//		}
-//	}
-//}
-
-//priv fn interface_to_snmp(network: &Network, managed_ip: &str, interface: &LinearMap<~str, Json>)
-//{
-//	let mut ifname = ~"";
-//	let mut entries = ~[];
-//	vec::reserve(&mut entries, interface.len());
-//	
-//	for interface.each
-//	|name, value|
-//	{
-//		match *value
-//		{
-//			json::String(ref s) =>
-//			{
-//				if *name == ~"ifDescr"
-//				{
-//					ifname = s.to_unique();
-//				}
-//				vec::push(&mut entries, (~"sname:" + *name, StringValue(s.to_unique(), ~"")));
-//			}
-//			_ =>
-//			{
-//				error!("%s interfaces was expected to contain a string or dict but %s was %?", network.remote_addr, *name, value);
-//			}
-//		}
-//	};
-//	
-//	if ifname.is_not_empty()
-//	{
-//		let subject = fmt!("snmp:%s", managed_ip.to_unique() + "-" + ifname);
-//		network.snmp_store.add(subject, entries);
-//	}
-//	else
-//	{
-//		error!("%s interface was missing an ifDescr:", network.remote_addr);
-//		for interface.each() |k, v| {error!("   %s => %?", *k, v);};
-//	}
 //}
 
 //priv fn get_value_str(value: option::Option<Value>, format: &str) -> ~str
