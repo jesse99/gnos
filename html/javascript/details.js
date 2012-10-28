@@ -213,7 +213,6 @@ function alerts_query(solution)
 	
 	$.each(solution, function (i, row)
 	{
-console.log('row: {0:j}'.format(row));
 		error_alerts      += add_alert(row, {styles: ["alert-type:error"], kind: "active"});
 		warning_alerts += add_alert(row, {styles: ["alert-type:warning"], kind: "active"});
 		info_alerts 		+= add_alert(row, {styles: ["alert-type:info"], kind: "active"});

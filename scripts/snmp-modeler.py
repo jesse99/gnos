@@ -41,7 +41,7 @@ connection = None
 # ...
 # SNMPv2-MIB::sysORUpTime[1] 0
 # ...
-def process_system(ip, data, contents):
+def process_system(ip, data, contents, context):
 	#dump_snmp(ip, 'system', contents)
 	target = 'entities:%s' % ip
 	key = 'alpha'		# want these to appear before most other labels
@@ -115,11 +115,24 @@ def process_system(ip, data, contents):
 # ...
 # IP-MIB::ipNetToMediaType[5][10.104.0.254] dynamic
 # ...
-def process_ip(ip, data, contents):
-	#dump_snmp(ip, 'ip', contents)
-	target = 'entities:%s' % ip
+def process_ip(admin_ip, data, contents, context):
+	#dump_snmp(admin_ip, 'ip', contents)
+	target = 'entities:%s' % admin_ip
 	key = 'zeppo'
 	add_label(data, target, get_value(contents, '%s', 'ipForwarding'), key, level = 5, style = 'font-size:x-small')
+	
+	# create a mapping from device ip to admin ip
+	ips = get_values(contents, "ipAdEntAddr")
+	for ip in ips.keys():
+		context['ips'][ip] = admin_ip
+	
+	# create a table for routing
+	nexts = get_values(contents, "ipRouteNextHop")
+	metrics = get_values(contents, "ipRouteMetric1")
+	protocols = get_values(contents, "ipRouteProto")	
+	for dest_ip in nexts.keys():
+		entry = {'src': admin_ip, 'next hop': nexts[dest_ip], 'dest': dest_ip, 'metric': metrics[dest_ip], 'protocol': protocols[dest_ip]}
+		context['routes'].append(entry)
 	
 def add_label(data, target, label, key, level = 0, style = ''):
 	if label:
@@ -129,6 +142,16 @@ def add_label(data, target, label, key, level = 0, style = ''):
 		else:
 			data['labels'].append({'target-id': target, 'label': label, 'level': level, 'sort-key': sort_key})
 		
+def add_relation(data, left, right, style = '', left_label = None, middle_label = None, right_label = None):
+	relation = {'left-entity-id': left, 'right-entity-id': right, 'style': style}
+	if left_label:
+		relation['left-label'] = left_label
+	if middle_label:
+		relation['middle-label'] = middle_label
+	if right_label:
+		relation['right-label'] = right_label
+	data['relations'].append(relation)
+
 def open_alert(data, target, key, mesg, resolution, kind):
 	data['alerts'].append({'entity-id': target, 'key': key, 'mesg': mesg, 'resolution': resolution, 'kind': kind})
 
@@ -143,11 +166,22 @@ def get_value(contents, fmt, name):
 	# Not clear whether it's faster to split the lines and match as we iterate
 	# or to use regexen. But splitting large amounts of text is rather slow 
 	# and often relatively little of the MIB is used.
-	expr = re.compile(r'::%s (?= \W) .*? \ (.+)$' % name, re.MULTILINE | re.VERBOSE)	# TODO: faster to cache these
+	expr = re.compile(r'::%s (?= \W) .*? \  (.+)$' % name, re.MULTILINE | re.VERBOSE)	# TODO: faster to cache these
 	match = re.search(expr, contents)
 	if match:
 		return fmt % match.group(1)
 	return None
+
+# Matches "MIB::<name>[<key>] <value>" and returns a dict
+# mapping keys to values.
+def get_values(contents, name):
+	values = {}
+	
+	expr = re.compile(r'::%s \[ ([^\]]+) \] \  (.+)$' % name, re.MULTILINE | re.VERBOSE)
+	for match in re.finditer(expr, contents):
+		values[match.group(1)] = match.group(2)
+	
+	return values
 
 def dump_snmp(ip, name, contents):
 	logger.debug('%s %s:' % (ip, name))
@@ -246,14 +280,48 @@ class Poll(object):
 			if not self.__args.put:
 				logger.info("-" * 60)
 				
+			self.__context = {}
+			self.__context['ips'] = {}
+			self.__context['routes'] = []
+			
 			threads = self.__spawn_threads()
 			data = self.__process_threads(threads)
+			self.__add_next_hops(data)
 			send_update(self.__config, data)
 			
 			elapsed = time.time() - currentTime
 			logger.info('elapsed: %.1f seconds' % elapsed)
 			time.sleep(max(rate - elapsed, 5))
 			
+	def __add_next_hops(self, data):
+		next_hops = []
+		metrics = {}
+		protocols = {}
+		for route in self.__context['routes']:
+			src_ip = route['src']
+			if route['next hop'] in self.__context['ips']:
+				next_hop = self.__context['ips'][route['next hop']]
+				next_hops.append((src_ip, next_hop))
+				metrics[(src_ip, next_hop)] = route['metric']
+				protocols[(src_ip, next_hop)] = route['protocol']
+			
+		for (src_ip, next_hop) in next_hops:
+			style = None
+			right_label = None
+			if (next_hop, src_ip) in next_hops:
+				if src_ip < next_hop:
+					style = 'line-type:bidirectional'
+					right_label = '%s, cost %s' % (protocols[(next_hop, src_ip)], metrics[(src_ip, next_hop)])
+			else:
+				style = 'line-type:directed'
+			if style:
+				left = 'entities:%s' % src_ip
+				right = 'entities:%s' % next_hop
+				left_label = {'label': '%s, cost %s' % (protocols[(src_ip, next_hop)], metrics[(src_ip, next_hop)]), 'level': 2}
+				if right_label:
+					right_label = {'label': right_label, 'level': 2}
+				add_relation(data, left, right, style, left_label = left_label, middle_label = {'label': 'next hop', 'level': 1}, right_label = right_label)
+	
 	# Devices can have significant variation in how quickly they respond to SNMP queries
 	# so simply joining them one after another isn't great, but it's simple and should work
 	# fine most of the time.
@@ -266,7 +334,7 @@ class Poll(object):
 			if not thread.isAlive():
 				close_alert(data, target, key = 'device down')
 				for (mib, contents) in thread.results.items():
-					self.__handlers[mib](thread.ip, data, contents)
+					self.__handlers[mib](thread.ip, data, contents, self.__context)
 			else:
 				open_alert(data, target, key = 'device down', mesg = 'Device is down.', resolution = 'Check the power cable, power it on if it is off, check the IP address, verify routing.', kind = 'error')
 		return data

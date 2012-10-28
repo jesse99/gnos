@@ -69,6 +69,7 @@ priv fn handle_update(options: &Options, remote_addr: &str, store: &Store, body:
 					}
 					do optional_list(data, ~"entities") |list| {add_entities(store, &modeler, list);};
 					do optional_list(data, ~"labels") |list| {add_labels(store, &modeler, list);};
+					do optional_list(data, ~"relations") |list| {add_relations(store, &modeler, list);};
 					do optional_list(data, ~"alerts") |list| {add_alerts(store, list);};
 				}
 				_ =>
@@ -133,6 +134,55 @@ fn add_labels(store: &Store, modeler: &Option<Object>, list: &json::List)
 	for list.each |label|
 	{
 		add_label(store, modeler, label);
+	}
+}
+
+fn add_relations(store: &Store, modeler: &Option<Object>, list: &json::List)
+{
+	fn add_label(store: &Store, modeler: &Option<Object>, object: &Json, entries: &mut ~[(~str, Object)], target: &str, position: ~str)
+	{
+		do optional_object(object, position + ~"-label") |sub_object|
+		{
+			let mut sub_entries = ~[];
+			if modeler.is_some()
+			{
+				sub_entries.push((~"gnos:modeler-subject", modeler.get()));
+			}
+			sub_entries.push((~"gnos:target",		BlankValue(target.to_unique())));
+			sub_entries.push((~"gnos:label",		StringValue(get_str(sub_object, ~"label"), ~"")));
+			sub_entries.push((~"gnos:level", 		IntValue(get_int(sub_object, ~"level"))));
+			sub_entries.push((~"gnos:sort_key",	StringValue(~"a", ~"")));
+			do optional_str(sub_object, ~"style") |value| {sub_entries.push((~"gnos:style", StringValue(value, ~"")))};
+			
+			let sub_target = get_blank_name(store, ~"label");
+			store.add(sub_target, sub_entries);
+			entries.push((fmt!("gnos:%s_info", position), BlankValue(sub_target)));
+		}
+	}
+	
+	fn add_relation(store: &Store, modeler: &Option<Object>, object: &Json)
+	{
+		let target = get_blank_name(store, ~"relation");
+		
+		let mut entries = ~[];
+		if modeler.is_some()
+		{
+			entries.push((~"gnos:modeler-subject", modeler.get()));
+		}
+		entries.push((~"gnos:left",		IriValue(get_str(object, ~"left-entity-id"))));
+		entries.push((~"gnos:right",	IriValue(get_str(object, ~"right-entity-id"))));
+		do optional_str(object, ~"style") |value| {entries.push((~"gnos:style", StringValue(value, ~"")))};
+		
+		add_label(store, modeler, object, &mut entries, target, ~"left");
+		add_label(store, modeler, object, &mut entries, target, ~"middle");
+		add_label(store, modeler, object, &mut entries, target, ~"right");
+		
+		store.add(target, entries);
+	}
+	
+	for list.each |relation|
+	{
+		add_relation(store, modeler, relation);
 	}
 }
 
@@ -299,6 +349,35 @@ fn get_int(value: &Json, key: ~str) -> i64
 		_ =>
 		{
 			fail fmt!("Expected an Object but found %?", *value)
+		}
+	}
+}
+
+fn optional_object(value: &Json, key: ~str, callback: fn (value: &Json))
+{
+	match *value
+	{
+		json::Object(ref object) =>
+		{
+			if object.contains_key(&key)
+			{
+				let entry = object.get_ref(&key);
+				match *entry
+				{
+					json::Object(_) =>
+					{
+						callback(entry);
+					}
+					_ =>
+					{
+						error!("Expected a Object but found %?", *entry);
+					}
+				}
+			}
+		}
+		_ =>
+		{
+			error!("Expected an Object but found %?", *value);
 		}
 	}
 }
