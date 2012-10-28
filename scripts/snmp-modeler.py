@@ -39,9 +39,9 @@ connection = None
 # SNMPv2-MIB::sysORID[1] IP-MIB::ip		will be one of these for each MIB supported by the device
 # SNMPv2-MIB::sysORDescr[1] The MIB module for managing IP and ICMP implementations
 # SNMPv2-MIB::sysORUpTime[1] 0
-def process_system(ip, data, contents, context):
-	#dump_snmp(ip, 'system', contents)
-	target = 'entities:%s' % ip
+def process_system(admin_ip, data, contents, context):
+	#dump_snmp(admin_ip, 'system', contents)
+	target = 'entities:%s' % admin_ip
 	key = 'alpha'		# want these to appear before most other labels
 	up_time = get_value(contents, "%s", 'sysUpTime')
 	if not up_time:
@@ -100,7 +100,6 @@ def process_system(ip, data, contents, context):
 # RFC1213-MIB::ipRouteMask[10.0.4.0] 255.255.255.0
 # RFC1213-MIB::ipRouteInfo[10.0.4.0] SNMPv2-SMI::zeroDotZero
 def process_ip(admin_ip, data, contents, context):
-	#dump_snmp(admin_ip, 'ip', contents)
 	target = 'entities:%s' % admin_ip
 	key = 'zeppo'
 	add_label(data, target, get_value(contents, '%s', 'ipForwarding'), key, level = 5, style = 'font-size:x-small')
@@ -146,10 +145,10 @@ def process_ip(admin_ip, data, contents, context):
 # IF-MIB::ifOutNUcastPkts[1] 0		seems to always be 0
 # IF-MIB::ifOutDiscards[1] 0
 # IF-MIB::ifOutErrors[1] 0
-# IF-MIB::ifOutQLen[1] 0			seems to always be 0
+# IF-MIB::ifOutQLen[1] 0	
 # IF-MIB::ifSpecific[1] SNMPv2-SMI::zeroDotZero
 def process_interfaces(admin_ip, data, contents, context):
-	#dump_snmp(admin_ip, 'interfaces', contents)
+	target = 'entities:%s' % admin_ip
 	
 	# create an interfaces table (we can't build details until we know ip addresses)
 	descs = get_values(contents, "ifDescr")
@@ -174,6 +173,30 @@ def process_interfaces(admin_ip, data, contents, context):
 				context['interfaces'][admin_ip].append(entry)
 			else:
 				context['interfaces'][admin_ip] = [entry]
+				
+	# alert if interface operational status doesn't match admin status
+	admin_status = get_values(contents, "ifAdminStatus")
+	oper_status = get_values(contents, "ifOperStatus")
+	for (index, admin) in admin_status.items():
+		name = descs.get(index, '?')
+		key = '%s-oper-status' % name
+		if index in oper_status and admin != oper_status[index] and oper_status[index] != 'dormant':
+			mesg = 'Admin set %s to %s but it is %s.' % (name, admin, oper_status[index])
+			open_alert(data, target, key, mesg = mesg, resolution = '', kind = 'error')	# TODO: what about resolution?
+		else:
+			close_alert(data, target, key)
+			
+	# alert if interface operational status changed recently
+	last_changes = get_values(contents, "ifLastChange")
+	for (index, last_change) in last_changes.items():
+		up_time = float(last_change)/100.0
+		name = descs.get(index, '?')
+		key = '%s-last-change' % name
+		if up_time > 0.0 and up_time < 60.0:		# ifdown isn't resetting ifLastChange on GRSs
+			mesg = '%s status recently changed to %s.' % (name, oper_status.get(index, '?'))
+			open_alert(data, target, key, mesg = mesg, resolution = '', kind = 'warning')
+		else:
+			close_alert(data, target, key)
 
 def add_label(data, target, label, key, level = 0, style = ''):
 	if label:
@@ -307,15 +330,18 @@ def count_trailing_zeros(mask):
 	return count;
 
 def get_subnet(s):
-	parts = s.split('.')
-	bytes = map(lambda p: int(p), parts)
-	mask = reduce(lambda sum, current: 256*sum + current, bytes, 0)
-	leading = count_leading_ones(mask)
-	trailing = count_trailing_zeros(mask)
-	if leading + trailing == 32:
-		return leading
+	if s:
+		parts = s.split('.')
+		bytes = map(lambda p: int(p), parts)
+		mask = reduce(lambda sum, current: 256*sum + current, bytes, 0)
+		leading = count_leading_ones(mask)
+		trailing = count_trailing_zeros(mask)
+		if leading + trailing == 32:
+			return leading
+		else:
+			return s		# unusual netmask where 0s and 1s are mixed.
 	else:
-		return s		# unusual netmask where 0s and 1s are mixed.
+		'?'
 
 def send_update(config, data):
 	logger.debug("sending update")
