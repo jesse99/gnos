@@ -158,7 +158,6 @@ def process_interfaces(admin_ip, data, contents, context):
 	mtus = get_values(contents, "ifMtu")
 	in_octets = get_values(contents, "ifInOctets")
 	out_octets = get_values(contents, "ifOutOctets")
-	qlens = get_values(contents, "ifOutQLen")
 	status = get_values(contents, "ifOperStatus")
 	for index in descs.keys():
 		if status.get(index, '') == 'up' or status.get(index, '') == 'dormant':
@@ -169,8 +168,7 @@ def process_interfaces(admin_ip, data, contents, context):
 				'speed': float(speeds.get(index, 0.0)),
 				'mtu': mtus.get(index, ''),
 				'in_octets': float(in_octets.get(index, 0.0)),
-				'out_octets': float(out_octets.get(index, 0.0)),
-				'qlen': float(qlens.get(index, ''))
+				'out_octets': float(out_octets.get(index, 0.0))
 			}
 			if admin_ip in context['interfaces']:
 				context['interfaces'][admin_ip].append(entry)
@@ -390,6 +388,7 @@ class Poll(object):
 		self.__last_time = None
 		self.__handlers = {'system': process_system, 'ip': process_ip, 'interfaces': process_interfaces}
 		self.__context = {}
+		self.__num_samples = 0
 	
 	def run(self):
 		rate = self.__config['poll-rate']
@@ -401,7 +400,7 @@ class Poll(object):
 			self.__context['ips'] = {}			# device ip => admin ip
 			self.__context['netmasks'] = {}	# device ip => network mask
 			self.__context['if_indexes'] = {}	# admin ip + if index => device ip
-			self.__context['interfaces'] = {}	# admin ip => [{'if_index':, 'name':, 'mac':, 'speed':, 'mtu':, 'in_octets':, 'out_octets', 'qlen'}]
+			self.__context['interfaces'] = {}	# admin ip => [{'if_index':, 'name':, 'mac':, 'speed':, 'mtu':, 'in_octets':, 'out_octets'}]
 			self.__context['routes'] = []		# list of {'src':, 'next hop':, 'dest':, 'metric':, 'protocol':}
 			
 			threads = self.__spawn_threads()
@@ -412,6 +411,7 @@ class Poll(object):
 			
 			elapsed = time.time() - self.__current_time
 			self.__last_time = self.__current_time
+			self.__num_samples += 1
 			logger.info('elapsed: %.1f seconds' % elapsed)
 			time.sleep(max(rate - elapsed, 5))
 			
@@ -419,7 +419,7 @@ class Poll(object):
 		for (admin_ip, interfaces) in self.__context['interfaces'].items():
 			detail = {}
 			detail['style'] = 'html'
-			detail['header'] = ['Name', 'IP Address', 'Mac Address', 'Speed', 'MTU', 'In Octets', 'Out Octets', 'Out QLen']
+			detail['header'] = ['Name', 'IP Address', 'Mac Address', 'Speed', 'MTU', 'In Octets (kbps)', 'Out Octets (kbps)']
 			
 			rows = []
 			for interface in interfaces:
@@ -432,18 +432,17 @@ class Poll(object):
 				else:
 					ip = '%s/%s' % (ip, subnet)
 					
-				in_octets = self.__cache_per_sec_value(admin_ip + name + 'in_octets', 8*interface['in_octets']/1000)
-				out_octets = self.__cache_per_sec_value(admin_ip + name + 'out_octets', 8*interface['out_octets']/1000)
-				qlen = self.__cache_per_sec_value(admin_ip + name + 'qlen', interface['qlen'])
+				in_octets = self.__process_sample(data, {'key': '%s-%s-in_octets' % (admin_ip, name), 'raw': 8*interface['in_octets']/1000, 'units': 'kbps'})
+				out_octets = self.__process_sample(data, {'key':  '%s-%s-out_octets' % (admin_ip, name), 'raw': 8*interface['out_octets']/1000, 'units': 'kbps'})
 					
 				speed = interface.get('speed', 0.0)
 				if speed:
-					if out_octets:
-						self.__add_interface_gauge(data, admin_ip, name, out_octets, speed/1000)
+					if out_octets['value']:
+						self.__add_interface_gauge(data, admin_ip, name, out_octets['value'], speed/1000)
 					speed = speed/1000000
 					speed = '%.1f Mbps' % speed
 					
-				rows.append([name, ip, interface['mac'], speed, add_units(interface['mtu'], 'B'), add_units(in_octets, 'kbps'), add_units(out_octets, 'kbps'), add_units(qlen, 'pps')])
+				rows.append([name, ip, interface['mac'], speed, add_units(interface['mtu'], 'B'), in_octets['html'], out_octets['html']])
 			detail['rows'] = sorted(rows, key = lambda row: row[0])
 			
 			target = 'entities:%s' % admin_ip
@@ -468,14 +467,30 @@ class Poll(object):
 			target = 'entities:%s' % admin_ip
 			add_gauge(data, target, '%s bandwidth' % ifname, bandwidth, level, style, sort_key = 'z')
 		
-	def __cache_per_sec_value(self, key, value):
-		result = ''
-		if self.__last_time and key in self.__context:
+	# Bit of an ugly function: it does four different things:
+	# 1) If there is an old raw then a value entry is initialized with a per second value.
+	# 2) An html entry is initialized with either a blank value or an url to a sparkline chart for the sample.
+	# 3) The current raw value is saved as the (new) old raw value.
+	# 4) If we got an old value then the per second value is recorded as a sample value.
+	def __process_sample(self, data, table):
+		# On input table has: key, raw, and units
+		# On exit: value and html are added
+		table['value'] = None
+		table['html'] = ''
+		if self.__last_time and table['key'] in self.__context:
 			elapsed = self.__current_time - self.__last_time
 			if elapsed > 1.0:
-				result = (value - self.__context[key])/elapsed
-		self.__context[key] = value
-		return result
+				table['value'] = (table['raw'] - self.__context[table['key']])/elapsed
+				data['samples'].append({'name': table['key'], 'value': table['value'], 'units': table['units']})
+				
+				# When dynamically adding html content browsers will not reload images that have
+				# been already loaded. To work around this we add a unique fragment identifier
+				# which the server will ignore.
+				if self.__num_samples >= 2:
+					url = '/generated/%s.png#%s' % (table['key'], self.__num_samples)
+					table['html'] = "<img src = '%s' alt = '%s'>" % (url, table['key'])
+		self.__context[table['key']] = table['raw']
+		return table
 		
 	def __add_next_hop_relations(self, data):
 		next_hops = []
@@ -510,7 +525,7 @@ class Poll(object):
 	# so simply joining them one after another isn't great, but it's simple and should work
 	# fine most of the time.
 	def __process_threads(self, threads):
-		data = {'modeler': 'snmp', 'entities': [], 'relations': [], 'labels': [], 'gauges': [], 'details': [], 'alerts': []}
+		data = {'modeler': 'snmp', 'entities': [], 'relations': [], 'labels': [], 'gauges': [], 'details': [], 'alerts': [], 'samples': []}
 		for thread in threads:
 			thread.join(3.0)
 			

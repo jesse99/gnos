@@ -1,9 +1,9 @@
 /// This is the code that handles PUTs from the snmp-modeler script. It parses the
 /// incoming json, converts it into triplets, and updates the model.
-//use core::io::{WriterUtil, ReaderUtil};
+use core::io::{WriterUtil, ReaderUtil};
 use std::json::{Json};
 use json = std::json;
-//use std::map::*;
+use std::map::*;
 //use send_map::linear::*;
 use model::{Msg, UpdateMsg, UpdatesMsg, QueryMsg, eval_query};
 use options::{Options, Device};
@@ -11,16 +11,16 @@ use rrdf::rrdf::*;
 //use runits::generated::*;
 //use runits::units::*;
 //use snmp::*;
-//use task_runner::*;
+use task_runner::*;
 use comm::{Chan, Port};
 use server = rwebserve::rwebserve;
-//use mustache::{Context, Template};
+use mustache::{Context, Template};
 
 pub type SamplesChan = Chan<samples::Msg>;
 
 // This is equivalent to an hours worth of data at a fast poll rate (20s). Slower poll rates (which
 // are expected to be more likely) will retain correspondingly longer time spans.
-//pub const samples_capacity: uint = 180;
+pub const samples_capacity: uint = 180;
 
 //pub struct Network
 //{
@@ -33,7 +33,7 @@ pub type SamplesChan = Chan<samples::Msg>;
 //	snmp: ~LinearMap<~str, Json>,
 //}
 
-pub fn put_snmp(options: &Options, state_chan: Chan<Msg>, _samples_chan: SamplesChan, request: &server::Request, response: &server::Response) -> server::Response
+pub fn put_snmp(options: &Options, state_chan: Chan<Msg>, samples_chan: SamplesChan, request: &server::Request, response: &server::Response) -> server::Response
 {
 	// Unfortunately we don't send an error back to the modeler if the json was invalid.
 	// Of course that shouldn't happen...
@@ -44,12 +44,12 @@ pub fn put_snmp(options: &Options, state_chan: Chan<Msg>, _samples_chan: Samples
 	// to do a query inside of an updates_mesg callback.
 //	let old = query_old_info(state_chan);
 	let options = copy *options;
-	comm::send(state_chan, UpdateMsg(~"primary", |s, d, move options| {handle_update(&options, addr, s, d)}, copy request.body));
+	comm::send(state_chan, UpdateMsg(~"primary", |s, d, move options| {handle_update(&options, addr, s, d, samples_chan)}, copy request.body));
 	
 	server::Response {body: rwebserve::configuration::StringBody(@~""), ..*response}
 }
 
-priv fn handle_update(options: &Options, remote_addr: &str, store: &Store, body: &str) -> bool
+priv fn handle_update(options: &Options, remote_addr: &str, store: &Store, body: &str, samples_chan: SamplesChan) -> bool
 {
 	match json::from_str(body)
 	{
@@ -73,6 +73,7 @@ priv fn handle_update(options: &Options, remote_addr: &str, store: &Store, body:
 					do optional_list(data, ~"details") |list| {add_details(store, &modeler, list);};
 					do optional_list(data, ~"relations") |list| {add_relations(store, &modeler, list);};
 					do optional_list(data, ~"alerts") |list| {add_alerts(store, list);};
+					do optional_list(data, ~"samples") |list| {add_samples(options, samples_chan, list);};
 				}
 				_ =>
 				{
@@ -91,7 +92,7 @@ priv fn handle_update(options: &Options, remote_addr: &str, store: &Store, body:
 	true
 }
 
-fn add_entities(store: &Store, modeler: &Option<Object>, list: &json::List)
+priv fn add_entities(store: &Store, modeler: &Option<Object>, list: &json::List)
 {
 	fn add_entity(store: &Store, modeler: &Option<Object>, object: &Json)
 	{
@@ -114,7 +115,7 @@ fn add_entities(store: &Store, modeler: &Option<Object>, list: &json::List)
 	}
 }
 
-fn add_labels(store: &Store, modeler: &Option<Object>, list: &json::List)
+priv fn add_labels(store: &Store, modeler: &Option<Object>, list: &json::List)
 {
 	fn add_label(store: &Store, modeler: &Option<Object>, object: &Json)
 	{
@@ -139,7 +140,7 @@ fn add_labels(store: &Store, modeler: &Option<Object>, list: &json::List)
 	}
 }
 
-fn add_gauges(store: &Store, modeler: &Option<Object>, list: &json::List)
+priv fn add_gauges(store: &Store, modeler: &Option<Object>, list: &json::List)
 {
 	fn add_gauge(store: &Store, modeler: &Option<Object>, object: &Json)
 	{
@@ -165,7 +166,7 @@ fn add_gauges(store: &Store, modeler: &Option<Object>, list: &json::List)
 	}
 }
 
-fn add_details(store: &Store, modeler: &Option<Object>, list: &json::List)
+priv fn add_details(store: &Store, modeler: &Option<Object>, list: &json::List)
 {
 	fn add_detail(store: &Store, modeler: &Option<Object>, object: &Json)
 	{
@@ -190,7 +191,7 @@ fn add_details(store: &Store, modeler: &Option<Object>, list: &json::List)
 	}
 }
 
-fn add_relations(store: &Store, modeler: &Option<Object>, list: &json::List)
+priv fn add_relations(store: &Store, modeler: &Option<Object>, list: &json::List)
 {
 	fn add_label(store: &Store, modeler: &Option<Object>, object: &Json, entries: &mut ~[(~str, Object)], target: &str, position: ~str)
 	{
@@ -239,7 +240,7 @@ fn add_relations(store: &Store, modeler: &Option<Object>, list: &json::List)
 	}
 }
 
-fn add_alerts(store: &Store, list: &json::List)
+priv fn add_alerts(store: &Store, list: &json::List)
 {
 	fn open_alert(store: &Store, object: &Json)
 	{
@@ -272,7 +273,99 @@ fn add_alerts(store: &Store, list: &json::List)
 	}
 }
 
-fn prune_modeler(store: &Store, value: &Json) -> Option<Object>
+priv fn add_samples(options: &Options, samples_chan: SamplesChan, list: &json::List)
+{
+	let path = get_sparkline_script(options);
+	let context = mustache::Context(~".", ~"");
+	let template = context.compile_file(path.to_str());
+	
+	let mut script = ~"";
+	for list.each |sample|
+	{
+		let name = get_str(sample, ~"name");
+		samples_chan.send(samples::AddSample(~"snmp", copy name, get_float(sample, ~"value"), samples_capacity));
+		script += build_sparkline(options, samples_chan, name, get_str(sample, ~"units"), template);
+	}
+
+	if script.is_not_empty()
+	{
+		run_r_script(script);
+	}
+}
+
+// Creates an R script which when run will produce a sparkline chart for the named sample set.
+priv fn build_sparkline(options: &Options, samples_chan: SamplesChan, name: &str, units: ~str, template: Template) -> ~str
+{
+	let port = Port();
+	let chan = Chan(&port);
+	samples_chan.send(samples::GetSampleSet(name.to_unique(), chan));
+	let (buffer, _num_adds) = port.recv();
+	
+	if (buffer.len() > 1)
+	{
+		let mut path = os::make_absolute(&options.root);
+		path = path.push("generated");
+		path = path.push(fmt!("%s.png", name));
+		
+		let context = HashMap();
+		context.insert(@~"samples", mustache::Str(@str::connect(do iter::map_to_vec(&buffer) |s| {s.to_str()}, ", ")));
+		context.insert(@~"file", mustache::Str(@path.to_str()));
+		context.insert(@~"width", mustache::Str(@~"150"));
+		context.insert(@~"height", mustache::Str(@~"50"));
+		context.insert(@~"label", mustache::Str(@units));
+		
+		template.render_data(mustache::Map(context))
+	}
+	else
+	{
+		~""
+	}
+}
+
+priv fn run_r_script(script: &str)
+{
+	fn get_output(label: &str, reader: io::Reader) -> ~str
+	{
+		let text = str::from_bytes(reader.read_whole_stream());
+		if text.is_not_empty() {fmt!("%s:\n%s\n", label, text)} else {~""}
+	}
+	
+	let script = ~"library(YaleToolkit)\n\n" + script;
+	let action: JobFn =
+		||
+		{
+			let path = path::from_str("/tmp/gnos-sparkline.R");		// TODO use a better path once rust has a better tmp file function
+			match io::file_writer(&path, ~[io::Create, io::Truncate])
+			{
+				result::Ok(writer) =>
+				{
+					writer.write_str(script);
+					
+					let program = run::start_program("Rscript", [path.to_str()]);
+					let result = program.finish();
+					if result != 0
+					{
+						let mut err = fmt!("Rscript %s returned %?\n", path.to_str(), result);
+						err += get_output("stdout", program.output());
+						err += get_output("stderr", program.err());
+						option::Some(err)
+					}
+					else
+					{
+						option::None
+					}
+				}
+				result::Err(ref err) =>
+				{
+					option::Some(fmt!("Failed to create %s: %s", path.to_str(), *err))
+				}
+			}
+		};
+	let cleanup: ExitFn = || {};
+	run(Job {action: action, policy: IgnoreFailures}, ~[cleanup]);
+}
+
+priv fn prune_modeler(store: &Store, value: &Json) -> Option<Object>
 {
 	let mut mine = option::None;
 	
@@ -296,7 +389,7 @@ fn prune_modeler(store: &Store, value: &Json) -> Option<Object>
 	mine
 }
 
-fn optional_str(value: &Json, key: ~str, callback: fn (value: ~str))
+priv fn optional_str(value: &Json, key: ~str, callback: fn (value: ~str))
 {
 	match *value
 	{
@@ -325,7 +418,7 @@ fn optional_str(value: &Json, key: ~str, callback: fn (value: ~str))
 	}
 }
 
-fn get_str(value: &Json, key: ~str) -> ~str
+priv fn get_str(value: &Json, key: ~str) -> ~str
 {
 	match *value
 	{
@@ -358,7 +451,7 @@ fn get_str(value: &Json, key: ~str) -> ~str
 	}
 }
 
-fn has_value(value: &Json, key: ~str) -> bool
+priv fn has_value(value: &Json, key: ~str) -> bool
 {
 	match *value
 	{
@@ -373,7 +466,7 @@ fn has_value(value: &Json, key: ~str) -> bool
 	}
 }
 
-fn get_i64(value: &Json, key: ~str) -> i64
+priv fn get_i64(value: &Json, key: ~str) -> i64
 {
 	match *value
 	{
@@ -406,7 +499,7 @@ fn get_i64(value: &Json, key: ~str) -> i64
 	}
 }
 
-fn get_f64(value: &Json, key: ~str) -> f64
+priv fn get_f64(value: &Json, key: ~str) -> f64
 {
 	match *value
 	{
@@ -439,7 +532,12 @@ fn get_f64(value: &Json, key: ~str) -> f64
 	}
 }
 
-fn optional_object(value: &Json, key: ~str, callback: fn (value: &Json))
+priv fn get_float(value: &Json, key: ~str) -> float
+{
+	get_f64(value, key) as float
+}
+
+priv fn optional_object(value: &Json, key: ~str, callback: fn (value: &Json))
 {
 	match *value
 	{
@@ -468,7 +566,7 @@ fn optional_object(value: &Json, key: ~str, callback: fn (value: &Json))
 	}
 }
 
-fn optional_list(value: &Json, key: ~str, callback: fn (value: &json::List))
+priv fn optional_list(value: &Json, key: ~str, callback: fn (value: &json::List))
 {
 	match *value
 	{
@@ -514,13 +612,13 @@ fn optional_list(value: &Json, key: ~str, callback: fn (value: &json::List))
 //    },
 //    ...
 // }
-//priv fn get_sparkline_script(options: &Options) -> Path
-//{
-//	let path = options.root.pop();				// gnos
-//	let path = path.push(~"scripts");
-//	let path = path.push(~"sparkline.R");		// gnos/scripts/sparkline.R
-//	path
-//}
+priv fn get_sparkline_script(options: &Options) -> Path
+{
+	let path = options.root.pop();				// gnos
+	let path = path.push(~"scripts");
+	let path = path.push(~"sparkline.R");		// gnos/scripts/sparkline.R
+	path
+}
 
 //priv fn json_to_primary(network: &Network, data: &LinearMap<~str, Json>, old: &Solution)
 //{
@@ -566,49 +664,6 @@ fn optional_list(value: &Json, key: ~str, callback: fn (value: &json::List))
 //	
 //	info!("Received data from %s:", network.remote_addr);
 //	//for store.each |triple| {info!("   %s", triple.to_str());};
-//}
-
-//priv fn run_r_script(script: &str)
-//{
-//	fn get_output(label: &str, reader: io::Reader) -> ~str
-//	{
-//		let text = str::from_bytes(reader.read_whole_stream());
-//		if text.is_not_empty() {fmt!("%s:\n%s\n", label, text)} else {~""}
-//	}
-//	
-//	let script = ~"library(YaleToolkit)\n\n" + script;
-//	let action: JobFn = 
-//		||
-//		{
-//			let path = path::from_str("/tmp/gnos-sparkline.R");		// TODO use a better path once rust has a better tmp file function
-//			match io::file_writer(&path, ~[io::Create, io::Truncate])
-//			{
-//				result::Ok(writer) =>
-//				{
-//					writer.write_str(script);
-//					
-//					let program = run::start_program("Rscript", [path.to_str()]);
-//					let result = program.finish();
-//					if result != 0
-//					{
-//						let mut err = fmt!("Rscript %s returned %?\n", path.to_str(), result);
-//						err += get_output("stdout", program.output());
-//						err += get_output("stderr", program.err());
-//						option::Some(err)
-//					}
-//					else
-//					{
-//						option::None
-//					}
-//				}
-//				result::Err(ref err) =>
-//				{
-//					option::Some(fmt!("Failed to create %s: %s", path.to_str(), *err))
-//				}
-//			}
-//		};
-//	let cleanup: ExitFn = || {};
-//	run(Job {action: action, policy: IgnoreFailures}, ~[cleanup]);
 //}
 
 // We save the most important bits of data that we receive from json into gnos statements
@@ -877,35 +932,6 @@ fn optional_list(value: &Json, key: ~str, callback: fn (value: &json::List))
 //	{
 //		assert sample.is_none();
 //		~"missing"
-//	}
-//}
-
-// Creates an R script which when run will produce a sparkline chart for the named sample set.
-//priv fn build_sparkline(network: &Network, name: &str, template: Template) -> (~str, uint)
-//{
-//	let port = Port();
-//	let chan = Chan(&port);
-//	network.samples_chan.send(samples::GetSampleSet(name.to_unique(), chan));
-//	let (buffer, num_adds) = port.recv();
-//	
-//	if (buffer.len() > 1)
-//	{
-//		let mut path = os::make_absolute(&network.options.root);
-//		path = path.push("generated");
-//		path = path.push(fmt!("%s.png", name));
-//		
-//		let context = HashMap();
-//		context.insert(@~"samples", mustache::Str(@str::connect(do iter::map_to_vec(&buffer) |s| {s.to_str()}, ", ")));
-//		context.insert(@~"file", mustache::Str(@path.to_str()));
-//		context.insert(@~"width", mustache::Str(@~"150"));
-//		context.insert(@~"height", mustache::Str(@~"50"));
-//		context.insert(@~"label", mustache::Str(@~"kbps"));
-//		
-//		(template.render_data(mustache::Map(context)), num_adds)
-//	}
-//	else
-//	{
-//		(~"", num_adds)
 //	}
 //}
 
