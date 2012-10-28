@@ -162,7 +162,16 @@ def process_interfaces(admin_ip, data, contents, context):
 	status = get_values(contents, "ifOperStatus")
 	for index in descs.keys():
 		if status.get(index, '') == 'up' or status.get(index, '') == 'dormant':
-			entry = {'if_index': index, 'name': descs.get(index, ''), 'mac': sanitize_mac(macs.get(index, '')), 'speed': speeds.get(index, ''), 'mtu': mtus.get(index, ''), 'in_octets': in_octets.get(index, ''), 'out_octets': out_octets.get(index, ''), 'qlen': qlens.get(index, '')}
+			entry = {
+				'if_index': index,
+				'name': descs.get(index, ''),
+				'mac': sanitize_mac(macs.get(index, '')),
+				'speed': float(speeds.get(index, 0.0)),
+				'mtu': mtus.get(index, ''),
+				'in_octets': float(in_octets.get(index, 0.0)),
+				'out_octets': float(out_octets.get(index, 0.0)),
+				'qlen': float(qlens.get(index, ''))
+			}
 			if admin_ip in context['interfaces']:
 				context['interfaces'][admin_ip].append(entry)
 			else:
@@ -176,6 +185,9 @@ def add_label(data, target, label, key, level = 0, style = ''):
 		else:
 			data['labels'].append({'target-id': target, 'label': label, 'level': level, 'sort-key': sort_key})
 		
+def add_gauge(data, target, label, value, level, style, sort_key):
+	data['gauges'].append({'entity-id': target, 'label': label, 'value': value, 'level': level, 'style': style, 'sort-key': sort_key})
+
 def add_details(data, target, label, detail, opened, sort_key, key):
 	data['details'].append({'entity-id': target, 'label': label, 'detail': detail, 'open': opened, 'sort-key': sort_key, 'id': key})
 
@@ -265,11 +277,10 @@ def sanitize_mac(mac):
 			result.append(part)
 	return ':'.join(result)
 
-def add_units(table, name, unit):
-	result = table.get(name, '')
-	if result:
-		result += ' ' + unit
-	return result
+def add_units(value, unit):
+	if value or type(value) == float:
+		value = '%s %s' % (value, unit)
+	return value
 			
 def count_leading_ones(mask):
 	count = 0
@@ -376,13 +387,14 @@ class Poll(object):
 		self.__args = args
 		self.__config = config
 		self.__startTime = time.time()
+		self.__last_time = None
 		self.__handlers = {'system': process_system, 'ip': process_ip, 'interfaces': process_interfaces}
 		self.__context = {}
 	
 	def run(self):
 		rate = self.__config['poll-rate']
 		while time.time() - self.__startTime < self.__args.duration:
-			currentTime = time.time()
+			self.__current_time = time.time()
 			if not self.__args.put:
 				logger.info("-" * 60)
 				
@@ -398,7 +410,8 @@ class Poll(object):
 			self.__add_interfaces_table(data)
 			send_update(self.__config, data)
 			
-			elapsed = time.time() - currentTime
+			elapsed = time.time() - self.__current_time
+			self.__last_time = self.__current_time
 			logger.info('elapsed: %.1f seconds' % elapsed)
 			time.sleep(max(rate - elapsed, 5))
 			
@@ -411,22 +424,59 @@ class Poll(object):
 			rows = []
 			for interface in interfaces:
 				name = cgi.escape(interface['name'])
+				
 				ip = self.__context['if_indexes'].get(admin_ip + interface['if_index'], '')
 				subnet = get_subnet(self.__context['netmasks'].get(ip))
 				if ip == admin_ip:
 					ip = '<strong>%s/%s</strong>' % (ip, subnet)
 				else:
 					ip = '%s/%s' % (ip, subnet)
-				speed = interface.get('speed', '')
+					
+				in_octets = self.__cache_per_sec_value(admin_ip + name + 'in_octets', 8*interface['in_octets']/1000)
+				out_octets = self.__cache_per_sec_value(admin_ip + name + 'out_octets', 8*interface['out_octets']/1000)
+				qlen = self.__cache_per_sec_value(admin_ip + name + 'qlen', interface['qlen'])
+					
+				speed = interface.get('speed', 0.0)
 				if speed:
-					speed = float(speed)/1000000
+					if out_octets:
+						self.__add_interface_gauge(data, admin_ip, name, out_octets, speed/1000)
+					speed = speed/1000000
 					speed = '%.1f Mbps' % speed
-				rows.append([name, ip, interface['mac'], speed, add_units(interface, 'mtu', 'B'), add_units(interface, 'in_octets', 'B'), add_units(interface, 'out_octets', 'B'), add_units(interface, 'qlen', 'p')])
+					
+				rows.append([name, ip, interface['mac'], speed, add_units(interface['mtu'], 'B'), add_units(in_octets, 'kbps'), add_units(out_octets, 'kbps'), add_units(qlen, 'pps')])
 			detail['rows'] = sorted(rows, key = lambda row: row[0])
 			
 			target = 'entities:%s' % admin_ip
 			add_details(data, target, 'Interfaces', json.dumps(detail), opened = 'yes', sort_key = 'alpha', key = 'interfaces table')
 			
+	def __add_interface_gauge(self, data, admin_ip, ifname, out_octets, speed):
+		level = None
+		bandwidth = min(out_octets/speed, 1.0)
+		if bandwidth >= 0.75:
+			level = 1
+			style = 'gauge-bar-color:salmon'
+		elif bandwidth >= 0.50:
+			level = 1
+			style = 'gauge-bar-color:darkorange'
+		elif bandwidth >= 0.25:
+			level = 2
+			style = 'gauge-bar-color:skyblue'
+		elif bandwidth >= 0.10:
+			level = 4
+			style = 'gauge-bar-color:limegreen'
+		if level:
+			target = 'entities:%s' % admin_ip
+			add_gauge(data, target, '%s bandwidth' % ifname, bandwidth, level, style, sort_key = 'z')
+		
+	def __cache_per_sec_value(self, key, value):
+		result = ''
+		if self.__last_time and key in self.__context:
+			elapsed = self.__current_time - self.__last_time
+			if elapsed > 1.0:
+				result = (value - self.__context[key])/elapsed
+		self.__context[key] = value
+		return result
+		
 	def __add_next_hop_relations(self, data):
 		next_hops = []
 		metrics = {}

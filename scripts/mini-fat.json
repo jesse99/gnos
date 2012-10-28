@@ -1,0 +1,17 @@
+{
+	"network": "Mini-Fat",
+	"poll-rate": 20,
+	"client": "10.8.0.179",
+	"server": "10.6.210.196",
+	"port": 8080,
+	"path": "/snmp-modeler",
+	"devices":
+	{
+		"GRS-1":
+		{
+			"ip": "10.101.0.2",
+			"community": "public",
+			"type": "router"
+		}
+	}
+}

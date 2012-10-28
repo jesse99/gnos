@@ -69,6 +69,7 @@ priv fn handle_update(options: &Options, remote_addr: &str, store: &Store, body:
 					}
 					do optional_list(data, ~"entities") |list| {add_entities(store, &modeler, list);};
 					do optional_list(data, ~"labels") |list| {add_labels(store, &modeler, list);};
+					do optional_list(data, ~"gauges") |list| {add_gauges(store, &modeler, list);};
 					do optional_list(data, ~"details") |list| {add_details(store, &modeler, list);};
 					do optional_list(data, ~"relations") |list| {add_relations(store, &modeler, list);};
 					do optional_list(data, ~"alerts") |list| {add_alerts(store, list);};
@@ -124,7 +125,7 @@ fn add_labels(store: &Store, modeler: &Option<Object>, list: &json::List)
 		}
 		entries.push((~"gnos:target",		IriValue(get_str(object, ~"target-id"))));
 		entries.push((~"gnos:label",		StringValue(get_str(object, ~"label"), ~"")));
-		entries.push((~"gnos:level", 		IntValue(get_int(object, ~"level"))));
+		entries.push((~"gnos:level", 		IntValue(get_i64(object, ~"level"))));
 		entries.push((~"gnos:sort_key",	StringValue(get_str(object, ~"sort-key"), ~"")));
 		do optional_str(object, ~"style") |value| 		{entries.push((~"gnos:style", StringValue(value, ~"")))};
 		do optional_str(object, ~"predicate") |value|	{entries.push((~"gnos:predicate", StringValue(value, ~"")))};
@@ -135,6 +136,32 @@ fn add_labels(store: &Store, modeler: &Option<Object>, list: &json::List)
 	for list.each |label|
 	{
 		add_label(store, modeler, label);
+	}
+}
+
+fn add_gauges(store: &Store, modeler: &Option<Object>, list: &json::List)
+{
+	fn add_gauge(store: &Store, modeler: &Option<Object>, object: &Json)
+	{
+		let mut entries = ~[];
+		if modeler.is_some()
+		{
+			entries.push((~"gnos:modeler-subject", modeler.get()));
+		}
+		entries.push((~"gnos:target",		IriValue(get_str(object, ~"entity-id"))));
+		entries.push((~"gnos:gauge", 		FloatValue(get_f64(object, ~"value"))));
+		entries.push((~"gnos:title",		StringValue(get_str(object, ~"label"), ~"")));
+		entries.push((~"gnos:level", 		IntValue(get_i64(object, ~"level"))));
+		entries.push((~"gnos:sort_key",	StringValue(get_str(object, ~"sort-key"), ~"")));
+		do optional_str(object, ~"style") |value| 		{entries.push((~"gnos:style", StringValue(value, ~"")))};
+		do optional_str(object, ~"predicate") |value|	{entries.push((~"gnos:predicate", StringValue(value, ~"")))};
+		
+		store.add(get_blank_name(store, ~"gauge"), entries);
+	}
+	
+	for list.each |gauge|
+	{
+		add_gauge(store, modeler, gauge);
 	}
 }
 
@@ -176,7 +203,7 @@ fn add_relations(store: &Store, modeler: &Option<Object>, list: &json::List)
 			}
 			sub_entries.push((~"gnos:target",		BlankValue(target.to_unique())));
 			sub_entries.push((~"gnos:label",		StringValue(get_str(sub_object, ~"label"), ~"")));
-			sub_entries.push((~"gnos:level", 		IntValue(get_int(sub_object, ~"level"))));
+			sub_entries.push((~"gnos:level", 		IntValue(get_i64(sub_object, ~"level"))));
 			sub_entries.push((~"gnos:sort_key",	StringValue(~"a", ~"")));
 			do optional_str(sub_object, ~"style") |value| {sub_entries.push((~"gnos:style", StringValue(value, ~"")))};
 			
@@ -346,7 +373,7 @@ fn has_value(value: &Json, key: ~str) -> bool
 	}
 }
 
-fn get_int(value: &Json, key: ~str) -> i64
+fn get_i64(value: &Json, key: ~str) -> i64
 {
 	match *value
 	{
@@ -360,6 +387,39 @@ fn get_int(value: &Json, key: ~str) -> i64
 					json::Number(n) =>
 					{
 						n as i64
+					}
+					_ =>
+					{
+						fail fmt!("Expected a Number but found %?", *entry)
+					}
+				}
+			}
+			else
+			{
+				fail fmt!("%s key is missing from %?", key, value)
+			}
+		}
+		_ =>
+		{
+			fail fmt!("Expected an Object but found %?", *value)
+		}
+	}
+}
+
+fn get_f64(value: &Json, key: ~str) -> f64
+{
+	match *value
+	{
+		json::Object(ref object) =>
+		{
+			if object.contains_key(&key)
+			{
+				let entry = object.get_ref(&key);
+				match *entry
+				{
+					json::Number(n) =>
+					{
+						n as f64
 					}
 					_ =>
 					{

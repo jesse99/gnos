@@ -15,7 +15,7 @@ run-db: bin/gnos check-js
 	export RUST_LOG=gnos=2,rwebserve=1,socket=1,rrdf=0 && export GNOS_USER && ./bin/gnos --admin --root=html --db scripts/fat.json --browse='http://localhost:8080'
 
 run-snmp:
-	scp scripts/fat.json scripts/snmp-modeler.py jjones@10.8.0.179: && ssh jjones@10.8.0.179 "python snmp-modeler.py -vvv --stdout  --dont-put --duration=1 fat.json"
+	scp scripts/fat.json scripts/snmp-modeler.py jjones@10.8.0.179: && ssh jjones@10.8.0.179 "python snmp-modeler.py -vvv --stdout  --dont-put --duration=1 mini-fat.json"
 	#scp scripts/sat.json scripts/snmp-modeler.py jjones@10.8.0.149: && ssh jjones@10.8.0.149 "python snmp-modeler.py -vvv --stdout  --duration=1 sat.json"
 	
 check-js: html/javascript/*.js html/javascript/scene/*.js
