@@ -211,6 +211,7 @@ function alerts_query(solution)
 	var info_alerts = "";
 	var closed_alerts = "";
 	
+	// TODO: need to use GNOS.opened to prevent these from being closed on updates
 	$.each(solution, function (i, row)
 	{
 		error_alerts      += add_alert(row, {styles: ["alert-type:error"], kind: "active"});

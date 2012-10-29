@@ -54,11 +54,10 @@ def process_system(admin_ip, data, contents, context):
 			open_alert(data, target, key = 'uptime', mesg = 'Device rebooted.', resolution = '', kind = 'error')
 		else:
 			close_alert(data, target, key = 'uptime')
-		
-	add_label(data, target, get_value(contents, '%s', 'sysDescr'), key, level = 3, style = 'font-size:x-small')
 	
-	add_label(data, target, get_value(contents, "%s", 'sysContact'), key, level = 4, style = 'font-size:x-small')
-	add_label(data, target, get_value(contents, "located in %s", 'sysLocation'), key, level = 4, style = 'font-size:x-small')
+	context['system'][admin_ip] += get_value(contents, '* %s\n', 'sysDescr')
+	context['system'][admin_ip] += get_value(contents, '* %s\n', 'sysContact')
+	context['system'][admin_ip] += get_value(contents, '* location is %s\n', 'sysLocation')
 	
 # A lot of these stats are deprecated in favor of entries in ipSystemStatsTable. But that isn't always available.
 # IP-MIB::ipForwarding.0 forwarding
@@ -102,8 +101,12 @@ def process_system(admin_ip, data, contents, context):
 def process_ip(admin_ip, data, contents, context):
 	target = 'entities:%s' % admin_ip
 	key = 'zeppo'
-	add_label(data, target, get_value(contents, '%s', 'ipForwarding'), key, level = 5, style = 'font-size:x-small')
 	
+	if get_value(contents, '%s', 'ipForwarding') == 'forwarding':
+		context['system'][admin_ip] += '* ip forwarding is on\n'
+	else:
+		context['system'][admin_ip] += '* ip forwarding is off\n'
+		
 	ips = get_values(contents, "ipAdEntIfIndex")
 	for (ip, if_index) in ips.items():
 		# create a mapping from device ip to admin ip
@@ -197,6 +200,111 @@ def process_interfaces(admin_ip, data, contents, context):
 			open_alert(data, target, key, mesg = mesg, resolution = '', kind = 'warning')
 		else:
 			close_alert(data, target, key)
+
+# HOST-RESOURCES-MIB::hrMemorySize.0 246004
+# HOST-RESOURCES-MIB::hrStorageIndex[1] 1													one of these for each storage type
+# HOST-RESOURCES-MIB::hrStorageType[1] HOST-RESOURCES-TYPES::hrStorageRam 	or hrStorageVirtualMemory, hrStorageOther, hrStorageFixedDisk
+# HOST-RESOURCES-MIB::hrStorageDescr[1] Physical memory 									or Virtual memory, Memory buffers, Cached memory, Swap space, /rom, /overlay
+# HOST-RESOURCES-MIB::hrStorageAllocationUnits[1] 1024
+# HOST-RESOURCES-MIB::hrStorageSize[1] 246004
+# HOST-RESOURCES-MIB::hrStorageUsed[1] 177396
+def process_storage(admin_ip, data, contents, context):
+	target = 'entities:%s' % admin_ip
+	storage = get_values(contents, "hrStorageDescr")
+	used = get_values(contents, "hrStorageUsed")
+	size = get_values(contents, "hrStorageSize")
+	units = get_values(contents, "hrStorageAllocationUnits")
+	for (index, kind) in storage.items():
+		# update system details with info about storage
+		unit = float(units.get(index, 0))
+		actual = unit*float(size.get(index, 0))/(1024*1024)
+		if actual:
+			use = unit*float(used.get(index, 0))/(1024*1024)/actual
+			context['system'][admin_ip] += '* %s has %.1f MiB with %.0f%% in use\n' % (kind.lower(), actual, 100*use)
+		
+		# add a gauge if virtual memory is full
+		level = None
+		if kind == 'Virtual memory':
+			value = float(used.get(index, '0'))/float(size.get(index, '1'))
+			if value >= 0.95:		# not sure what's bad but I think Linux machines often run with high VM usage
+				level = 1
+				style = 'gauge-bar-color:salmon'
+			elif value >= 0.90:
+				level = 2
+				style = 'gauge-bar-color:darkorange'
+			elif value >= 0.80:
+				level = 3
+				style = 'gauge-bar-color:skyblue'
+			if level:
+				add_gauge(data, target, 'virtual memory', value, level, style, sort_key = 'zz')
+				
+		# add a gauge if the main disk is full
+		elif kind == '/':
+			value = float(used.get(index, '0'))/float(size.get(index, '1'))
+			if value >= 0.90:
+				level = 1
+				style = 'gauge-bar-color:salmon'
+			elif value >= 0.75:
+				level = 2
+				style = 'gauge-bar-color:darkorange'
+			if level:
+				add_gauge(data, target, 'disk usage', value, level, style, sort_key = 'zzz')
+
+# HOST-RESOURCES-MIB::hrDeviceIndex[768] 768																one of these for each processor, each network interface, disk, etc
+# HOST-RESOURCES-MIB::hrDeviceType[768] HOST-RESOURCES-TYPES::hrDeviceProcessor				or hrDeviceNetwork, hrDeviceDiskStorage
+# HOST-RESOURCES-MIB::hrDeviceDescr[768] GenuineIntel: Intel(R) Atom(TM) CPU  330   @ 1.60GHz		or eth2, SCSI disk, etc
+# HOST-RESOURCES-MIB::hrDeviceID[768] SNMPv2-SMI::zeroDotZero
+# HOST-RESOURCES-MIB::hrDeviceStatus[768] running															or down
+# HOST-RESOURCES-MIB::hrDeviceErrors[1025] 0
+# HOST-RESOURCES-MIB::hrProcessorFrwID[768] SNMPv2-SMI::zeroDotZero
+# HOST-RESOURCES-MIB::hrProcessorLoad[768] 1																only applies to hrDeviceProcessor
+# HOST-RESOURCES-MIB::hrNetworkIfIndex[1025] 1															(lot of these are specific to the device type)
+# HOST-RESOURCES-MIB::hrDiskStorageAccess[1552] readWrite
+# HOST-RESOURCES-MIB::hrDiskStorageMedia[1552] unknown
+# HOST-RESOURCES-MIB::hrDiskStorageRemoveble[1552] false
+# HOST-RESOURCES-MIB::hrDiskStorageCapacity[1552] 256000
+# HOST-RESOURCES-MIB::hrPartitionIndex[1552][1] 1
+# HOST-RESOURCES-MIB::hrPartitionLabel[1552][1] "/dev/sda1"
+# HOST-RESOURCES-MIB::hrPartitionID[1552][1] "0x801"
+# HOST-RESOURCES-MIB::hrPartitionSize[1552][1] 0
+# HOST-RESOURCES-MIB::hrPartitionFSIndex[1552][1] 0
+# HOST-RESOURCES-MIB::hrFSIndex[1] 1
+# HOST-RESOURCES-MIB::hrFSMountPoint[1] "/rom"
+# HOST-RESOURCES-MIB::hrFSRemoteMountPoint[1] ""
+# HOST-RESOURCES-MIB::hrFSType[1] HOST-RESOURCES-TYPES::hrFSOther
+# HOST-RESOURCES-MIB::hrFSAccess[1] readOnly
+# HOST-RESOURCES-MIB::hrFSBootable[1] false
+# HOST-RESOURCES-MIB::hrFSStorageIndex[1] 31
+# HOST-RESOURCES-MIB::hrFSLastFullBackupDate[1] 0-1-1,0:0:0.0
+# HOST-RESOURCES-MIB::hrFSLastPartialBackupDate[1] 0-1-1,0:0:0.0
+def process_device(admin_ip, data, contents, context):
+	descrs = get_values(contents, "hrDeviceDescr")
+	status = get_values(contents, "hrDeviceStatus")
+	errors = get_values(contents, "hrDeviceErrors")
+	for (index, desc) in descrs.items():
+		# update system details with info about devices
+		stat = status.get(index, '')
+		errs = errors.get(index, '0')
+		if stat:
+			context['system'][admin_ip] += '* %s is %s with %s errors\n' % (desc, stat, errs)
+		
+	# add a gauge if processor load is high
+	load = get_value(contents, '%s', 'hrProcessorLoad')
+	if load:
+		target = 'entities:%s' % admin_ip
+		level = None
+		value = int(load)/100.0
+		if value >= 0.90:
+			level = 1
+			style = 'gauge-bar-color:salmon'
+		elif value >= 0.75:
+			level = 2
+			style = 'gauge-bar-color:darkorange'
+		elif value >= 0.50:
+			level = 3
+			style = 'gauge-bar-color:skyblue'
+		if level:
+			add_gauge(data, target, 'processor load', value, level, style, sort_key = 'y')
 
 def add_label(data, target, label, key, level = 0, style = ''):
 	if label:
@@ -412,7 +520,10 @@ class Poll(object):
 		self.__config = config
 		self.__startTime = time.time()
 		self.__last_time = None
-		self.__handlers = {'system': process_system, 'ip': process_ip, 'interfaces': process_interfaces}
+		# TODO: 
+		# alert if hrSystemDate is too far from admin machine's datetime
+		# might be nice to do something with tcp and udp stats
+		self.__handlers = {'system': process_system, 'ip': process_ip, 'interfaces': process_interfaces, 'hrStorage': process_storage, 'hrDevice': process_device}
 		self.__context = {}
 		self.__num_samples = 0
 	
@@ -428,6 +539,7 @@ class Poll(object):
 			self.__context['if_indexes'] = {}	# admin ip + if index => device ip
 			self.__context['interfaces'] = {}	# admin ip => [{'if_index':, 'name':, 'mac':, 'speed':, 'mtu':, 'in_octets':, 'out_octets'}]
 			self.__context['routes'] = []		# list of {'src':, 'next hop':, 'dest':, 'metric':, 'protocol':}
+			self.__context['system'] = {}		# admin ip => markdown with system info details
 			
 			threads = self.__spawn_threads()
 			data = self.__process_threads(threads)
@@ -438,6 +550,7 @@ class Poll(object):
 				self.__add_bandwidth_chart(data, 'in')
 				self.__add_bandwidth_details(data, 'out')
 				self.__add_bandwidth_details(data, 'in')
+			self.__add_system_info(data);
 			send_update(self.__config, data)
 			
 			elapsed = time.time() - self.__current_time
@@ -498,6 +611,11 @@ class Poll(object):
 			name = "%s-%s_interfaces" % (admin_ip, direction)
 			markdown = '![bandwidth](/generated/%s.png#%s)' % (name, self.__num_samples)
 			add_details(data, target, '%s Bandwidth' % direction.title(), markdown, opened = 'no', sort_key = 'alpha-' + direction, key = '%s bandwidth' % name)
+			
+	def __add_system_info(self, data):
+		for (admin_ip, markdown) in self.__context['system'].items():
+			target = 'entities:%s' % admin_ip
+			add_details(data, target, 'System Info', markdown, opened = 'no', sort_key = 'a', key = 'system info')
 		
 	def __add_interface_gauge(self, data, admin_ip, ifname, out_octets, speed):
 		level = None
@@ -584,6 +702,8 @@ class Poll(object):
 			if not thread.isAlive():
 				close_alert(data, target, key = 'device down')
 				for (mib, contents) in thread.results.items():
+					if thread.ip not in self.__context['system']:
+						self.__context['system'][thread.ip] = ''
 					self.__handlers[mib](thread.ip, data, contents, self.__context)
 			else:
 				open_alert(data, target, key = 'device down', mesg = 'Device is down.', resolution = 'Check the power cable, power it on if it is off, check the IP address, verify routing.', kind = 'error')
