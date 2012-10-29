@@ -35,16 +35,7 @@ function subject_query(solution)
 		html += '<tr class="{0}">'.format(klass);
 		
 		html += '	<td class="predicate">';
-		if (row.predicate_label.indexOf("sname:") === 0)
-		{
-			var name = row.predicate_label.slice("sname:".length);
-			var url = "http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput={0}&translate=Translate&submitValue=SUBMIT&submitClicked=true".format(name);
-			html += '<a href="{0}">{1}</a>'.format(encodeURI(url), escapeHtml(name));
-		}
-		else
-		{
-			html += '	{0}'.format(make_link(row.predicate_url, row.predicate_label));
-		}
+		html += '	{0}'.format(make_link(row.predicate_url, row.predicate_label));
 		html += '	</td>';
 		
 		html += '	<td class="value"><span>	';
