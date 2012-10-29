@@ -142,7 +142,6 @@ fn main()
 	let modeler_p: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {put_snmp::put_snmp(&options, state_chan, samples_chan, request, response)};
 	let query_store_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {get_query_store::get_query_store(&options, request, response)};
 	let bail_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, _response: &Response, copy options| {get_shutdown(&options)};
-	let interfaces_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response| {get_interfaces::get_interfaces(request, response)};
 	let static_v: ResponseHandler = |config: &ConnConfig, request: &Request, response: &Response, copy options| {static_view(&options, config, request, response)};
 	
 	let query_s: server::OpenSse = |_config: &ConnConfig, request: &Request, push| {sse_query::sse_query(state_chan, request, push)};
@@ -160,7 +159,6 @@ fn main()
 		routes: ~[
 			(~"GET", ~"/", ~"home"),
 			(~"GET", ~"/details/{name}/*subject", ~"details"),
-			(~"GET", ~"/interfaces/{managed_ip}/{direction}", ~"interfaces"),
 			(~"GET", ~"/shutdown", ~"shutdown"),		// TODO: enable this via debug cfg (or maybe via a command line option)
 			(~"GET", ~"/models", ~"models"),
 			(~"GET", ~"/query-store", ~"query_store"),
@@ -170,7 +168,6 @@ fn main()
 		views: ~[
 			(~"home",  home_v),
 			(~"details",  details_v),
-			(~"interfaces",  interfaces_v),
 			(~"shutdown",  bail_v),
 			(~"models",  models_v),
 			(~"query_store",  query_store_v),
