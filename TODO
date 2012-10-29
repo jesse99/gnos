@@ -79,6 +79,9 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- rust web site
 	- coco dashboard
 	- programmig tips
+* HTML5 has notifications:
+	- http://www.paulund.co.uk/html5-notifications
+	- still not widely supported
 * HTML5 apparently does support extending the browser's context menu:
 	- <section contextmenu="mymenu">
 	  <!-- 
