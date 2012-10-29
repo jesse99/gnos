@@ -138,10 +138,10 @@ The JSON should be formatted like this:\
 		\},\
 		...\
 	],\
-\pard\pardeftab480\pardirnatural
-\cf0 	"
+	"
 \b alerts
 \b0 ": [\
+\pard\pardeftab480\pardirnatural
 \cf2 		# open alert formatting\cf0 \
 		\{\
 			"
@@ -185,14 +185,40 @@ The JSON should be formatted like this:\
 			"
 \b name
 \b0 ": "10.101.0.1-eth0-out_octets", \
-\pard\pardeftab480\pardirnatural
-\cf0 			"
+			"
 \b value
 \b0 ": 145.12,\
-\pard\pardeftab480\pardirnatural
-\cf0 			"
+			"
 \b units
 \b0 ": "kbps"\
+		\},\
+		...\
+	]\
+\pard\pardeftab480\pardirnatural
+\cf0 	"
+\b charts
+\b0 ": [\
+		\{\
+			\cf2 # chart is available at /generated/<name>.png\cf0 \
+			"
+\b name
+\b0 ": "10.101.0.1-out_interfaces", \
+\pard\pardeftab480\pardirnatural
+\cf0 			"
+\b samples
+\b0 ": ["10.101.0.1-eth0-out_octets", ...],\
+\pard\pardeftab480\pardirnatural
+\cf0 			"
+\b legends
+\b0 ": ["eth0", ...],\
+\pard\pardeftab480\pardirnatural
+\cf0 			"
+\b title
+\b0 ": "Interface Bandwidths",\
+\pard\pardeftab480\pardirnatural
+\cf0 			"
+\b y_label
+\b0 ": "Out Bandwidth (kbps)"\
 		\},\
 		...\
 	]\

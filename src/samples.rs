@@ -92,7 +92,6 @@ pub struct Chart
 	sample_sets: ~[~str],		// name each sample set was saved under
 	legends: ~[~str],			// name to use in the legend for each sample set
 	interval: float,				// in seconds
-	units: Unit,					// Unit the samples were saved with
 	title: ~str,					// main title
 	y_label: ~str,				// x label is assumed to be Time
 }
@@ -217,7 +216,7 @@ priv fn append_r_script(chart: &Chart, samples: &[RingBuffer], script: &mut ~str
 	{
 		*script += "\n####################################################\n";
 	}
-	*script += fmt!("png('%s', 600, 400)\n\n", chart.path);
+	*script += fmt!("png('%s', 800, 500)\n\n", chart.path);
 	
 	let (scaling, y_units) = get_value_scaling(samples);
 	for samples.eachi |i, buffer|

@@ -74,6 +74,7 @@ priv fn handle_update(options: &Options, remote_addr: &str, store: &Store, body:
 					do optional_list(data, ~"relations") |list| {add_relations(store, &modeler, list);};
 					do optional_list(data, ~"alerts") |list| {add_alerts(store, list);};
 					do optional_list(data, ~"samples") |list| {add_samples(options, samples_chan, list);};
+					do optional_list(data, ~"charts") |list| {add_charts(options, samples_chan, list);};
 				}
 				_ =>
 				{
@@ -286,10 +287,36 @@ priv fn add_samples(options: &Options, samples_chan: SamplesChan, list: &json::L
 		samples_chan.send(samples::AddSample(~"snmp", copy name, get_float(sample, ~"value"), samples_capacity));
 		script += build_sparkline(options, samples_chan, name, get_str(sample, ~"units"), template);
 	}
-
+	
 	if script.is_not_empty()
 	{
 		run_r_script(script);
+	}
+}
+
+priv fn add_charts(options: &Options, samples_chan: SamplesChan, list: &json::List)
+{
+	let mut charts = ~[];
+	
+	let root = os::make_absolute(&options.root);
+	let root = root.push("generated");
+	for list.each |chart|
+	{
+		let path = root.push(fmt!("%s.png", get_str(chart, ~"name")));
+		charts.push(samples::Chart 
+		{
+			path: path.to_str(),
+			sample_sets: get_strs(chart, ~"samples"),
+			legends: get_strs(chart, ~"legends"),
+			interval: options.poll_rate as float,
+			title: get_str(chart, ~"title"),
+			y_label: get_str(chart, ~"y_label"),
+		});
+	}
+	
+	if charts.is_not_empty()
+	{
+		samples::create_charts(~"snmp-modeler", charts, samples_chan);
 	}
 }
 
@@ -436,6 +463,52 @@ priv fn get_str(value: &Json, key: ~str) -> ~str
 					_ =>
 					{
 						fail fmt!("Expected a String but found %?", *entry)
+					}
+				}
+			}
+			else
+			{
+				fail fmt!("%s key is missing from %?", key, value)
+			}
+		}
+		_ =>
+		{
+			fail fmt!("Expected an Object but found %?", *value)
+		}
+	}
+}
+
+priv fn get_strs(value: &Json, key: ~str) -> ~[~str]
+{
+	match *value
+	{
+		json::Object(ref object) =>
+		{
+			if object.contains_key(&key)
+			{
+				let entry = object.get_ref(&key);
+				match *entry
+				{
+					json::List(ref s) =>
+					{
+						do s.map |x|
+						{
+							match *x
+							{
+								json::String(copy s) =>
+								{
+									s
+								}
+								_ =>
+								{
+									fail fmt!("Expected a String but found %?", *x)
+								}
+							}
+						}
+					}
+					_ =>
+					{
+						fail fmt!("Expected a List but found %?", *entry)
 					}
 				}
 			}

@@ -52,6 +52,9 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- attach custom info
 * Balloon layout is interesting:
 	http://lab.kapit.fr/display/visualizationlayouts/Balloon+layout
+* Add a details list for dropped packets:
+	- ifInDiscards, ifInErrors, ifInUnknownProtos, ifOutDiscards, ifOutErrors
+	- only show the details if one of these isn't zero
 * Interesting wayts to connect html thingies:
 	- http://jsplumb.org/doc/usage.html
 	- http://js-graph-it.sourceforge.net/index.html

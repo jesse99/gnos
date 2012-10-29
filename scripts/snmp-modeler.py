@@ -433,6 +433,11 @@ class Poll(object):
 			data = self.__process_threads(threads)
 			self.__add_next_hop_relations(data)
 			self.__add_interfaces_table(data)
+			if self.__num_samples >= 2:
+				self.__add_bandwidth_chart(data, 'out')
+				self.__add_bandwidth_chart(data, 'in')
+				self.__add_bandwidth_details(data, 'out')
+				self.__add_bandwidth_details(data, 'in')
 			send_update(self.__config, data)
 			
 			elapsed = time.time() - self.__current_time
@@ -474,6 +479,26 @@ class Poll(object):
 			target = 'entities:%s' % admin_ip
 			add_details(data, target, 'Interfaces', json.dumps(detail), opened = 'yes', sort_key = 'alpha', key = 'interfaces table')
 			
+	def __add_bandwidth_chart(self, data, direction):
+		for (admin_ip, interfaces) in self.__context['interfaces'].items():
+			samples = []
+			legends = []
+			table = sorted(interfaces, key = lambda i: i['name'])
+			for interface in table:
+				name = interface['name']
+				legends.append(name)
+				samples.append('%s-%s-in_octets' % (admin_ip, name))
+			
+			name = "%s-%s_interfaces" % (admin_ip, direction)
+			data['charts'].append({'name': name, 'samples': samples, 'legends': legends, 'title': '%s Bandwidth' % direction.title(), 'y_label': 'Bandwidth (kbps)'})
+		
+	def __add_bandwidth_details(self, data, direction):
+		for (admin_ip, interfaces) in self.__context['interfaces'].items():
+			target = 'entities:%s' % admin_ip
+			name = "%s-%s_interfaces" % (admin_ip, direction)
+			markdown = '![bandwidth](/generated/%s.png#%s)' % (name, self.__num_samples)
+			add_details(data, target, '%s Bandwidth' % direction.title(), markdown, opened = 'no', sort_key = 'alpha-' + direction, key = '%s bandwidth' % name)
+		
 	def __add_interface_gauge(self, data, admin_ip, ifname, out_octets, speed):
 		level = None
 		bandwidth = min(out_octets/speed, 1.0)
@@ -551,7 +576,7 @@ class Poll(object):
 	# so simply joining them one after another isn't great, but it's simple and should work
 	# fine most of the time.
 	def __process_threads(self, threads):
-		data = {'modeler': 'snmp', 'entities': [], 'relations': [], 'labels': [], 'gauges': [], 'details': [], 'alerts': [], 'samples': []}
+		data = {'modeler': 'snmp', 'entities': [], 'relations': [], 'labels': [], 'gauges': [], 'details': [], 'alerts': [], 'samples': [], 'charts': []}
 		for thread in threads:
 			thread.join(3.0)
 			
