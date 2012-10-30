@@ -680,28 +680,32 @@ class Poll(object):
 			add_gauge(data, target, '%s bandwidth' % ifname, bandwidth, level, style, sort_key = 'z')
 		
 	# Bit of an ugly function: it does four different things:
-	# 1) If there is an old raw then a value entry is initialized with a per second value.
-	# 2) An html entry is initialized with either a blank value or an url to a sparkline chart for the sample.
-	# 3) The current raw value is saved as the (new) old raw value.
-	# 4) If we got an old value then the per second value is recorded as a sample value.
+	# 1) It computes the current sample value. If a per sec value cannot be computed zero is used
+	# (we need to always record a sample value so that the various sample sets align).
+	# 2) It ships the new sample off to the server.
+	# 3) An html entry is initialized with either a blank value or an url to a sparkline chart for the sample.
+	# 4) The sample value and html link are returned to out caller.
 	def __process_sample(self, data, table):
 		# On input table has: key, raw, and units
 		# On exit: value and html are added
 		table['value'] = None
 		table['html'] = ''
-		print 'would be adding sample %s' % table['key']
-		if self.__last_time and table['key'] in self.__context:
+		value = 0.0
+		if self.__last_time and self.__context.get(table['key'], 0.0) > 0.0:
 			elapsed = self.__current_time - self.__last_time
 			if elapsed > 1.0:
-				table['value'] = (table['raw'] - self.__context[table['key']])/elapsed
-				data['samples'].append({'name': table['key'], 'value': table['value'], 'units': table['units']})
-				
-				# When dynamically adding html content browsers will not reload images that have
-				# been already loaded. To work around this we add a unique fragment identifier
-				# which the server will ignore.
-				if self.__num_samples >= 2:
-					url = '/generated/%s.png#%s' % (table['key'], self.__num_samples)
-					table['html'] = "<img src = '%s' alt = '%s'>" % (url, table['key'])
+				value = (table['raw'] - self.__context[table['key']])/elapsed
+		table['value'] = value
+		if self.__num_samples >= 2:
+			data['samples'].append({'name': table['key'], 'value': value, 'units': table['units']})
+		
+		# When dynamically adding html content browsers will not reload images that have
+		# been already loaded. To work around this we add a unique fragment identifier
+		# which the server will ignore.
+		if self.__num_samples >= 2:
+			url = '/generated/%s.png#%s' % (table['key'], self.__num_samples)
+			table['html'] = "<img src = '%s' alt = '%s'>" % (url, table['key'])
+		
 		self.__context[table['key']] = table['raw']
 		return table
 		
