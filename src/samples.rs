@@ -153,19 +153,6 @@ priv fn get_time_interval(interval: float, num_samples: uint) -> (float, ~str)
 	(interval*(x.value/max_time), x.units.to_str())
 }
 
-// This is similar to get_time_interval: we want to use the best units we can to
-// represent all of our sample values. Note that this assumes that the samples
-// were originaly in kbps. TODO: seems a bit error prone to make that
-// assumption.
-priv fn get_value_scaling(samples: &[RingBuffer]) -> (float, ~str)
-{
-	let max_values = do samples.map |s| {iter::max(s)};
-	let max_value = max_values.max();
-	
-	let x = from_units(max_value, Kilo*Bit/Second).normalize_si();
-	(x.value/max_value, x.units.to_str())
-}
-
 // We generate the R script instead of using mustache because the mustache
 // version winds up being all templates anyway.
 //
@@ -218,11 +205,10 @@ priv fn append_r_script(chart: &Chart, samples: &[RingBuffer], script: &mut ~str
 	}
 	*script += fmt!("png('%s', 800, 500)\n\n", chart.path);
 	
-	let (scaling, y_units) = get_value_scaling(samples);
 	for samples.eachi |i, buffer|
 	{
 		assert buffer.len() == num_samples;
-		let values = do iter::map_to_vec(buffer) |x| {(scaling*x).to_str()};
+		let values = do iter::map_to_vec(buffer) |x| {x.to_str()};
 		*script += fmt!("samples%? = c(%s)\n", i+1, str::connect(values, ", "));
 	}
 	
@@ -239,9 +225,10 @@ priv fn append_r_script(chart: &Chart, samples: &[RingBuffer], script: &mut ~str
 	}
 	let max_samples = do vec::from_fn(num_lines) |i| {fmt!("max_samples%?", i+1)};
 	*script += fmt!("max_samples = max(c(%s))\n\n", str::connect(max_samples, ", "));
-	
+
+	// TODO: assumes units are kbps	
 	*script += fmt!("colors = brewer.pal(%?, 'Set1')\n", num_lines);
-	*script += fmt!("plot(samples1 ~ times, type = 'l', lwd = 2, col = colors[1], ylim = c(0, max_samples), xlab = 'Time (%s)', ylab = '%s (%s)', main = '%s')\n", x_units, chart.y_label, y_units, chart.title);
+	*script += fmt!("plot(samples1 ~ times, type = 'l', lwd = 2, col = colors[1], ylim = c(0, max_samples), xlab = 'Time (%s)', ylab = '%s (%s)', main = '%s')\n", x_units, chart.y_label, "kbps", chart.title);
 	for uint::iterate(1, num_lines) |i|
 	{
 		// Note that R vector indexing is 1-based.

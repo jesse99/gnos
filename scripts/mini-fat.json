@@ -7,9 +7,9 @@
 	"path": "/snmp-modeler",
 	"devices":
 	{
-		"GRS-1":
+		"GRS-2":
 		{
-			"ip": "10.101.0.2",
+			"ip": "10.102.0.2",
 			"community": "public",
 			"type": "router"
 		}
