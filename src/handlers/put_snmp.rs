@@ -23,7 +23,7 @@ pub fn put_snmp(options: &Options, state_chan: Chan<Msg>, samples_chan: SamplesC
 	// Unfortunately we don't send an error back to the modeler if the json was invalid.
 	// Of course that shouldn't happen...
 	let addr = copy request.remote_addr;
-	info!("got new modeler data from %s", addr);
+	info!("-------- got new modeler data from %s --------", addr);
 	
 	let options = copy *options;
 	comm::send(state_chan, UpdateMsg(~"primary", |s, d, move options| {handle_update(&options, addr, s, d, samples_chan)}, copy request.body));
@@ -84,7 +84,10 @@ priv fn add_entities(store: &Store, modeler: &Option<Object>, list: &json::List)
 		{
 			entries.push((~"gnos:modeler-subject", modeler.get()));
 		}
-		entries.push((~"gnos:entity", StringValue(get_str(object, ~"label"), ~"")));
+		let label = get_str(object, ~"label");
+		debug!("adding %s entity", label);
+		
+		entries.push((~"gnos:entity", StringValue(label, ~"")));
 		do optional_str(object, ~"style") |value| 		{entries.push((~"gnos:style", StringValue(value, ~"")))};
 		do optional_str(object, ~"predicate") |value|	{entries.push((~"gnos:predicate", StringValue(value, ~"")))};
 		
@@ -107,8 +110,12 @@ priv fn add_labels(store: &Store, modeler: &Option<Object>, list: &json::List)
 		{
 			entries.push((~"gnos:modeler-subject", modeler.get()));
 		}
-		entries.push((~"gnos:target",		IriValue(get_str(object, ~"target-id"))));
-		entries.push((~"gnos:label",		StringValue(get_str(object, ~"label"), ~"")));
+		let target = get_str(object, ~"target-id");
+		let label = get_str(object, ~"label");
+		debug!("adding %s label for %s", label, target);
+		
+		entries.push((~"gnos:target",		IriValue(target)));
+		entries.push((~"gnos:label",		StringValue(label, ~"")));
 		entries.push((~"gnos:level", 		IntValue(get_i64(object, ~"level"))));
 		entries.push((~"gnos:sort_key",	StringValue(get_str(object, ~"sort-key"), ~"")));
 		do optional_str(object, ~"style") |value| 		{entries.push((~"gnos:style", StringValue(value, ~"")))};
@@ -132,9 +139,13 @@ priv fn add_gauges(store: &Store, modeler: &Option<Object>, list: &json::List)
 		{
 			entries.push((~"gnos:modeler-subject", modeler.get()));
 		}
-		entries.push((~"gnos:target",		IriValue(get_str(object, ~"entity-id"))));
+		let target = get_str(object, ~"entity-id");
+		let label = get_str(object, ~"label");
+		debug!("adding %s gauge for %s", label, target);
+		
+		entries.push((~"gnos:target",		IriValue(target)));
 		entries.push((~"gnos:gauge", 		FloatValue(get_f64(object, ~"value"))));
-		entries.push((~"gnos:title",		StringValue(get_str(object, ~"label"), ~"")));
+		entries.push((~"gnos:title",		StringValue(label, ~"")));
 		entries.push((~"gnos:level", 		IntValue(get_i64(object, ~"level"))));
 		entries.push((~"gnos:sort_key",	StringValue(get_str(object, ~"sort-key"), ~"")));
 		do optional_str(object, ~"style") |value| 		{entries.push((~"gnos:style", StringValue(value, ~"")))};
@@ -158,8 +169,12 @@ priv fn add_details(store: &Store, modeler: &Option<Object>, list: &json::List)
 		{
 			entries.push((~"gnos:modeler-subject", modeler.get()));
 		}
-		entries.push((~"gnos:target",		IriValue(get_str(object, ~"entity-id"))));
-		entries.push((~"gnos:title",		StringValue(get_str(object, ~"label"), ~"")));
+		let target = get_str(object, ~"entity-id");
+		let label = get_str(object, ~"label");
+		debug!("adding %s details for %s", label, target);
+		
+		entries.push((~"gnos:target",		IriValue(target)));
+		entries.push((~"gnos:title",		StringValue(label, ~"")));
 		entries.push((~"gnos:detail",		StringValue(get_str(object, ~"detail"), ~"")));
 		entries.push((~"gnos:open",		StringValue(get_str(object, ~"open"), ~"")));
 		entries.push((~"gnos:sort_key",	StringValue(get_str(object, ~"sort-key"), ~"")));
@@ -206,8 +221,12 @@ priv fn add_relations(store: &Store, modeler: &Option<Object>, list: &json::List
 		{
 			entries.push((~"gnos:modeler-subject", modeler.get()));
 		}
-		entries.push((~"gnos:left",		IriValue(get_str(object, ~"left-entity-id"))));
-		entries.push((~"gnos:right",	IriValue(get_str(object, ~"right-entity-id"))));
+		let left = get_str(object, ~"left-entity-id");
+		let right = get_str(object, ~"right-entity-id");
+		debug!("adding relation for %s -> %s", left, right);
+		
+		entries.push((~"gnos:left",		IriValue(left)));
+		entries.push((~"gnos:right",	IriValue(right)));
 		do optional_str(object, ~"style") |value| {entries.push((~"gnos:style", StringValue(value, ~"")))};
 		
 		add_label(store, modeler, object, &mut entries, target, ~"left");
@@ -266,8 +285,12 @@ priv fn add_samples(options: &Options, samples_chan: SamplesChan, list: &json::L
 	for list.each |sample|
 	{
 		let name = get_str(sample, ~"name");
-		samples_chan.send(samples::AddSample(~"snmp", copy name, get_float(sample, ~"value"), samples_capacity));
-		script += build_sparkline(options, samples_chan, name, get_str(sample, ~"units"), template);
+		let value = get_float(sample, ~"value");
+		let units = get_str(sample, ~"units");
+		debug!("adding %s sample, value = %? %s", name, value, units);
+		
+		samples_chan.send(samples::AddSample(~"snmp", copy name, value, samples_capacity));
+		script += build_sparkline(options, samples_chan, name, units, template);
 	}
 	
 	if script.is_not_empty()
@@ -294,6 +317,7 @@ priv fn add_charts(options: &Options, samples_chan: SamplesChan, list: &json::Li
 			title: get_str(chart, ~"title"),
 			y_label: get_str(chart, ~"y_label"),
 		});
+		debug!("adding charts for %?", charts.last().sample_sets);
 	}
 	
 	if charts.is_not_empty()
