@@ -65,20 +65,7 @@ function details_query(solution)
 		}
 		else
 		{
-			var open = GNOS.opened[row.key] || row.open === "yes";
-			GNOS.opened[row.key] = open;
-			
-			var handler = "GNOS.opened['{0}'] = !GNOS.opened['{0}']".format(row.key);
-			if (open)
-				var html = '<details open="open" onclick = "{0}">\n'.format(handler);
-			else
-				var html = '<details onclick = "{0}">\n'.format(handler);
-				
-			if (row.title)
-				html += '<summary>{0}</summary>\n'.format(escapeHtml(row.title));
-				
-			html += '{0}\n'.format(inner);
-			html += '</details>\n';
+			var html = get_details_html(row.open == 'yes', row.title, inner, row.key);
 		}
 		
 		items.push({sort_key: row.sort_key, html: html});
@@ -101,6 +88,26 @@ function details_query(solution)
 		html = "<p>No details</p>";
 	
 	return {details: html};
+}
+
+function get_details_html(open, title, inner, key)
+{
+	if (key in GNOS.opened)
+		open = GNOS.opened[key];
+		
+	var handler = "GNOS.opened['{0}'] = !GNOS.opened['{0}']".format(key);
+	if (open)
+		var html = '<details open="open" onclick = "{0}">\n'.format(handler);
+	else
+		var html = '<details onclick = "{0}">\n'.format(handler);
+		
+	if (title)
+		html += '<summary>{0}</summary>\n'.format(escapeHtml(title));
+		
+	html += '{0}\n'.format(inner);
+	html += '</details>\n';
+	
+	return html;
 }
 
 function detail_to_html(detail)
@@ -170,7 +177,7 @@ function alerts_query(solution)
 						classes += ' tooltip';
 						attributes += ' data-tooltip=" {0}"'.format(escapeHtml(row.resolution));
 					}
-					var dates = " ({0})".format(dateToStr(date));
+					var dates = " <span class='alert-timestamp'>{0}</span>".format(dateToStr(date));
 				}
 				else
 				{
@@ -192,15 +199,8 @@ function alerts_query(solution)
 		
 		if (inner)
 		{
-			if (open)
-				html += '<details open="open">\n';
-			else
-				html += '<details>\n';
-			html += '	<summary>{0}</summary>\n'.format(title);
-			html += "		<ul class='sequence'>\n";
-			html += inner;
-			html += "		</ul>\n";
-			html += '</details>\n';
+			inner = "		<ul class='sequence'>{0}</ul>\n".format(inner);
+			html += get_details_html(open, title, inner, title);
 		}
 		
 		return html;
@@ -211,7 +211,6 @@ function alerts_query(solution)
 	var info_alerts = "";
 	var closed_alerts = "";
 	
-	// TODO: need to use GNOS.opened to prevent these from being closed on updates
 	$.each(solution, function (i, row)
 	{
 		error_alerts      += add_alert(row, {styles: ["alert-type:error"], kind: "active"});

@@ -97,23 +97,36 @@ function escapeHtml(str)
 	return div.innerHTML;
 }
 
-// Returns a string like "Wednesday 18:06".
+// Returns a string like "Wednesday 18:06, October 30 2012".
 function dateToStr(date)
 {
 	if (date.getHours() < 10)
 	{
-		var prefix = '0';
+		var hprefix = '0';
 	}
 	else
 	{
-		var prefix = '';
+		var hprefix = '';
+	}
+	
+	if (date.getMinutes() < 10)
+	{
+		var mprefix = '0';
+	}
+	else
+	{
+		var mprefix = '';
 	}
 	
 	var days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-	return "{0} {1}:{2}".format(days[date.getDay()], prefix+date.getHours(), date.getMinutes());
+	var months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+	return "{0} {1}:{2}, {3} {4} {5}".format(days[date.getDay()], hprefix+date.getHours(), mprefix+date.getMinutes(),
+		months[date.getMonth()], date.getDate(), date.getFullYear());
 }
 
 // Converts an interval in milliseconds to a string like "2 seconds" or "1.2 hours".
+// Note that this should rarel be used: web pages normally only update if something has
+// changed in the model so the string returned by this function can easily become erroneous.
 function interval_to_time(interval)
 {
 	if (interval < 1000)

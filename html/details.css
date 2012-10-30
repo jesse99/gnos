@@ -6,3 +6,10 @@
 	color: crimson;
 }
 
+.alert-timestamp
+{
+	font-size: x-small;
+	font-weight: normal;
+	font-style: italic;
+}
+
