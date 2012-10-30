@@ -48,6 +48,7 @@ def process_system(admin_ip, data, contents, context):
 		up_time = get_value(contents, "%s", 'sysUpTimeInstance')
 	if up_time:
 		up_time = float(up_time)/100.0
+		context['up_times'][admin_ip] = up_time
 		add_label(data, target, 'uptime: %s' % secs_to_str(up_time), key, level = 2, style = 'font-size:small')
 		if up_time < 60.0:
 			# TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
@@ -161,17 +162,43 @@ def process_interfaces(admin_ip, data, contents, context):
 	in_octets = get_values(contents, "ifInOctets")
 	out_octets = get_values(contents, "ifOutOctets")
 	status = get_values(contents, "ifOperStatus")
+	found = set()
 	for index in descs.keys():
+		# This is all kinds of screwed up but when devices are brought up and down multiple
+		# entries land in the table. So what we'll do is add the ones that are enabled and
+		# then add any that we missed that are down (we need the downed interfaces so
+		# that we can store zero samples to keep them lined up).
 		if status.get(index, '') == 'up' or status.get(index, '') == 'dormant':
+			name = descs.get(index, '')
 			entry = {
+				'enabled': True,
 				'if_index': index,
-				'name': descs.get(index, ''),
+				'name': name,
 				'mac': sanitize_mac(macs.get(index, '')),
 				'speed': float(speeds.get(index, 0.0)),
 				'mtu': mtus.get(index, ''),
 				'in_octets': float(in_octets.get(index, 0.0)),
 				'out_octets': float(out_octets.get(index, 0.0))
 			}
+			found.add(name)
+			if admin_ip in context['interfaces']:
+				context['interfaces'][admin_ip].append(entry)
+			else:
+				context['interfaces'][admin_ip] = [entry]
+	for index in descs.keys():
+		name = descs.get(index, '')
+		if status.get(index, '') != 'up' and status.get(index, '') != 'dormant' and name not in found:
+			entry = {
+				'enabled': False,
+				'if_index': index,
+				'name': name,
+				'mac': sanitize_mac(macs.get(index, '')),
+				'speed': float(speeds.get(index, 0.0)),
+				'mtu': mtus.get(index, ''),
+				'in_octets': 0.0,			# these will often be nonsense
+				'out_octets': 0.0
+			}
+			found.add(name)
 			if admin_ip in context['interfaces']:
 				context['interfaces'][admin_ip].append(entry)
 			else:
@@ -193,13 +220,9 @@ def process_interfaces(admin_ip, data, contents, context):
 	last_changes = get_values(contents, "ifLastChange")
 	for (index, last_change) in last_changes.items():
 		up_time = float(last_change)/100.0
-		name = descs.get(index, '?')
-		key = '%s-last-change' % name
-		if up_time > 0.0 and up_time < 60.0:		# ifdown isn't resetting ifLastChange on GRSs
-			mesg = '%s status recently changed to %s.' % (name, oper_status.get(index, '?'))
-			open_alert(data, target, key, mesg = mesg, resolution = '', kind = 'warning')
-		else:
-			close_alert(data, target, key)
+		if up_time:
+			name = descs.get(index, '?')
+			context['interface_up_times'][(admin_ip, name)] = (up_time, oper_status.get(index, '?'))
 
 # HOST-RESOURCES-MIB::hrMemorySize.0 246004
 # HOST-RESOURCES-MIB::hrStorageIndex[1] 1													one of these for each storage type
@@ -540,6 +563,8 @@ class Poll(object):
 			self.__context['interfaces'] = {}	# admin ip => [{'if_index':, 'name':, 'mac':, 'speed':, 'mtu':, 'in_octets':, 'out_octets'}]
 			self.__context['routes'] = []		# list of {'src':, 'next hop':, 'dest':, 'metric':, 'protocol':}
 			self.__context['system'] = {}		# admin ip => markdown with system info details
+			self.__context['up_times'] = {}	# admin_ip => system up time
+			self.__context['interface_up_times'] = {}	# (admin_ip, ifname) => (interface up time, interface status)
 			
 			threads = self.__spawn_threads()
 			data = self.__process_threads(threads)
@@ -551,6 +576,7 @@ class Poll(object):
 				self.__add_bandwidth_details(data, 'out')
 				self.__add_bandwidth_details(data, 'in')
 			self.__add_system_info(data);
+			self.__add_interface_uptime_alert(data)
 			send_update(self.__config, data)
 			
 			elapsed = time.time() - self.__current_time
@@ -575,18 +601,20 @@ class Poll(object):
 					ip = '<strong>%s/%s</strong>' % (ip, subnet)
 				else:
 					ip = '%s/%s' % (ip, subnet)
-					
+				
+				# We always need to add samples so that they stay in sync with one another.
 				in_octets = self.__process_sample(data, {'key': '%s-%s-in_octets' % (admin_ip, name), 'raw': 8*interface['in_octets']/1000, 'units': 'kbps'})
 				out_octets = self.__process_sample(data, {'key':  '%s-%s-out_octets' % (admin_ip, name), 'raw': 8*interface['out_octets']/1000, 'units': 'kbps'})
-					
-				speed = interface.get('speed', 0.0)
-				if speed:
-					if out_octets['value']:
-						self.__add_interface_gauge(data, admin_ip, name, out_octets['value'], speed/1000)
-					speed = speed/1000000
-					speed = '%.1f Mbps' % speed
-					
-				rows.append([name, ip, interface['mac'], speed, add_units(interface['mtu'], 'B'), in_octets['html'], out_octets['html']])
+				
+				if interface['enabled']:
+					speed = interface.get('speed', 0.0)
+					if speed:
+						if out_octets['value']:
+							self.__add_interface_gauge(data, admin_ip, name, out_octets['value'], speed/1000)
+						speed = speed/1000000
+						speed = '%.1f Mbps' % speed
+						
+					rows.append([name, ip, interface['mac'], speed, add_units(interface['mtu'], 'B'), in_octets['html'], out_octets['html']])
 			detail['rows'] = sorted(rows, key = lambda row: row[0])
 			
 			target = 'entities:%s' % admin_ip
@@ -598,15 +626,16 @@ class Poll(object):
 			legends = []
 			table = sorted(interfaces, key = lambda i: i['name'])
 			for interface in table:
-				name = interface['name']
-				legends.append(name)
-				samples.append('%s-%s-in_octets' % (admin_ip, name))
+				if interface['enabled']:
+					name = interface['name']
+					legends.append(name)
+					samples.append('%s-%s-%s_octets' % (admin_ip, name, direction))
 			
 			name = "%s-%s_interfaces" % (admin_ip, direction)
 			data['charts'].append({'name': name, 'samples': samples, 'legends': legends, 'title': '%s Bandwidth' % direction.title(), 'y_label': 'Bandwidth (kbps)'})
 		
 	def __add_bandwidth_details(self, data, direction):
-		for (admin_ip, interfaces) in self.__context['interfaces'].items():
+		for admin_ip in self.__context['interfaces'].keys():
 			target = 'entities:%s' % admin_ip
 			name = "%s-%s_interfaces" % (admin_ip, direction)
 			markdown = '![bandwidth](/generated/%s.png#%s)' % (name, self.__num_samples)
@@ -616,6 +645,20 @@ class Poll(object):
 		for (admin_ip, markdown) in self.__context['system'].items():
 			target = 'entities:%s' % admin_ip
 			add_details(data, target, 'System Info', markdown, opened = 'no', sort_key = 'a', key = 'system info')
+			
+	def __add_interface_uptime_alert(self, data):
+		for (key, value) in self.__context['interface_up_times'].items():
+			(admin_ip, ifname) = key
+			(interface_uptime, status) = value
+			
+			delta = self.__context['up_times'].get(admin_ip, 0.0) - interface_uptime
+			key = '%s-last-change' % ifname
+			target = 'entities:%s' % admin_ip
+			if delta >= 0.0 and delta < 60.0:
+				mesg = '%s status recently changed to %s.' % (ifname, status)
+				open_alert(data, target, key, mesg = mesg, resolution = '', kind = 'warning')
+			else:
+				close_alert(data, target, key)
 		
 	def __add_interface_gauge(self, data, admin_ip, ifname, out_octets, speed):
 		level = None
@@ -646,6 +689,7 @@ class Poll(object):
 		# On exit: value and html are added
 		table['value'] = None
 		table['html'] = ''
+		print 'would be adding sample %s' % table['key']
 		if self.__last_time and table['key'] in self.__context:
 			elapsed = self.__current_time - self.__last_time
 			if elapsed > 1.0:
