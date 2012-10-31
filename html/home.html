@@ -48,10 +48,14 @@ with dynamic content set according to the selection and insprector settings. -->
 			{{#admin}}
 			<section id='nav'>
 				<section class="sequence row-box">
-					<a href="/models">Models</a>
-					<a href="/query-store">Query</a>
-					<a href="/test" class='col-box align-right'>Test</a>
-					<a href="/shutdown" class='col-box align-right'>Shutdown</a>
+					<section>
+						<a href="/models">Models</a>
+						<a href="/query-store" class='align-right'>Query</a>
+					</section>
+					<section class='align-right'>
+						<a href="/test">Test</a>
+						<a href="/shutdown" class='align-right'>Shutdown</a>
+					</section>
 				</section>
 			</section>
 			{{/admin}}
