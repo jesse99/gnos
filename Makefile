@@ -2,9 +2,14 @@
 # Internal variables
 dummy1 := $(shell mkdir bin 2> /dev/null)
 
-JSL ?= jsl
 RUSTC ?= rustc
 SCP ?= scp
+
+ifeq ($(strip $(shell command -v jsl)),)
+	JSL = true 'skipping jsl lint phase'
+else
+	JSL ?= jsl
+endif
 
 # ------------------
 # Primary targets
