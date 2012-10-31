@@ -18,6 +18,12 @@
 	-webkit-flex-direction: column;
 }
 
+.row-box
+{
+	display: -webkit-flex;
+	-webkit-flex-direction: row;
+}
+
 .align-right
 {
 	margin-left: auto;

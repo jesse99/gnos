@@ -143,6 +143,7 @@ fn main()
 	let query_store_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {get_query_store::get_query_store(&options, request, response)};
 	let bail_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, _response: &Response, copy options| {get_shutdown(&options)};
 	let static_v: ResponseHandler = |config: &ConnConfig, request: &Request, response: &Response, copy options| {static_view(&options, config, request, response)};
+	let test_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response| {get_test::get_test(request, response)};
 	
 	let query_s: server::OpenSse = |_config: &ConnConfig, request: &Request, push| {sse_query::sse_query(state_chan, request, push)};
 	let samples_s: server::OpenSse = |_config: &ConnConfig, request: &Request, push| {sse_samples::sse_query(samples_chan, request, push)};
@@ -163,6 +164,7 @@ fn main()
 			(~"GET", ~"/models", ~"models"),
 			(~"GET", ~"/query-store", ~"query_store"),
 			(~"GET", ~"/subject/{name}/*subject", ~"subject"),
+			(~"GET", ~"/test", ~"test"),
 			(~"PUT", ~"/snmp-modeler", ~"modeler"),
 		],
 		views: ~[
@@ -173,6 +175,7 @@ fn main()
 			(~"query_store",  query_store_v),
 			(~"subject",  subject_v),
 			(~"modeler",  modeler_p),
+			(~"test",  test_v),
 		],
 		static_handler: static_v,
 		sse: ~[(~"/query", query_s), (~"/samples", samples_s)],

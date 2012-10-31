@@ -34,6 +34,7 @@ mod handlers
 	mod get_models;
 	mod get_query_store;
 	mod get_subject;
+	mod get_test;
 	mod put_snmp;
 	mod sse_query;
 	mod sse_samples;
