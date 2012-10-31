@@ -39,12 +39,12 @@ check1: bin/test-gnos
 # You can either use this target (assuming that the libraries are in /usr/local/lib/rust)
 # or install them via cargo.
 update-libraries:
-	cp /usr/local/lib/rust/libmustache-*-0.3pre.dylib bin
-	cp /usr/local/lib/rust/libsocket-*-0.1.dylib bin
-	cp /usr/local/lib/rust/librparse-*-0.6.dylib bin
-	cp /usr/local/lib/rust/librrdf-*-0.2.dylib bin
-	cp /usr/local/lib/rust/librunits-*-0.1.dylib bin
-	cp /usr/local/lib/rust/librwebserve-*-0.2.dylib bin
+	cp /usr/local/lib/rust/libmustache-*-0.3pre.* bin
+	cp /usr/local/lib/rust/libsocket-*-0.1.* bin
+	cp /usr/local/lib/rust/librparse-*-0.6.* bin
+	cp /usr/local/lib/rust/librrdf-*-0.2.* bin
+	cp /usr/local/lib/rust/librunits-*-0.1.* bin
+	cp /usr/local/lib/rust/librwebserve-*-0.2.* bin
 	rm -f bin/gnos
 
 dist:
