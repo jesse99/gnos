@@ -734,10 +734,10 @@ class Poll(object):
 			if style:
 				left = 'entities:%s' % src_ip
 				right = 'entities:%s' % next_hop
-				left_label = {'label': '%s, cost %s' % (protocols[(src_ip, next_hop)], metrics[(src_ip, next_hop)]), 'level': 2}
+				left_label = {'label': '%s, cost %s' % (protocols[(src_ip, next_hop)], metrics[(src_ip, next_hop)]), 'level': 2, 'style': 'font-size:x-small'}
 				if right_label:
-					right_label = {'label': right_label, 'level': 2}
-				add_relation(data, left, right, style, left_label = left_label, middle_label = {'label': 'next hop', 'level': 1}, right_label = right_label)
+					right_label = {'label': right_label, 'level': 2, 'style': 'font-size:x-small'}
+				add_relation(data, left, right, style, left_label = left_label, middle_label = {'label': 'next hop', 'level': 1, 'style': 'font-size:small'}, right_label = right_label)
 	
 	# Devices can have significant variation in how quickly they respond to SNMP queries
 	# so simply joining them one after another isn't great, but it's simple and should work
