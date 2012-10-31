@@ -17,11 +17,11 @@ $(document).ready(function()
 	
 	var queries = ['						\
 SELECT 									\
-	?detail ?title ?open ?sort_key ?key	\
+	?details ?title ?open ?sort_key ?key	\
 WHERE 									\
 {											\
 	?subject gnos:target {0} . 				\
-	?subject gnos:detail ?detail . 			\
+	?subject gnos:details ?details . 		\
 	?subject gnos:title ?title .	 			\
 	?subject gnos:open ?open .	 		\
 	?subject gnos:sort_key ?sort_key .	 \
@@ -51,13 +51,17 @@ WHERE 											\
 });
 
 // solution rows have 
-// required fields: detail, title, open, sort_key, key
+// required fields: details, title, open, sort_key, key
 function details_query(solution)
 {
 	var items = [];
 	$.each(solution, function (i, row)
 	{
-		var inner = detail_to_html(row.detail);
+		var inner = '';
+		$.each(JSON.parse(row.details), function (i, detail)
+		{
+			inner += detail_to_html(detail);
+		});
 		
 		if (row.open === "always")
 		{
@@ -114,22 +118,13 @@ function detail_to_html(detail)
 {
 	var html = '';
 	
-	if (detail && detail[0] === '{')
+	if (typeof(detail) == 'string')
 	{
-		try
-		{
-			var data = JSON.parse(detail);
-			html = table_to_html(data);
-		}
-		catch (e)
-		{
-			// rare case where markdown starts with {
-			html = markdown.toHTML(detail);
-		}
+		html = markdown.toHTML(detail);
 	}
 	else
 	{
-		html = markdown.toHTML(detail);
+		html = table_to_html(detail);
 	}
 	
 	return html;

@@ -175,7 +175,7 @@ priv fn add_details(store: &Store, modeler: &Option<Object>, list: &json::List)
 		
 		entries.push((~"gnos:target",		IriValue(target)));
 		entries.push((~"gnos:title",		StringValue(label, ~"")));
-		entries.push((~"gnos:detail",		StringValue(get_str(object, ~"detail"), ~"")));
+		entries.push((~"gnos:details",		StringValue(get_str(object, ~"details"), ~"")));
 		entries.push((~"gnos:open",		StringValue(get_str(object, ~"open"), ~"")));
 		entries.push((~"gnos:sort_key",	StringValue(get_str(object, ~"sort-key"), ~"")));
 		entries.push((~"gnos:key",		StringValue(get_str(object, ~"id"), ~"")));

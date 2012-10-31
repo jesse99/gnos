@@ -340,8 +340,8 @@ def add_label(data, target, label, key, level = 0, style = ''):
 def add_gauge(data, target, label, value, level, style, sort_key):
 	data['gauges'].append({'entity-id': target, 'label': label, 'value': value, 'level': level, 'style': style, 'sort-key': sort_key})
 
-def add_details(data, target, label, detail, opened, sort_key, key):
-	data['details'].append({'entity-id': target, 'label': label, 'detail': detail, 'open': opened, 'sort-key': sort_key, 'id': key})
+def add_details(data, target, label, details, opened, sort_key, key):
+	data['details'].append({'entity-id': target, 'label': label, 'details': json.dumps(details), 'open': opened, 'sort-key': sort_key, 'id': key})
 
 def add_relation(data, left, right, style = '', left_label = None, middle_label = None, right_label = None):
 	relation = {'left-entity-id': left, 'right-entity-id': right, 'style': style}
@@ -618,7 +618,8 @@ class Poll(object):
 			detail['rows'] = sorted(rows, key = lambda row: row[0])
 			
 			target = 'entities:%s' % admin_ip
-			add_details(data, target, 'Interfaces', json.dumps(detail), opened = 'yes', sort_key = 'alpha', key = 'interfaces table')
+			footnote = '*The shaded area in the sparklines is the inter-quartile range: the range in which half the samples appear.*'
+			add_details(data, target, 'Interfaces', [detail, footnote], opened = 'yes', sort_key = 'alpha', key = 'interfaces table')
 			
 	def __add_bandwidth_chart(self, data, direction):
 		for (admin_ip, interfaces) in self.__context['interfaces'].items():
@@ -639,12 +640,12 @@ class Poll(object):
 			target = 'entities:%s' % admin_ip
 			name = "%s-%s_interfaces" % (admin_ip, direction)
 			markdown = '![bandwidth](/generated/%s.png#%s)' % (name, self.__num_samples)
-			add_details(data, target, '%s Bandwidth' % direction.title(), markdown, opened = 'no', sort_key = 'alpha-' + direction, key = '%s bandwidth' % name)
+			add_details(data, target, '%s Bandwidth' % direction.title(), [markdown], opened = 'no', sort_key = 'alpha-' + direction, key = '%s bandwidth' % name)
 			
 	def __add_system_info(self, data):
 		for (admin_ip, markdown) in self.__context['system'].items():
 			target = 'entities:%s' % admin_ip
-			add_details(data, target, 'System Info', markdown, opened = 'no', sort_key = 'a', key = 'system info')
+			add_details(data, target, 'System Info', [markdown], opened = 'no', sort_key = 'beta', key = 'system info')
 			
 	def __add_interface_uptime_alert(self, data):
 		for (key, value) in self.__context['interface_up_times'].items():

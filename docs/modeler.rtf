@@ -124,8 +124,8 @@ The JSON should be formatted like this:\
 \b label
 \b0 ": "interfaces", 		\cf2 # ignored if open is "always"\cf0 \
 			"
-\b detail
-\b0 ": "blah", 			\cf2 # markdown (can also be a table if formatted as a JSON string)\cf0 \
+\b details
+\b0 ": ["blah"], 			\cf2 # array of markdown or JSON formatted table\cf0 \
 			"
 \b open
 \b0 ": "always", 			\cf2 # or "yes" or "no"\cf0 \
@@ -176,8 +176,7 @@ The JSON should be formatted like this:\
 		\},\
 		...\
 	],\
-\pard\pardeftab480\pardirnatural
-\cf0 	"
+	"
 \b samples
 \b0 ": [\
 		\{\
@@ -194,8 +193,7 @@ The JSON should be formatted like this:\
 		\},\
 		...\
 	]\
-\pard\pardeftab480\pardirnatural
-\cf0 	"
+	"
 \b charts
 \b0 ": [\
 		\{\
@@ -203,20 +201,16 @@ The JSON should be formatted like this:\
 			"
 \b name
 \b0 ": "10.101.0.1-out_interfaces", \
-\pard\pardeftab480\pardirnatural
-\cf0 			"
+			"
 \b samples
 \b0 ": ["10.101.0.1-eth0-out_octets", ...],\
-\pard\pardeftab480\pardirnatural
-\cf0 			"
+			"
 \b legends
 \b0 ": ["eth0", ...],\
-\pard\pardeftab480\pardirnatural
-\cf0 			"
+			"
 \b title
 \b0 ": "Interface Bandwidths",\
-\pard\pardeftab480\pardirnatural
-\cf0 			"
+			"
 \b y_label
 \b0 ": "Out Bandwidth (kbps)"\
 		\},\
@@ -226,7 +220,6 @@ The JSON should be formatted like this:\
 \
 All the top level items are optional. Style and predicates are documented in styles.rtf and predicates.rtf.\
 \
-\pard\pardeftab480\pardirnatural
 \cf2 Need to describe how sampled data is sent.\
 \pard\pardeftab480\pardirnatural
 
