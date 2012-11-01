@@ -13,21 +13,21 @@ endif
 
 # ------------------
 # Primary targets
-all: bin/gnos check-js
+all: bin/gnos lint-js
 
 # gnos doesn't return so we start the client before the browser.
-run: bin/gnos check-js
+run: bin/gnos lint-js
 	export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace && export GNOS_USER && ./bin/gnos --admin --root=html --browse='http://localhost:8080' scripts/fat.json
 	#export RUST_LOG=gnos=2,rwebserve=2,socket=1 && export GNOS_USER && ./bin/gnos --admin --root=html scripts/sat.json
 
-run-db: bin/gnos check-js
+run-db: bin/gnos lint-js
 	export RUST_LOG=gnos=2,rwebserve=1,socket=1,rrdf=0 && export GNOS_USER && ./bin/gnos --admin --root=html --db scripts/fat.json --browse='http://localhost:8080'
 
 run-snmp:
 	$(SCP) scripts/fat.json scripts/snmp-modeler.py jjones@10.8.0.179: && ssh jjones@10.8.0.179 "python snmp-modeler.py -vvv --stdout  --dont-put --duration=1 mini-fat.json"
 	#$(SCP) scripts/sat.json scripts/snmp-modeler.py jjones@10.8.0.149: && ssh jjones@10.8.0.149 "python snmp-modeler.py -vvv --stdout  --duration=1 sat.json"
 	
-check-js: html/javascript/*.js html/javascript/scene/*.js
+lint-js: html/javascript/*.js html/javascript/scene/*.js
 	$(JSL) -nologo -nofilelisting -nocontext -conf jsl.conf -process 'html/javascript/*.js' -process 'html/javascript/scene/*.js'
 	
 check: bin/test-gnos
@@ -35,6 +35,9 @@ check: bin/test-gnos
 
 check1: bin/test-gnos
 	export RUST_LOG=gnos=2,rwebserve=1,socket=1,rrdf=0 && ./bin/test-gnos test_query
+
+check-js: bin/gnos lint-js
+	export RUST_LOG=gnos=2,rwebserve=1,socket=1,rrdf=0 && export GNOS_USER && ./bin/gnos --admin --root=html --db scripts/fat.json --browse='http://localhost:8080/test'
 
 # You can either use this target (assuming that the libraries are in /usr/local/lib/rust)
 # or install them via cargo.
