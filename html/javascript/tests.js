@@ -8,8 +8,26 @@ test("escapeHtml", function()
 	equal(escapeHtml(">x<"), "&gt;x&lt;");
 });
 
-test("interval_to_time", function()
+test("parse_predicate", function()
 {
-	strictEqual(interval_to_time(1), "1 millisecond");
-	strictEqual(interval_to_time(50), "50 milliseconds");
+	deepEqual(parse_predicate('false'), [false]);
+	deepEqual(parse_predicate('true'), [true]);
+	deepEqual(parse_predicate('false   true'), [false, true]);
+	
+	deepEqual(parse_predicate('42'), [42]);
+
+	deepEqual(parse_predicate('"foo"'), ['foo']);
+	deepEqual(parse_predicate("'foo bar'"), ['foo bar']);
+	
+	console.log('pp = {0:j}'.format(parse_predicate('"+ =="')));
+	deepEqual(parse_predicate('+ =='), [{type: 'operator', value: '+'}, {type: 'operator', value: '=='}]);
+
+	try
+	{
+		strictEqual(parse_predicate('false *** true'), null);
+		ok(false);
+	}
+	catch (e)
+	{
+	}
 });
