@@ -12,8 +12,6 @@
 // len, and, etc		{type: 'keyword', value: 'and'}
 function parse_predicate(expr)
 {
-	// Not sure what's going on but \w and \. are not working, maybe
-	// because I'm using a Chrome beta.
 	var parts = [
 		' +',				// whitespace (not returned)
 		'true',			// Boolean
@@ -25,7 +23,7 @@ function parse_predicate(expr)
 		'\\+|-|\\*|/|\\%|==|!=|<=|>=|<|>|and|or|contains|ends_with|starts_with',	// binary operator (Object)
 		'if',																		// ternary operator (Object)
 		'concat|log',															// variadic operator (Object)
-		'[a-zA-Z_][a-zA-Z0-9_]*[.][a-zA-Z_][a-zA-Z0-9_]*'					// member (Object)
+		'[a-zA-Z_]\\w*\\.[a-zA-Z_]\\w*'										// member (Object)
 	];
 	parts = parts.map(function (x) {return '(' + x + ')';});
 	var re = new RegExp(parts.join('|'), "gm");	// unfortunately there is no verbose option

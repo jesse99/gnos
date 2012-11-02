@@ -50,6 +50,7 @@ test("parse_predicate", function()
 	deepEqual(parse_predicate("log concat"), [{type: 'variadic', value: 'log'}, {type: 'variadic', value: 'concat'}]);
 	
 	deepEqual(parse_predicate("foo.bar"), [{type: 'member', target: 'foo', member: 'bar'}]);
+	deepEqual(parse_predicate("foo.bar_bar"), [{type: 'member', target: 'foo', member: 'bar_bar'}]);
 	
 	deepEqual(parse_predicate("options.OSPF '10.1.0.1' selection.name == and"), [
 		{type: 'member', target: 'options', member: 'OSPF'},
@@ -81,7 +82,8 @@ test("eval_predicate", function()
 	strictEqual(eval_predicate(context, '3 "foo" true 3 concat "3footrue" =='), true);
 	
 	strictEqual(eval_predicate(context, 'selection.value "ful" =='), true);
-
+	
+	eval_fails(context, 'false true');
 	eval_fails(context, 'false is_empty');
 	eval_fails(context, '42');
 });
