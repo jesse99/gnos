@@ -18,7 +18,7 @@ function parse_predicate(expr)
 		' +',				// whitespace (not returned)
 		'true',			// Boolean
 		'false',			// Boolean
-		'[0-9]+',		// Number
+		'[+-]?[0-9]+',	// Number
 		"'[^'\n\r]*'",	// String
 		'"[^"\n\r]*"',	// String
 		'is_empty|is_not_empty|len|not|to_num|to_lower|to_str|to_upper',		// unary operator (Object)

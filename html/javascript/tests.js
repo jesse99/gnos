@@ -27,6 +27,7 @@ test("parse_predicate", function()
 	deepEqual(parse_predicate('false   true'), [false, true]);
 	
 	deepEqual(parse_predicate('42'), [42]);
+	deepEqual(parse_predicate('-23'), [-23]);
 	
 	deepEqual(parse_predicate('"foo"'), ['foo']);
 	deepEqual(parse_predicate("'foo bar'"), ['foo bar']);
