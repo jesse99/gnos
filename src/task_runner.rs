@@ -26,6 +26,12 @@ pub struct Job
 	pub policy: FailurePolicy,
 }
 
+/// Run the job within the current task.
+pub fn run_blocking(job: Job, cleanup: ~[ExitFn])
+{
+	do_run(&job, cleanup);
+}
+
 /// Run the job within a task.
 pub fn run(job: Job, cleanup: ~[ExitFn])
 {

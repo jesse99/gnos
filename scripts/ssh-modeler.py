@@ -29,7 +29,7 @@ class UName(object):
 	def process(self, data, admin_ip, text, context):
 		logger.debug("uname: '%s'" % text)
 		target = 'entities:%s' % admin_ip
-		add_details(data, target, 'OS', text, opened = 'always', sort_key = 'alpha', key = 'uname')
+		add_details(data, target, 'OS', [text], opened = 'always', sort_key = 'alpha', key = 'uname')
 		
 class Uptime(object):
 	def command(self):
@@ -46,11 +46,14 @@ class Uptime(object):
 		logger.debug("uptime: '%s'" % text)
 		target = 'entities:%s' % admin_ip
 		
-		# Add an alert if the device has only been up a short time. There is potentially a lot
-		# of variation here so, for now, we'll just match what we need. TODO: Sucks to do
-		# all this lame parsing. Not sure how to do better though. Maybe proc files?
 		match = re.search(Uptime.up_expr1, text)
 		if match:
+			# Add a label with the uptime.
+			add_label(data, target, 'uptime: %s %s' % (match.group(1), match.group(2)), 'alpha', level = 2, style = 'font-size:small')
+			
+			# Add an alert if the device has only been up a short time. There is potentially a lot
+			# of variation here so, for now, we'll just match what we need. TODO: Sucks to do
+			# all this lame parsing. Not sure how to do better though. Maybe proc files?
 			if match.group(2) == 'sec' or int(match.group(1)) <= 1:
 				# TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
 				open_alert(data, target, key = 'uptime', mesg = 'Device rebooted.', resolution = '', kind = 'error')
@@ -59,6 +62,7 @@ class Uptime(object):
 			
 		match = re.search(Uptime.up_expr2, text)
 		if match:
+			add_label(data, target, 'uptime: %s' % match.group(1), 'alpha', level = 2, style = 'font-size:small')
 			close_alert(data, target, key = 'uptime')
 			
 		# The load average is an average of the number of processes forced to wait
@@ -223,7 +227,7 @@ class Poll(object):
 					add_gauge(data, target, 'processor load', value, level, style, sort_key = 'y')
 			
 	def __process_threads(self, threads):
-		data = {'modeler': 'snmp', 'entities': [], 'relations': [], 'labels': [], 'gauges': [], 'details': [], 'alerts': [], 'samples': [], 'charts': []}
+		data = {'modeler': 'ssh', 'entities': [], 'relations': [], 'labels': [], 'gauges': [], 'details': [], 'alerts': [], 'samples': [], 'charts': []}
 		for thread in threads:
 			target = 'entities:%s' % thread.ip
 			close_alert(data, target, key = 'device down')

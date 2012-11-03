@@ -16,7 +16,7 @@ pub struct Options
 	// these are from the command line
 	pub root: Path,		// points to the html directory
 	pub admin: bool,
-	pub script: ~str,
+	pub network_file: ~str,
 	pub db: bool,
 	pub browse: ~str,
 	
@@ -27,9 +27,6 @@ pub struct Options
 	pub port: u16,
 	pub poll_rate: u16,
 	pub devices: ~[Device],
-	
-	// this is from main
-	pub cleanup: ~[task_runner::ExitFn],
 }
 
 // str constants aren't supported yet.
@@ -83,7 +80,7 @@ pub fn parse_command_line(args: ~[~str]) -> Options
 	{
 		root: path::from_str(opt_str(copy matched, ~"root")),
 		admin: opt_present(copy matched, ~"admin"),
-		script: path.filename().get(),
+		network_file: path.filename().get(),
 		db: opt_present(copy matched, ~"db"),
 		browse: opt_str(copy matched, ~"browse"),
 		
@@ -93,8 +90,6 @@ pub fn parse_command_line(args: ~[~str]) -> Options
 		port: network.port,
 		poll_rate: network.poll_rate,
 		devices: network.devices,
-		
-		cleanup: ~[],		// set in main
 	}
 }
 

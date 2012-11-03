@@ -13,64 +13,78 @@ use ResponseHandler = rwebserve::rwebserve::ResponseHandler;
 
 priv fn copy_scripts(root: &Path, user: &str, host: &str) -> option::Option<~str>
 {
-	let dir = core::os::make_absolute(root).pop();	// gnos/html => /gnos
+	let dir = core::os::make_absolute(root).pop();		// gnos/html => /gnos
 	let dir = dir.push(~"scripts");						// /gnos => /gnos/scripts
 	let files = utils::list_dir_path(&dir, ~[~".json", ~".py"]);
 	
 	utils::scp_files(files, user, host)
 }
 
-priv fn run_snmp(user: &str, host: &str, script: &str) -> option::Option<~str>
-{
-	utils::run_remote_command(user, host, ~"python snmp-modeler.py -vv " + script)
-}
-
-priv fn snmp_exited(err: option::Option<~str>, state_chan: comm::Chan<model::Msg>)
+priv fn modeler_exited(script: &str, err: option::Option<~str>, state_chan: comm::Chan<model::Msg>)
 {
 	let mesg =
 		if err.is_some()
 		{
-			~"snmp-modeler.py exited with stderr:\n" + err.get()
+			fmt!("%s exited with stderr: %s\n", script, err.get())
 		}
 		else
 		{
-			~"snmp-modeler.py exited with no stderr"
+			fmt!("%s exited with no stderr", script)
 		};
 	
 	let lines = mesg.split_char('\n');
 	for lines.each |line| {error!("%s", *line)};
 	
-	let alert = model::Alert {target: ~"gnos:container", id: ~"snmp-modeler.py exited", level: ~"error", mesg: mesg, resolution: ~"Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
-	comm::send(state_chan, model::UpdateMsg(~"alerts", |store, _err| {model::open_alert(store, &alert)}, ~""));
+	let alert = model::Alert {target: ~"gnos:container", id: fmt!("%s exited", script), level: ~"error", mesg: mesg, resolution: ~"Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
+	comm::send(state_chan, model::UpdateMsg(~"primary", |store, _err| {model::open_alert(store, &alert)}, ~""));
 }
 
-priv fn setup(options: &options::Options, state_chan: comm::Chan<model::Msg>) 
+priv fn run_modeler(user: &str, host: &str, script: &str, network_file: &str) -> option::Option<~str>
 {
-	let path = options.root.push(~"generated");				// html/generated
+	utils::run_remote_command(user, host, fmt!("python %s -v %s", script, network_file))
+}
+
+priv fn setup(options: &options::Options, state_chan: comm::Chan<model::Msg>) -> ~[ExitFn]
+{
+	let mut cleanup = ~[];
+	
+	let path = options.root.push(~"generated");			// html/generated
 	if !os::path_is_dir(&path)
 	{
 		os::make_dir(&path, 7*8*8 + 7*8 + 7);
 	}
 	
 	let root = copy options.root;
-	let client2 = copy options.client;
-	let cleanup = copy options.cleanup;
+	let client = copy options.client;
+	let action: task_runner::JobFn = |copy client| copy_scripts(&root, env!("GNOS_USER"), client);
+	task_runner::run_blocking(Job {action: action, policy: task_runner::ShutdownOnFailure}, ~[]);
 	
-	let action: task_runner::JobFn = || copy_scripts(&root, env!("GNOS_USER"), client2);
-	let cp = Job {action: action, policy: task_runner::ShutdownOnFailure};
+	let network_file = copy(options.network_file);
+	let mut modelers = ~[];
+	for options.devices.each |device|
+	{
+		if !vec::contains(modelers, &@copy device.modeler)
+		{
+			let client = copy options.client;
+			let network_file = copy network_file;
+			let modeler = copy device.modeler;
+			let action: task_runner::JobFn = |copy client, copy modeler| run_modeler(env!("GNOS_USER"), client, modeler, network_file);
+			let script = Job {action: action, policy: task_runner::NotifyOnExit(|err, copy modeler| {modeler_exited(modeler, err, state_chan)})};
+			modelers.push(@copy modeler);
+			
+			let exit: task_runner::ExitFn = || {utils::run_remote_command(env!("GNOS_USER"), client, fmt!("pgrep -f %s | xargs --no-run-if-empty kill -9", modeler));};
+			task_runner::sequence(~[script], ~[copy exit]);
+			cleanup.push(exit);
+		}
+	}
 	
-	let client3 = copy options.client;
-	let ccc = copy(options.script);
-	let action: task_runner::JobFn = || run_snmp(env!("GNOS_USER"), client3, ccc);
-	let run = Job {action: action, policy: task_runner::NotifyOnExit(|err| {snmp_exited(err, state_chan)})};
-	
-	task_runner::sequence(~[cp, run], cleanup);
+	cleanup
 }
 
-priv fn get_shutdown(options: &options::Options) -> !
+priv fn get_shutdown(cleanup: ~[ExitFn]) -> !
 {
 	info!("received shutdown request");
-	for options.cleanup.each |f| {(*f)()};
+	for cleanup.each |f| {(*f)()};
 	libc::exit(0)
 }
 
@@ -117,18 +131,15 @@ fn main()
 	
 	let state_chan = do task::spawn_listener |port, copy options| {model::manage_state(port, options.server, options.port)};
 	let samples_chan = do task::spawn_listener |port| {samples::manage_samples(port)};
-	if !options.db
-	{
-		let client = copy options.client;
-		let c1: task_runner::ExitFn = || {utils::run_remote_command(env!("GNOS_USER"), client, ~"pgrep -f snmp-modeler.py | xargs --no-run-if-empty kill -9");};
-		options.cleanup = ~[c1];
-		
-		setup(&options, state_chan);
-	}
-	else
-	{
-		db::setup(state_chan, options.poll_rate);
-	}
+	let cleanup = if !options.db
+		{
+			setup(&options, state_chan)
+		}
+		else
+		{
+			db::setup(state_chan, options.poll_rate);
+			~[]
+		};
 	
 	let options1 = copy options;
 	comm::send(state_chan, model::UpdateMsg(~"globals", |store, _err| {update_globals(store, &options1)}, ~""));
@@ -141,7 +152,7 @@ fn main()
 	let home_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, response: &Response, copy options| {get_home::get_home(&options, response)};
 	let modeler_p: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {put_snmp::put_snmp(&options, state_chan, samples_chan, request, response)};
 	let query_store_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {get_query_store::get_query_store(&options, request, response)};
-	let bail_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, _response: &Response, copy options| {get_shutdown(&options)};
+	let bail_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, _response: &Response| {get_shutdown(copy cleanup)};
 	let static_v: ResponseHandler = |config: &ConnConfig, request: &Request, response: &Response, copy options| {static_view(&options, config, request, response)};
 	let test_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response| {get_test::get_test(request, response)};
 	
