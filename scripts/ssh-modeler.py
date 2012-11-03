@@ -14,6 +14,13 @@ except:
 logger = None
 connection = None
 
+def find_index(line, needle):
+	parts = line.split()
+	for i in xrange(0, len(parts)):
+		if parts[i].startswith(needle):
+			return i
+	return None
+
 class UName(object):
 	def command(self):
 		return 'uname -a'
@@ -40,9 +47,8 @@ class Uptime(object):
 		target = 'entities:%s' % admin_ip
 		
 		# Add an alert if the device has only been up a short time. There is potentially a lot
-		# of variation here so, for now, we'll just match what we need. TODO: Better to try
-		# and match everything so we have some hope of spotting problems. Even better
-		# would be to use something more suitable for machine parsing (proc file?).
+		# of variation here so, for now, we'll just match what we need. TODO: Sucks to do
+		# all this lame parsing. Not sure how to do better though. Maybe proc files?
 		match = re.search(Uptime.up_expr1, text)
 		if match:
 			if match.group(2) == 'sec' or int(match.group(1)) <= 1:
@@ -54,10 +60,11 @@ class Uptime(object):
 		match = re.search(Uptime.up_expr2, text)
 		if match:
 			close_alert(data, target, key = 'uptime')
-				
+			
 		# The load average is an average of the number of processes forced to wait
 		# for CPU over the last 1, 5, and 15 minutes. We'll record the average for the 
-		# last minute.
+		# last minute so that we can compute processor load after we know how many
+		# cores there are.
 		match = re.search(Uptime.load_expr, text)
 		if match:
 			context['load averages'][admin_ip] = float(match.group(1))
@@ -72,6 +79,76 @@ class CpuInfo(object):
 		logger.debug("cpuinfo: '%s'" % text)
 		if text.isdigit():
 			context['num_cores'][admin_ip] = int(text)
+		
+class Df(object):
+	def command(self):
+		return 'df -h'
+		
+	# Filesystem                Size      Used Available Use% Mounted on
+	# /dev/root                 6.6M      6.6M         0 100% /rom
+	# tmpfs                    30.5M     60.0K     30.5M   0% /tmp
+	# tmpfs                   512.0K         0    512.0K   0% /dev
+	# /dev/mtdblock3            7.3M    724.0K      6.5M  10% /overlay
+	# overlayfs:/overlay        7.3M    724.0K      6.5M  10% /
+	def process(self, data, admin_ip, text, context):
+		lines = text.splitlines()
+		logger.debug("df: '%s'" % lines)
+		
+		use_index = find_index(lines[0], "Use%")
+		mount_index = find_index(lines[0], "Mount")
+		if use_index and mount_index:
+			target = 'entities:%s' % admin_ip
+			for line in lines[1:]:
+				self.__process_line(data, target, line, use_index, mount_index)
+				
+	def __process_line(self, data, target, line, use_index, mount_index):
+		parts = line.split()
+		if parts[mount_index] != '/rom':
+			value = int(parts[use_index][:-1])/100.0
+			level = None
+			if value >= 0.90:
+				level = 1
+				style = 'gauge-bar-color:salmon'
+			elif value >= 0.75:
+				level = 2
+				style = 'gauge-bar-color:darkorange'
+			elif value >= 0.50:
+				level = 3
+				style = 'gauge-bar-color:skyblue'
+			if level:
+				add_gauge(data, target, parts[mount_index], value, level, style, sort_key = 'zzz')
+		
+class Netstat(object):
+	def command(self):
+		return 'netstat -rn'
+		
+	# Kernel IP routing table
+	# Destination     Gateway         Genmask         Flags   MSS Window  irtt Iface
+	# 10.103.0.0      0.0.0.0         255.255.255.0   U         0 0          0 eth0
+	# 0.0.0.0         10.103.0.2      0.0.0.0         UG        0 0          0 eth0
+	def process(self, data, admin_ip, text, context):
+		lines = text.splitlines()
+		logger.debug("netstat: '%s'" % lines)
+		
+		gateway_index = find_index(lines[1], "Gateway")
+		if gateway_index:
+			target = 'entities:%s' % admin_ip
+			for line in lines[2:]:
+				self.__process_line(data, target, line, gateway_index)
+				
+	# TODO: In general the gateway IP will not be the admin IP. Not sure what the
+	# best way to handle this is. Maybe we could point to an alias subject whose value
+	# is the actual gateway device subject.
+	def __process_line(self, data, target, line, gateway_index):
+		parts = line.split()
+		if parts[gateway_index] != '0.0.0.0':
+			right = 'entities:%s' % parts[gateway_index]
+			style = 'line-type:directed'
+			add_relation(data, target, right, style, middle_label = {'label': 'gateway', 'level': 1, 'style': 'font-size:small'})
+			
+# TODO:
+# add interface table, use: /usr/sbin/ip address show
+# add interface stats, use: /usr/sbin/ip -s  link (netstat -i would be nicer, but not always available)
 		
 class DeviceRunner(object):
 	def __init__(self, ip, ssh, handlers):
@@ -101,7 +178,7 @@ class Poll(object):
 		self.__config = config
 		self.__startTime = time.time()
 		self.__last_time = None
-		self.__handlers = [UName(), Uptime(), CpuInfo()]
+		self.__handlers = [UName(), Uptime(), CpuInfo(), Df(), Netstat()]
 		self.__context = {}
 		self.__num_samples = 0
 	
@@ -142,9 +219,6 @@ class Poll(object):
 				elif value >= 0.50:
 					level = 3
 					style = 'gauge-bar-color:skyblue'
-				else:				# TODO: get rid of this case
-					level = 4
-					style = 'gauge-bar-color:green'
 				if level:
 					add_gauge(data, target, 'processor load', value, level, style, sort_key = 'y')
 			
