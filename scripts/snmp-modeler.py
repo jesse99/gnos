@@ -404,7 +404,7 @@ class DeviceThread(threading.Thread):
 	# When only a few items are used it would be faster to use something like:
 	# snmpbulkget -v2c -c public 10.101.0.2 -Oq -Ot -OU -OX ipRouteMask ipFragFails ipDefaultTTL
 	def __walk_mib(self, name):
-		command = 'snmpbulkwalk -v2c %s %s -Oq -Ot -OU -OX %s' % (self.__authentication, self.ip, name)
+		command = 'snmpbulkwalk %s %s -Oq -Ot -OU -OX %s' % (self.__authentication, self.ip, name)
 		try:
 			result = run_process(command)
 		except:

@@ -10,7 +10,7 @@
 		"GRS-2":
 		{
 			"ip": "10.102.0.2",
-			"authentication": "-c public",
+			"authentication": "-v2c -c public",
 			"modeler": "snmp-modeler.py"
 		},
 		"App-2":
