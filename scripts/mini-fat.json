@@ -10,8 +10,7 @@
 		"GRS-2":
 		{
 			"ip": "10.102.0.2",
-			"community": "public",
-			"type": "router"
+			"authentication": "public"
 		}
 	}
 }
