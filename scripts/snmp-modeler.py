@@ -399,10 +399,10 @@ def run_process(command):
 	return outData
 
 class DeviceThread(threading.Thread):
-	def __init__(self, ip, community, mib_names):
+	def __init__(self, ip, authentication, mib_names):
 		threading.Thread.__init__(self)
 		self.ip = ip
-		self.__community = community
+		self.__authentication = authentication
 		self.__mib_names = mib_names
 		self.results = None									# mapping from mib name to results of the query for that mib
 		
@@ -414,7 +414,7 @@ class DeviceThread(threading.Thread):
 	# When only a few items are used it would be faster to use something like:
 	# snmpbulkget -v2c -c public 10.101.0.2 -Oq -Ot -OU -OX ipRouteMask ipFragFails ipDefaultTTL
 	def __walk_mib(self, name):
-		command = 'snmpbulkwalk -v2c -c "%s" %s -Oq -Ot -OU -OX %s' % (self.__community, self.ip, name)
+		command = 'snmpbulkwalk -v2c %s %s -Oq -Ot -OU -OX %s' % (self.__authentication, self.ip, name)
 		try:
 			result = run_process(command)
 		except:
@@ -648,7 +648,7 @@ class Poll(object):
 	def __spawn_threads(self):
 		threads = []
 		for (name, device) in self.__config["devices"].items():
-			thread = DeviceThread(device['ip'], device['community'], self.__handlers.keys())
+			thread = DeviceThread(device['ip'], device['authentication'], self.__handlers.keys())
 			thread.start()
 			threads.append(thread)
 		return threads

@@ -7,8 +7,6 @@ pub struct Device
 {
 	pub name: ~str,
 	pub managed_ip: ~str,
-	pub community: ~str,
-	pub style: ~str,
 }
 
 /// Various options derived from the command line and the network.json file.
@@ -196,8 +194,6 @@ priv fn get_network_device(path: &Path, name: &str, value: &std::json::Json) -> 
 			Device {
 				name: name.to_unique(),
 				managed_ip: get_network_str(path, *value, &~"ip"),
-				community: get_network_str(path, *value, &~"community"),
-				style: get_network_str(path, *value, &~"type"),
 			}
 		}
 		ref x =>

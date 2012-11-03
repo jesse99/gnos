@@ -132,10 +132,7 @@ def send_update(config, connection, data):
 def send_entities(config, connection):
 	entities = []
 	for (name, device) in config["devices"].items():
-		if device['type'] == "router":
-			style = "font-size:larger font-weight:bolder"
-		else:
-			style = ""
+		style = "font-size:larger font-weight:bolder"
 		entity = {"id": device['ip'], "label": name, "style": style}
 		logger.debug("entity: %s" % entity)
 		entities.append(entity)
