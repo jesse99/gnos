@@ -165,7 +165,7 @@ fn main()
 			(~"GET", ~"/query-store", ~"query_store"),
 			(~"GET", ~"/subject/{name}/*subject", ~"subject"),
 			(~"GET", ~"/test", ~"test"),
-			(~"PUT", ~"/snmp-modeler", ~"modeler"),
+			(~"PUT", ~"/modeler", ~"modeler"),
 		],
 		views: ~[
 			(~"home",  home_v),

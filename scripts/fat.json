@@ -4,7 +4,7 @@
 	"client": "10.8.0.179",
 	"server": "10.6.210.197",
 	"port": 8080,
-	"path": "/snmp-modeler",
+	"path": "/modeler",
 	"devices":
 	{
 		"GRS-1":
