@@ -2,8 +2,7 @@
 # This script uses snmp to periodically model a network, encodes it into a json 
 # dictionary, and ships the dictionary off to gnos using an http POST.  This
 # is designed to be a generic modeler suitable for pretty much any device 
-# running SNMP. Other modelers can be used to model more specialized
-# functionality (like OSPF and PIM).
+# running SNMP.
 #
 # We use a Python script instead of simply doing this within gnos for a few
 # different reasons:
@@ -16,7 +15,7 @@
 # to an arbitrary LAN.
 # 4) This design makes it easy for users to write custom modelers using ssh
 # or whatever.
-import cgi, json, itertools, httplib, logging, logging.handlers, re, subprocess, sys, threading, time
+import cgi, json, itertools, httplib, re, sys, threading, time
 from base_modeler import *
 
 try:
@@ -25,8 +24,7 @@ except:
 	sys.stderr.write("This script requires Python 2.7 or later\n")
 	sys.exit(2)
 	
-logger = logging.getLogger('snmp-modeler')
-set_logger(logger)
+logger = None
 connection = None
 
 # http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput=sysDescr&translate=Translate&submitValue=SUBMIT&submitClicked=true
@@ -390,14 +388,6 @@ def add_units(value, unit):
 		value = '%s %s' % (value, unit)
 	return value
 
-def run_process(command):
-	process = subprocess.Popen(command, bufsize = 8*1024, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-	(outData, errData) = process.communicate()
-	if process.returncode != 0:
-		logger.error(errData)
-		raise ValueError('return code was %s:' % process.returncode)
-	return outData
-
 class DeviceThread(threading.Thread):
 	def __init__(self, ip, authentication, mib_names):
 		threading.Thread.__init__(self)
@@ -437,7 +427,7 @@ class Poll(object):
 	
 	def run(self):
 		rate = self.__config['poll-rate']
-		while time.time() - self.__startTime < self.__args.duration:
+		while True:
 			self.__current_time = time.time()
 			if not self.__args.put:
 				logger.info("-" * 60)
@@ -468,7 +458,10 @@ class Poll(object):
 			self.__last_time = self.__current_time
 			self.__num_samples += 1
 			logger.info('elapsed: %.1f seconds' % elapsed)
-			time.sleep(max(rate - elapsed, 5))
+			if time.time() - self.__startTime < self.__args.duration:
+				time.sleep(max(rate - elapsed, 5))
+			else:
+				break
 			
 	def __add_interfaces_table(self, data):
 		for (admin_ip, interfaces) in self.__context['interfaces'].items():
@@ -648,9 +641,10 @@ class Poll(object):
 	def __spawn_threads(self):
 		threads = []
 		for (name, device) in self.__config["devices"].items():
-			thread = DeviceThread(device['ip'], device['authentication'], self.__handlers.keys())
-			thread.start()
-			threads.append(thread)
+			if device['modeler'] == 'snmp-modeler.py':
+				thread = DeviceThread(device['ip'], device['authentication'], self.__handlers.keys())
+				thread.start()
+				threads.append(thread)
 		return threads
 
 # Parse command line.
@@ -664,23 +658,7 @@ parser.add_argument("config", metavar = "CONFIG-FILE", help = "path to json form
 args = parser.parse_args()
 
 # Configure logging.
-if args.verbose <= 1:
-	logger.setLevel(logging.WARNING)
-elif args.verbose == 2:
-	logger.setLevel(logging.INFO)
-else:
-	logger.setLevel(logging.DEBUG)
-	
-if args.stdout:
-	handler = logging.StreamHandler()
-	formatter = logging.Formatter('%(asctime)s  %(message)s', datefmt = '%I:%M:%S')
-else:
-	# Note that we don't use SysLogHandler because, on Ubuntu at least, /etc/default/syslogd
-	# has to be configured to accept remote logging requests.
-	handler = logging.FileHandler('snmp-modeler.log', mode = 'w')
-	formatter = logging.Formatter('%(asctime)s  %(message)s', datefmt = '%m/%d %I:%M:%S %p')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+logger = configure_logging(args, 'snmp-modeler.log')
 
 # Read config info.
 config = None
@@ -692,7 +670,8 @@ if args.put:
 	connection = httplib.HTTPConnection(address, strict = True, timeout = 10)
 
 try:
-	# Send entity information to the server.
+	# Send entity information to the server. TODO: only one modeler should do this,
+	# maybe use a command-line option?
 	send_entities(config, connection)
 	
 	# Start polling each device.

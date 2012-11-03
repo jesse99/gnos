@@ -82,6 +82,7 @@ javascript model/view: http://documentcloud.github.com/backbone/
 * HTML5 has notifications:
 	- http://www.paulund.co.uk/html5-notifications
 	- still not widely supported
+* Might be able to use web storage to store the data required to handle time-based replay
 * HTML5 apparently does support extending the browser's context menu:
 	- <section contextmenu="mymenu">
 	  <!-- 

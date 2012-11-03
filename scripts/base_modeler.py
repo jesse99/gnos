@@ -1,28 +1,29 @@
-#!/usr/bin/python
-# This script uses snmp to periodically model a network, encodes it into a json 
-# dictionary, and ships the dictionary off to gnos using an http POST.  This
-# is designed to be a generic modeler suitable for pretty much any device 
-# running SNMP. Other modelers can be used to model more specialized
-# functionality (like OSPF and PIM).
-#
-# We use a Python script instead of simply doing this within gnos for a few
-# different reasons:
-# 1) There are already Python snmp wrapper libraries. (This was written when
-# the code still used pysnmp. Unfortunately pysnmp is not documented very well
-# once you start doing anything sophisticated. It also has a rather ridiculous API).
-# 2) Using a separate script will make it easier for gnos to manage multiple LANs.
-# 3) This separation simplifies development. In particular gnos can run on a 
-# developer machine and the script can run on an arbitrary machine connected
-# to an arbitrary LAN.
-# 4) This design makes it easy for users to write custom modelers using ssh
-# or whatever.
-import json, socket
+# Misc functions that pretty much every Python modeler will need to use.
+import json, logging, logging.handlers, socket, subprocess
 
 logger = None
 
-def set_logger(x):
+def configure_logging(args, file_name):
 	global logger
-	logger = x
+	logger = logging.getLogger(file_name)
+	if args.verbose <= 1:
+		logger.setLevel(logging.WARNING)
+	elif args.verbose == 2:
+		logger.setLevel(logging.INFO)
+	else:
+		logger.setLevel(logging.DEBUG)
+		
+	if args.stdout:
+		handler = logging.StreamHandler()
+		formatter = logging.Formatter('%(asctime)s  %(message)s', datefmt = '%I:%M:%S')
+	else:
+		# Note that we don't use SysLogHandler because, on Ubuntu at least, /etc/default/syslogd
+		# has to be configured to accept remote logging requests.
+		handler = logging.FileHandler(file_name, mode = 'w')
+		formatter = logging.Formatter('%(asctime)s  %(message)s', datefmt = '%m/%d %I:%M:%S %p')
+	handler.setFormatter(formatter)
+	logger.addHandler(handler)
+	return logger
 
 def add_label(data, target, label, key, level = 0, style = ''):
 	if label:
@@ -109,6 +110,14 @@ def get_subnet(s):
 			return s		# unusual netmask where 0s and 1s are mixed.
 	else:
 		'?'
+
+def run_process(command):
+	process = subprocess.Popen(command, bufsize = 8*1024, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+	(outData, errData) = process.communicate()
+	if process.returncode != 0:
+		logger.error(errData)
+		raise ValueError('return code was %s:' % process.returncode)
+	return outData
 
 def send_update(config, connection, data):
 	logger.debug("sending update")

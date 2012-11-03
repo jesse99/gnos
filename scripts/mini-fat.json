@@ -10,7 +10,14 @@
 		"GRS-2":
 		{
 			"ip": "10.102.0.2",
-			"authentication": "public"
+			"authentication": "-c public",
+			"modeler": "snmp-modeler.py"
+		},
+		"App-2":
+		{
+			"ip": "10.102.0.10",
+			"ssh": "sshpass -p root ssh -f root@",
+			"modeler": "ssh-modeler.py"
 		}
 	}
 }
