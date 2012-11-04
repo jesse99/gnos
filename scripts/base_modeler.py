@@ -39,7 +39,7 @@ def add_gauge(data, target, label, value, level, style, sort_key):
 def add_details(data, target, label, details, opened, sort_key, key):
 	data['details'].append({'entity-id': target, 'label': label, 'details': json.dumps(details), 'open': opened, 'sort-key': sort_key, 'id': key})
 
-def add_relation(data, left, right, style = '', left_label = None, middle_label = None, right_label = None):
+def add_relation(data, left, right, style = '', left_label = None, middle_label = None, right_label = None, predicate = None):
 	relation = {'left-entity-id': left, 'right-entity-id': right, 'style': style}
 	if left_label:
 		relation['left-label'] = left_label
@@ -47,6 +47,8 @@ def add_relation(data, left, right, style = '', left_label = None, middle_label 
 		relation['middle-label'] = middle_label
 	if right_label:
 		relation['right-label'] = right_label
+	if predicate:
+		relation['predicate'] = predicate
 	data['relations'].append(relation)
 
 def open_alert(data, target, key, mesg, resolution, kind):

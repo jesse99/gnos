@@ -26,9 +26,10 @@ NoOpShape.prototype.toString = function ()
 
 // ---- LineShape class -------------------------------------------------------
 // arrows are objects with stem_height and base_width properties
-function LineShape(context, line, styles, from_arrow, to_arrow)
+function LineShape(context, line, styles, from_arrow, to_arrow, predicate)
 {
 	this.styles = ['line-color:black'].concat(styles).filter(function (s) {return s.indexOf('line-') === 0;});
+	this.predicate = predicate;
 	
 	context.save();
 	apply_styles(context, this.styles);
@@ -139,11 +140,12 @@ LineShape.prototype.do_draw_arrow = function(context, unit, tip, x, y, arrow)
 
 // ---- GaugeShape class ------------------------------------------------
 // value should be in [0, 1].
-function GaugeShape(context, center, value, title, styles, sort_key)
+function GaugeShape(context, center, value, title, styles, sort_key, predicate)
 {
 	assert(value >= 0 && value <= 1, "value is oor: " + value);
 	this.base_styles = styles;
 	this.sort_key = sort_key;
+	this.predicate = predicate;
 	
 	this.label = new TextLineShape(context, center, title, ['font-size:small'].concat(styles));
 	this.base_width = 1.3*this.label.width;
@@ -193,12 +195,13 @@ GaugeShape.prototype.toString = function ()
 
 // ---- DiscShape class -------------------------------------------------------
 // Draws a filled disc. If context.lineWidth is non-zero a border is also added.
-function DiscShape(context, disc, styles)
+function DiscShape(context, disc, styles, predicate)
 {
 	this.geometry = disc;
 	this.styles = ['frame-color:black', 'frame-back-color:white'].concat(styles).filter(function (s) {return s.indexOf('frame-') === 0;});
 	this.width = disc.radius;
 	this.height = disc.radius;
+	this.predicate = predicate;
 	
 	context.save();
 	apply_styles(context, this.styles);
@@ -246,11 +249,12 @@ DiscShape.prototype.toString = function ()
 
 // ---- RectShape class -------------------------------------------------------
 // Draws a filled rectangle. If context.lineWidth is non-zero a border is also added.
-function RectShape(context, rect, styles)
+function RectShape(context, rect, styles, predicate)
 {
 	this.geometry = rect;
 	this.width = rect.width;
 	this.height = rect.height;
+	this.predicate = predicate;
 	
 	this.set_styles(context, styles);
 }
@@ -384,12 +388,13 @@ RectShape.prototype.toString = function ()
 //              Or a function taking a this argument returning a Point.
 // text - The string to draw.
 // style - Array of style name:value
-function TextLineShape(context, center, text, styles, sort_key)
+function TextLineShape(context, center, text, styles, sort_key, predicate)
 {
 	this.geometry = Point.zero;
 	this.text = text;
 	this.styles = ['font-color:black'].concat(styles).filter(function (s) {return s.indexOf('font-') === 0;});
 	this.sort_key = sort_key;
+	this.predicate = predicate;
 	
 	this.stats = this.do_prep_center_text(context);
 	this.width = this.stats.width;

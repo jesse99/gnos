@@ -11,12 +11,16 @@ GNOS.selection = undefined;
 GNOS.loaded_entities = false;
 GNOS.screen_padding = 80;		// px
 GNOS.windows = {};
+GNOS.options = {};
 
 $(document).ready(function()
 {
 	var map = document.getElementById('map');
 	var context = map.getContext('2d');
 	GNOS.scene = new Scene(context);
+	
+	var dropdown = $('#options_dropdown');
+	dropdown.change(options_changed);
 	
 	resize_canvas();
 	window.onresize = resize_canvas;
@@ -36,6 +40,49 @@ $(document).ready(function()
 	initEntityDragging();
 	$('#map').dblclick(handle_dblclick);
 });
+
+function update_predicates(predicate)
+{
+	function get_options(predicate)
+	{
+		var options = [];
+		
+		try
+		{
+			var expr = parse_predicate(predicate);
+			$.each(expr, function (i, term)
+			{
+				if ($.isPlainObject(term) && 'type' in term && term.type === 'member' && term.target === 'options')
+					options.push(term.member);
+			});
+		}
+		catch (e)
+		{
+			console.log("'{0}' failed to parse: {1}".format(predicate, e));
+		}
+		
+		return options;
+	}
+	
+	$.each(get_options(predicate), function (i, option)
+	{
+		if (!(option in GNOS.options))
+		{
+			var dropdown = $('#options_dropdown')[0];
+			dropdown.add(new Option(option.replace('_', ' '), option));
+			GNOS.options[option] = false;
+		}
+	});
+}
+
+function options_changed(e)
+{
+	$('#options_dropdown').children().each(function (i, option)
+	{
+		GNOS.options[option.value] = option.selected;
+	});
+	console.log("selected: {0:j}".format(GNOS.options));
+}
 
 function handle_dblclick(e)
 {
@@ -395,6 +442,9 @@ function entities_query(solution)
 	var context = map.getContext('2d');
 	$.each(solution, function (i, row)
 	{
+		if (row.predicate)
+			update_predicates(row.predicate);
+		
 		var style = row.style || "";
 		var styles = style.split(' ');
 		var label = new TextLineShape(context, Point.zero, row.title, styles, 0);
@@ -416,9 +466,12 @@ function labels_query(solution)
 	var context = map.getContext('2d');
 	$.each(solution, function (i, row)
 	{
+		if (row.predicate)
+			update_predicates(row.predicate);
+		
 		var style = row.style || "";
 		var styles = style.split(' ');
-		var label = new TextLineShape(context, Point.zero, row.label, styles, row.sort_key);
+		var label = new TextLineShape(context, Point.zero, row.label, styles, row.sort_key, row.predicate);
 		
 		labels[row.subject] = {target: row.target, shape: label, level: row.level, predicate: row.predicate || ""};
 	});
@@ -437,9 +490,12 @@ function gauges_query(solution)
 	var context = map.getContext('2d');
 	$.each(solution, function (i, row)
 	{
+		if (row.predicate)
+			update_predicates(row.predicate);
+		
 		var style = row.style || "";
 		var styles = style.split(' ');
-		var gauge = new GaugeShape(context, Point.zero, row.value, row.title, styles, row.sort_key);
+		var gauge = new GaugeShape(context, Point.zero, row.value, row.title, styles, row.sort_key, row.predicate);
 		
 		gauges.push({target: row.target, shape: gauge, level: row.level, predicate: row.predicate || ""});
 	});
@@ -466,12 +522,15 @@ function alerts_query(solution)
 	{
 		$.each(table, function (target, count)
 		{
+			if (row.predicate)
+				update_predicates(row.predicate);
+			
 			if (count == 1)
 				var label = "1 {0} alert".format(suffix);
 			else
 				var label = "{0} {1} alerts".format(count, suffix);
 				
-			var label = new TextLineShape(context, Point.zero, label, styles, 999);
+			var label = new TextLineShape(context, Point.zero, label, styles, 999, row.predicate);
 			alerts.push({target: target, shape: label, level: level, predicate: ""});
 		});
 	}
@@ -505,6 +564,9 @@ function relations_query(solution)
 	var relations = [];
 	$.each(solution, function (i, row)
 	{
+		if (row.predicate)
+			update_predicates(row.predicate);
+		
 		var style = row.style || "";
 		var styles = style.split(' ');
 		
@@ -609,7 +671,7 @@ function map_renderer(element, model, model_names)
 			
 			// Unfortunately we can't create this shape until after all the other sub-shapes are created.
 			// So it's simplest just to create the shape here.
-			var shape = new EntityShape(context, entity.target, Point.zero, entity.styles, child_shapes);
+			var shape = new EntityShape(context, entity.target, Point.zero, entity.styles, child_shapes, entity.predicate);
 			add_node_styles(shape, entity.styles);
 			nodes[entity.target] = shape;
 			
@@ -639,7 +701,7 @@ function map_renderer(element, model, model_names)
 				{
 					var styles = ['frame-width:0', 'frame-back-color:white'];
 					var children = [label.shape];
-					var child = new EntityShape(context, "", Point.zero, styles, children);
+					var child = new EntityShape(context, "", Point.zero, styles, children, label.predicate);
 					shape.add_shape(p, child);
 				}
 			}
@@ -653,7 +715,7 @@ function map_renderer(element, model, model_names)
 		$.each(model.relations, function (i, relation)
 		{
 			var line = new Line(new Point(0, 0), new Point(1, 0));
-			var shape = new LineShape(context, line, relation.styles);
+			var shape = new LineShape(context, line, relation.styles, null, null, relation.predicate);
 			shape.from_node = relation.left;
 			shape.to_node = relation.right;
 			
@@ -697,7 +759,7 @@ function map_renderer(element, model, model_names)
 
 // ---- EntityShape class -------------------------------------------------------
 // Used to draw a device consisting of a RectShape and an array of arbitrary shapes.
-function EntityShape(context, name, center, styles, shapes)
+function EntityShape(context, name, center, styles, shapes, predicate)
 {
 	this.width = 14 + shapes.reduce(function(value, shape)
 	{
@@ -714,13 +776,14 @@ function EntityShape(context, name, center, styles, shapes)
 	
 	this.shapes = shapes;
 	this.name = name;
+	this.predicate = predicate;
 	this.clickable = true;
 	this.set_center(context, center);
 }
 
 EntityShape.prototype.set_center = function (context, center)
 {
-	this.rect = new RectShape(context, new Rect(center.x - this.width/2, center.y - this.total_height/2, this.width, this.total_height), this.styles);
+	this.rect = new RectShape(context, new Rect(center.x - this.width/2, center.y - this.total_height/2, this.width, this.total_height), this.styles, this.predicate);
 	this.center = center;
 };
 

@@ -17,6 +17,7 @@ with dynamic content set according to the selection and insprector settings. -->
 		<script defer="true" src="/javascript/scene/styles.js"></script>
 		<script defer="true" src="/javascript/scene/shapes.js"></script>
 		<script defer="true" src="/javascript/scene/scene.js"></script>
+		<script defer="true" src="/javascript/predicate.js"></script>
 		
 		<script defer="true" src="/javascript/home.js"></script>
 		<title>{{network-name}}</title>
@@ -26,12 +27,17 @@ with dynamic content set according to the selection and insprector settings. -->
 	<body>
 		<section class='col-box'>
 			<section id='header'>
-				<section class='col-box'>
-					<input id="entity_detail" class='input'value="1" min="0" max="3" step="1" type="range">
+				<section class='col-box flex-center'>
+					<input id="entity_detail" class='input' type="range" value="1" min="0" max="3" step="1">
 					<section id="entity_detail_label" class='input-label'>Info Detail</section>
 				</section>
-				<section id='foo' class='col-box align-right'>
-					<input id="relation_detail" class='input'value="1" min="0" max="3" step="1" type="range">
+				<section class='flex-center'>
+					<select id="options_dropdown">
+						<option value="none">none </option>
+					</select>
+				</section>
+				<section class='col-box flex-center'>
+					<input id="relation_detail" class='input' type="range"value="1" min="0" max="3" step="1">
 					<section id="relation_detail_label" class='input-label'>Relation Detail</section>
 				</section>
 			</section>

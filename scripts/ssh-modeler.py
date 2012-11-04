@@ -148,7 +148,8 @@ class Netstat(object):
 		if parts[gateway_index] != '0.0.0.0':
 			right = 'entities:%s' % parts[gateway_index]
 			style = 'line-type:directed'
-			add_relation(data, target, right, style, middle_label = {'label': 'gateway', 'level': 1, 'style': 'font-size:small'})
+			predicate = 'options.next_hop'
+			add_relation(data, target, right, style, middle_label = {'label': 'gateway', 'level': 1, 'style': 'font-size:small'}, predicate = predicate)
 			
 # TODO:
 # add interface table, use: /usr/sbin/ip address show

@@ -1,5 +1,6 @@
 @import "common.css";
 
+/* Some good flexbox examples at: http://codepen.io/edge0703/full/qstIo */
 #map
 {
 	background: #ffffff;
@@ -10,6 +11,13 @@
 {
 	display: -webkit-flex;
 	-webkit-flex-direction: row;
+	-webkit-justify-content: space-between;
+}
+
+.flex-center
+{
+	-webkit-align-content: center;
+	-webkit-flex-wrap: wrap;
 }
 
 .col-box
@@ -22,6 +30,11 @@
 {
 	display: -webkit-flex;
 	-webkit-flex-direction: row;
+}
+
+.align-middle
+{
+	-webkit-align-self: center;
 }
 
 .align-right

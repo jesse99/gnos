@@ -204,7 +204,8 @@ priv fn add_relations(store: &Store, modeler: &Option<Object>, list: &json::List
 			sub_entries.push((~"gnos:label",		StringValue(get_str(sub_object, ~"label"), ~"")));
 			sub_entries.push((~"gnos:level", 		IntValue(get_i64(sub_object, ~"level"))));
 			sub_entries.push((~"gnos:sort_key",	StringValue(~"a", ~"")));
-			do optional_str(sub_object, ~"style") |value| {sub_entries.push((~"gnos:style", StringValue(value, ~"")))};
+			do optional_str(sub_object, ~"style") 		|value| {sub_entries.push((~"gnos:style", StringValue(value, ~"")))};
+			do optional_str(sub_object, ~"predicate") |value| {sub_entries.push((~"gnos:predicate", StringValue(value, ~"")))};
 			
 			let sub_target = get_blank_name(store, ~"label");
 			store.add(sub_target, sub_entries);
@@ -227,7 +228,8 @@ priv fn add_relations(store: &Store, modeler: &Option<Object>, list: &json::List
 		
 		entries.push((~"gnos:left",		IriValue(left)));
 		entries.push((~"gnos:right",	IriValue(right)));
-		do optional_str(object, ~"style") |value| {entries.push((~"gnos:style", StringValue(value, ~"")))};
+		do optional_str(object, ~"style")		|value| {entries.push((~"gnos:style", StringValue(value, ~"")))};
+		do optional_str(object, ~"predicate")	|value| {entries.push((~"gnos:predicate", StringValue(value, ~"")))};
 		
 		add_label(store, modeler, object, &mut entries, target, ~"left");
 		add_label(store, modeler, object, &mut entries, target, ~"middle");

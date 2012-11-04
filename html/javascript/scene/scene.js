@@ -26,6 +26,26 @@ function Scene(context)
 	};
 }
 
+function evaluate(predicate)
+{
+	var passed = true;
+	
+	if (predicate)
+	{
+		try
+		{
+			var context = {'options': GNOS.options, 'selection': GNOS.selection};
+			passed = eval_predicate(context, predicate);
+		}
+		catch (e)
+		{
+			console.log("'{0}' failed to evaluate: {1}".format(predicate, e));
+		}
+	}
+	
+	return passed;
+}
+
 // Sets the pixel dimensions used when drawing nodes and edges.
 // Padding is interpreted as in the CSS padding property.
 Scene.prototype.set_screen_size = function (width, height, padding)
@@ -108,7 +128,8 @@ Scene.prototype.draw = function (context)
 		}
 		else
 		{
-			shape.draw(context);
+			if (evaluate(shape.predicate))
+				shape.draw(context);
 		}
 		
 		// Make sure thet the properties we set still have their awful values.
@@ -199,11 +220,13 @@ Scene.prototype.do_draw_graph = function (context)
 {
 	this.particles.eachEdge(function (edge)
 	{
-		edge.data.draw(context);
+		if (evaluate(edge.data.predicate))
+			edge.data.draw(context);
 	});
 	
 	this.particles.eachNode(function (node)
 	{
-		node.data.draw(context);
+		if (evaluate(node.data.predicate))
+			node.data.draw(context);
 	});
 };
