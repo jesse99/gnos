@@ -27,6 +27,79 @@ except:
 logger = None
 connection = None
 
+# Used to store details about an interface on a device.
+class Interface(object):
+	def __init__(self):
+		self.__active = False
+		self.__mac_addr = '?'
+		self.__name = ''
+		self.__ip = ''
+		self.__net_mask = ''
+		self.__speed = 0.0
+		self.__mtu = ''
+		self.__in_octets = 0.0
+		self.__out_octets = 0.0
+	
+	def set_ip(self, ip, net_mask):
+		self.__ip = ip
+		self.__net_mask = net_mask
+	
+	def set_if(self, desc, active, mac_addr, speed, mtu, in_octets, out_octets):
+		self.__active = active
+		self.__mac_addr = mac_addr
+		self.__name = desc
+		self.__speed = speed
+		self.__mtu = mtu
+		self.__in_octets = in_octets
+		self.__out_octets = out_octets
+	
+	@property
+	def name(self):
+		return self.__name
+	
+	# True if the interface is able to communicate.
+	@property
+	def active(self):
+		return self.__active
+	
+	# May not be set if the device is inactive.
+	@property
+	def ip(self):
+		return self.__ip
+	
+	# May not be set if the device is inactive.
+	@property
+	def mac_addr(self):
+		return self.__mac_addr
+	
+	# May not be set if the device is inactive.
+	@property
+	def net_mask(self):
+		return self.__net_mask
+	
+	# In bps
+	@property
+	def speed(self):
+		return self.__speed
+	
+	# In bytes
+	@property
+	def mtu(self):
+		return self.__mtu
+	
+	# In bytes
+	@property
+	def in_octets(self):
+		return self.__in_octets
+	
+	# In bytes
+	@property
+	def out_octets(self):
+		return self.__out_octets
+	
+	def __repr__(self):
+		return self.__ip
+
 # http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput=sysDescr&translate=Translate&submitValue=SUBMIT&submitClicked=true
 # SNMPv2-MIB::sysDescr.0 Linux RTR-4 2.6.39.4 #1 Fri Apr 27 02:41:53 PDT 2012 i686
 # SNMPv2-MIB::sysObjectID.0 NET-SNMP-MIB::netSnmpAgentOIDs.10
@@ -108,8 +181,8 @@ def process_ip(admin_ip, data, contents, context):
 	else:
 		context['system'][admin_ip] += '* ip forwarding is off\n'
 		
-	ips = get_values(contents, "ipAdEntIfIndex")
-	for (ip, if_index) in ips.items():
+	indexes = get_values(contents, "ipAdEntIfIndex")
+	for (ip, if_index) in indexes.items():
 		# create a mapping from device ip to admin ip
 		context['ips'][ip] = admin_ip
 		
@@ -120,6 +193,17 @@ def process_ip(admin_ip, data, contents, context):
 	masks = get_values(contents, "ipAdEntNetMask")
 	for (ip, mask) in masks.items():
 		context['netmasks'][ip] = mask
+	
+	# initialize mapping from device ip to Interface
+	masks = get_values(contents, "ipAdEntNetMask")
+	for ip in indexes.keys():
+		index = indexes.get(ip, '?')
+		mask = masks.get(ip, '?')
+		
+		key = (admin_ip, index)
+		if key not in context['interfaces']:
+			context['interfaces'][key] = Interface()
+		context['interfaces'][key].set_ip(ip, mask)
 	
 	# create a table for routing (we can't build relations until we finish building the device to admin ip mapping)
 	nexts = get_values(contents, "ipRouteNextHop")
@@ -166,43 +250,39 @@ def process_interfaces(admin_ip, data, contents, context):
 	for index in descs.keys():
 		# This is all kinds of screwed up but when devices are brought up and down multiple
 		# entries land in the table. So what we'll do is add the ones that are enabled and
-		# then add any that we missed that are down (we need the downed interfaces so
-		# that we can store zero samples to keep them lined up).
+		# then add any that we missed that are down.
 		if status.get(index, '') == 'up' or status.get(index, '') == 'dormant':
+			key = (admin_ip, index)
 			name = descs.get(index, '')
-			entry = {
-				'enabled': True,
-				'if_index': index,
-				'name': name,
-				'mac': sanitize_mac(macs.get(index, '')),
-				'speed': float(speeds.get(index, 0.0)),
-				'mtu': mtus.get(index, ''),
-				'in_octets': float(in_octets.get(index, 0.0)),
-				'out_octets': float(out_octets.get(index, 0.0))
-			}
+			
+			if key not in context['interfaces']:
+				context['interfaces'][key] = Interface()
+			context['interfaces'][key].set_if(
+				desc = name,
+				active = True,
+				mac_addr = sanitize_mac(macs.get(index, '')),
+				speed = float(speeds.get(index, 0.0)),
+				mtu = mtus.get(index, ''),
+				in_octets = float(in_octets.get(index, 0.0)), 
+				out_octets = float(out_octets.get(index, 0.0)))
 			found.add(name)
-			if admin_ip in context['interfaces']:
-				context['interfaces'][admin_ip].append(entry)
-			else:
-				context['interfaces'][admin_ip] = [entry]
+			
 	for index in descs.keys():
 		name = descs.get(index, '')
+		
 		if status.get(index, '') != 'up' and status.get(index, '') != 'dormant' and name not in found:
-			entry = {
-				'enabled': False,
-				'if_index': index,
-				'name': name,
-				'mac': sanitize_mac(macs.get(index, '')),
-				'speed': float(speeds.get(index, 0.0)),
-				'mtu': mtus.get(index, ''),
-				'in_octets': 0.0,			# these will often be nonsense
-				'out_octets': 0.0
-			}
+			key = (admin_ip, index)
+			if key not in context['interfaces']:
+				context['interfaces'][key] = Interface()
+			context['interfaces'][key].set_if(
+				desc = descs.get(index, ''),
+				active = False,
+				mac_addr = sanitize_mac(macs.get(index, '')),
+				speed = float(speeds.get(index, 0.0)),
+				mtu = mtus.get(index, ''),
+				in_octets = 0.0, 				# these will often be nonsense
+				out_octets = 0.0)
 			found.add(name)
-			if admin_ip in context['interfaces']:
-				context['interfaces'][admin_ip].append(entry)
-			else:
-				context['interfaces'][admin_ip] = [entry]
 				
 	# alert if interface operational status doesn't match admin status
 	admin_status = get_values(contents, "ifAdminStatus")
@@ -432,10 +512,10 @@ class Poll(object):
 			if not self.__args.put:
 				logger.info("-" * 60)
 				
+			self.__context['interfaces'] = {}	# (admin ip, ifindex) => Interface instance
 			self.__context['ips'] = {}			# device ip => admin ip
 			self.__context['netmasks'] = {}	# device ip => network mask
 			self.__context['if_indexes'] = {}	# admin ip + if index => device ip
-			self.__context['interfaces'] = {}	# admin ip => [{'if_index':, 'name':, 'mac':, 'speed':, 'mtu':, 'in_octets':, 'out_octets'}]
 			self.__context['routes'] = []		# list of {'src':, 'next hop':, 'dest':, 'metric':, 'protocol':}
 			self.__context['system'] = {}		# admin ip => markdown with system info details
 			self.__context['up_times'] = {}	# admin_ip => system up time
@@ -464,35 +544,38 @@ class Poll(object):
 				break
 			
 	def __add_interfaces_table(self, data):
-		for (admin_ip, interfaces) in self.__context['interfaces'].items():
+		details = {}		# admin ip => [row]
+		for (key, interface) in self.__context['interfaces'].items():
+			(admin_ip, ifindex) = key
+			name = cgi.escape(interface.name)
+			
+			ip = interface.ip
+			subnet = get_subnet(interface.net_mask)
+			if ip == admin_ip:
+				ip = '<strong>%s/%s</strong>' % (ip, subnet)
+			else:
+				ip = '%s/%s' % (ip, subnet)
+			
+			# We always need to add samples so that they stay in sync with one another.
+			in_octets = self.__process_sample(data, {'key': '%s-%s-in_octets' % (admin_ip, name), 'raw': 8*interface.in_octets/1000, 'units': 'kbps'})
+			out_octets = self.__process_sample(data, {'key':  '%s-%s-out_octets' % (admin_ip, name), 'raw': 8*interface.out_octets/1000, 'units': 'kbps'})
+			
+			if interface.active:
+				speed = interface.speed
+				if speed:
+					if out_octets['value']:
+						self.__add_interface_gauge(data, admin_ip, name, out_octets['value'], speed/1000)
+					speed = speed/1000000
+					speed = '%.1f Mbps' % speed
+				
+				if admin_ip not in details:
+					details[admin_ip] = []
+				details[admin_ip].append([name, ip, interface.mac_addr, speed, add_units(interface.mtu, 'B'), in_octets['html'], out_octets['html']])
+			
+		for (admin_ip, rows) in details.items():
 			detail = {}
 			detail['style'] = 'html'
 			detail['header'] = ['Name', 'IP Address', 'Mac Address', 'Speed', 'MTU', 'In Octets (kbps)', 'Out Octets (kbps)']
-			
-			rows = []
-			for interface in interfaces:
-				name = cgi.escape(interface['name'])
-				
-				ip = self.__context['if_indexes'].get(admin_ip + interface['if_index'], '')
-				subnet = get_subnet(self.__context['netmasks'].get(ip))
-				if ip == admin_ip:
-					ip = '<strong>%s/%s</strong>' % (ip, subnet)
-				else:
-					ip = '%s/%s' % (ip, subnet)
-				
-				# We always need to add samples so that they stay in sync with one another.
-				in_octets = self.__process_sample(data, {'key': '%s-%s-in_octets' % (admin_ip, name), 'raw': 8*interface['in_octets']/1000, 'units': 'kbps'})
-				out_octets = self.__process_sample(data, {'key':  '%s-%s-out_octets' % (admin_ip, name), 'raw': 8*interface['out_octets']/1000, 'units': 'kbps'})
-				
-				if interface['enabled']:
-					speed = interface.get('speed', 0.0)
-					if speed:
-						if out_octets['value']:
-							self.__add_interface_gauge(data, admin_ip, name, out_octets['value'], speed/1000)
-						speed = speed/1000000
-						speed = '%.1f Mbps' % speed
-						
-					rows.append([name, ip, interface['mac'], speed, add_units(interface['mtu'], 'B'), in_octets['html'], out_octets['html']])
 			detail['rows'] = sorted(rows, key = lambda row: row[0])
 			
 			target = 'entities:%s' % admin_ip
@@ -500,25 +583,34 @@ class Poll(object):
 			add_details(data, target, 'Interfaces', [detail, footnote], opened = 'yes', sort_key = 'alpha', key = 'interfaces table')
 			
 	def __add_bandwidth_chart(self, data, direction):
-		for (admin_ip, interfaces) in self.__context['interfaces'].items():
+		ilist = {}					# admin ip => [Interface]
+		for (key, interface) in self.__context['interfaces'].items():
+			(admin_ip, ifindex) = key
+			
+			if admin_ip not in ilist:
+				ilist[admin_ip] = []
+			ilist[admin_ip].append(interface)
+			
+		for (admin_ip, interfaces) in ilist.items():
 			samples = []
 			legends = []
-			table = sorted(interfaces, key = lambda i: i['name'])
+			table = sorted(interfaces, key = lambda i: i.name)
 			for interface in table:
-				if interface['enabled']:
-					name = interface['name']
+				if interface.active:
+					name = interface.name
 					legends.append(name)
 					samples.append('%s-%s-%s_octets' % (admin_ip, name, direction))
 			
 			name = "%s-%s_interfaces" % (admin_ip, direction)
-			data['charts'].append({'name': name, 'samples': samples, 'legends': legends, 'title': '%s Bandwidth' % direction.title(), 'y_label': 'Bandwidth (kbps)'})
+			data['charts'].append({'admin_ip': admin_ip, 'direction': direction, 'name': name, 'samples': samples, 'legends': legends, 'title': '%s Bandwidth' % direction.title(), 'y_label': 'Bandwidth (kbps)'})
 		
 	def __add_bandwidth_details(self, data, direction):
-		for admin_ip in self.__context['interfaces'].keys():
-			target = 'entities:%s' % admin_ip
-			name = "%s-%s_interfaces" % (admin_ip, direction)
-			markdown = '![bandwidth](/generated/%s.png#%s)' % (name, self.__num_samples)
-			add_details(data, target, '%s Bandwidth' % direction.title(), [markdown], opened = 'no', sort_key = 'alpha-' + direction, key = '%s bandwidth' % name)
+		for chart in data['charts']:
+			if chart['direction'] == direction:
+				target = 'entities:%s' % chart['admin_ip']
+				name = chart['name']
+				markdown = '![bandwidth](/generated/%s.png#%s)' % (name, self.__num_samples)
+				add_details(data, target, '%s Bandwidth' % direction.title(), [markdown], opened = 'no', sort_key = 'alpha-' + direction, key = '%s bandwidth' % name)
 			
 	def __add_system_info(self, data):
 		for (admin_ip, markdown) in self.__context['system'].items():
