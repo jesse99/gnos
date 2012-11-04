@@ -249,19 +249,23 @@ DiscShape.prototype.toString = function ()
 function RectShape(context, rect, styles)
 {
 	this.geometry = rect;
-	this.styles = ['frame-color:black', 'frame-back-color:white'].concat(styles).filter(function (s) {return s.indexOf('frame-') === 0;});
 	this.width = rect.width;
 	this.height = rect.height;
+	
+	this.set_styles(context, styles);
+}
+
+RectShape.prototype.set_styles = function (context, styles)
+{
+	this.styles = ['frame-color:black', 'frame-back-color:white'].concat(styles).filter(function (s) {return s.indexOf('frame-') === 0;});
 	
 	context.save();
 	apply_styles(context, this.styles);
 	this.stroke_width = context.lineWidth;
 	context.restore();
-	
-	freezeProps(this);
-}
+};
 
-RectShape.prototype.draw = function (context)
+RectShape.prototype.draw = function (context, extra_styles)
 {
 	function fill_rect(context, rect)
 	{

@@ -7,6 +7,7 @@ GNOS.last_update = undefined;
 GNOS.poll_interval = undefined;
 GNOS.entity_detail = undefined;
 GNOS.relation_detail = undefined;
+GNOS.selection = undefined;
 GNOS.loaded_entities = false;
 GNOS.screen_padding = 80;		// px
 GNOS.windows = {};
@@ -69,10 +70,26 @@ function initEntityDragging()
 			var mouseP = arbor.Point(e.pageX - pos.left, e.pageY - pos.top);
 			dragged = GNOS.scene.particles.nearest(mouseP);
 			
+			// only allow the click if it isn't too far away from the entity
+			if  (dragged && dragged.node && dragged.distance > dragged.node.data.radius)
+				dragged = null;
+			
+			var map = document.getElementById('map');
+			var context = map.getContext('2d');
 			if (dragged && dragged.node !== null)
 			{
 				// while we're dragging, don't let physics move the node
 				dragged.node.fixed = true;
+				if (GNOS.selection !== dragged.node.data)
+				{
+					if (GNOS.selection)
+						GNOS.selection.deselect(context);
+					dragged.node.data.select(context);
+				}
+			}
+			else if (GNOS.selection)
+			{
+				GNOS.selection.deselect(context);
 			}
 			
 			$('#map').bind('mousemove', handlers.dragged);
@@ -366,6 +383,9 @@ function create_poll_interval_label(last, poll_interval)
 // optional fields: style, predicate
 function entities_query(solution)
 {
+	GNOS.old_selection = GNOS.selection;
+	GNOS.selection = null;
+	
 	if (solution.length > 0)
 		GNOS.loaded_entities = true;
 	
@@ -592,6 +612,9 @@ function map_renderer(element, model, model_names)
 			var shape = new EntityShape(context, entity.target, Point.zero, entity.styles, child_shapes);
 			add_node_styles(shape, entity.styles);
 			nodes[entity.target] = shape;
+			
+			if (GNOS.old_selection && GNOS.old_selection.name === entity.target)
+				shape.select(context);
 		});
 		
 		// This is the only place where we know all of the levels of the entity infos.
@@ -684,8 +707,10 @@ function EntityShape(context, name, center, styles, shapes)
 	{
 		return value + shape.height;
 	}, 0);
+	this.radius = Math.max(this.width/2, this.total_height/2);
 	
-	this.styles = ['frame-back-color:linen'].concat(styles);
+	this.base_styles = ['frame-back-color:linen'].concat(styles);
+	this.styles = this.base_styles.slice(0);
 	
 	this.shapes = shapes;
 	this.name = name;
@@ -699,12 +724,22 @@ EntityShape.prototype.set_center = function (context, center)
 	this.center = center;
 };
 
+EntityShape.prototype.select = function (context)
+{
+	this.styles = this.base_styles.concat(['frame-color:blue', 'frame-width:4']);
+	this.rect.set_styles(context, this.styles);
+	GNOS.selection = this;
+};
+
+EntityShape.prototype.deselect = function (context)
+{
+	this.styles = this.base_styles.slice(0);
+	this.rect.set_styles(context, this.styles);
+	GNOS.selection = null;
+};
+
 EntityShape.prototype.draw = function (context)
 {
-//	if (GNOS.selection_name == this.name)
-//		this.rect.extra_styles = ['selection'];
-//	else
-//		this.rect.extra_styles = [];
 	this.rect.draw(context);
 	
 	var dx = this.rect.geometry.left + this.rect.width/2;
