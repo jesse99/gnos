@@ -29,6 +29,7 @@ class UName(object):
 	def process(self, data, admin_ip, text, context):
 		logger.debug("uname: '%s'" % text)
 		target = 'entities:%s' % admin_ip
+		add_label(data, target, admin_ip, 'a', level = 1, style = 'font-size:small')
 		add_details(data, target, 'OS', [text], opened = 'always', sort_key = 'alpha', key = 'uname')
 		
 class Uptime(object):

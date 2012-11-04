@@ -126,6 +126,8 @@ class Interface(object):
 def process_system(admin_ip, data, contents, context):
 	#dump_snmp(admin_ip, 'system', contents)
 	target = 'entities:%s' % admin_ip
+	add_label(data, target, admin_ip, 'a', level = 1, style = 'font-size:small')
+	
 	key = 'alpha'		# want these to appear before most other labels
 	up_time = get_value(contents, "%s", 'sysUpTime')
 	if not up_time:
