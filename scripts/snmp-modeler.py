@@ -30,7 +30,7 @@ connection = None
 # Used to store details about an interface on a device.
 class Interface(object):
 	def __init__(self):
-		self.__active = False
+		self.__status = ''
 		self.__mac_addr = '?'
 		self.__name = ''
 		self.__ip = ''
@@ -39,19 +39,21 @@ class Interface(object):
 		self.__mtu = ''
 		self.__in_octets = 0.0
 		self.__out_octets = 0.0
+		self.__last_changed = 0.0
 	
 	def set_ip(self, ip, net_mask):
 		self.__ip = ip
 		self.__net_mask = net_mask
 	
-	def set_if(self, desc, active, mac_addr, speed, mtu, in_octets, out_octets):
-		self.__active = active
+	def set_if(self, desc, status, mac_addr, speed, mtu, in_octets, out_octets, last_changed):
+		self.__status = status
 		self.__mac_addr = mac_addr
 		self.__name = desc
 		self.__speed = speed
 		self.__mtu = mtu
 		self.__in_octets = in_octets
 		self.__out_octets = out_octets
+		self.__last_changed = last_changed
 	
 	@property
 	def name(self):
@@ -60,7 +62,11 @@ class Interface(object):
 	# True if the interface is able to communicate.
 	@property
 	def active(self):
-		return self.__active
+		return self.__status == 'up' or self.__status == 'dormant'
+	
+	@property
+	def status(self):
+		return self.__status
 	
 	# May not be set if the device is inactive.
 	@property
@@ -96,6 +102,11 @@ class Interface(object):
 	@property
 	def out_octets(self):
 		return self.__out_octets
+	
+	# In seconds
+	@property
+	def last_changed(self):
+		return self.__last_changed
 	
 	def __repr__(self):
 		return self.__ip
@@ -185,14 +196,6 @@ def process_ip(admin_ip, data, contents, context):
 	for (ip, if_index) in indexes.items():
 		# create a mapping from device ip to admin ip
 		context['ips'][ip] = admin_ip
-		
-		# create a mapping from if index => device ip
-		context['if_indexes'][admin_ip + if_index] = ip
-	
-	# create a mapping from device ip to network mask
-	masks = get_values(contents, "ipAdEntNetMask")
-	for (ip, mask) in masks.items():
-		context['netmasks'][ip] = mask
 	
 	# initialize mapping from device ip to Interface
 	masks = get_values(contents, "ipAdEntNetMask")
@@ -246,6 +249,7 @@ def process_interfaces(admin_ip, data, contents, context):
 	in_octets = get_values(contents, "ifInOctets")
 	out_octets = get_values(contents, "ifOutOctets")
 	status = get_values(contents, "ifOperStatus")
+	last_changes = get_values(contents, "ifLastChange")
 	found = set()
 	for index in descs.keys():
 		# This is all kinds of screwed up but when devices are brought up and down multiple
@@ -259,29 +263,30 @@ def process_interfaces(admin_ip, data, contents, context):
 				context['interfaces'][key] = Interface()
 			context['interfaces'][key].set_if(
 				desc = name,
-				active = True,
+				status = status.get(index, ''),
 				mac_addr = sanitize_mac(macs.get(index, '')),
 				speed = float(speeds.get(index, 0.0)),
 				mtu = mtus.get(index, ''),
 				in_octets = float(in_octets.get(index, 0.0)), 
-				out_octets = float(out_octets.get(index, 0.0)))
+				out_octets = float(out_octets.get(index, 0.0)),
+				last_changed = float(last_changes.get(index, 0.0))/100.0)
 			found.add(name)
 			
 	for index in descs.keys():
 		name = descs.get(index, '')
-		
 		if status.get(index, '') != 'up' and status.get(index, '') != 'dormant' and name not in found:
 			key = (admin_ip, index)
 			if key not in context['interfaces']:
 				context['interfaces'][key] = Interface()
 			context['interfaces'][key].set_if(
 				desc = descs.get(index, ''),
-				active = False,
+				status = status.get(index, ''),
 				mac_addr = sanitize_mac(macs.get(index, '')),
 				speed = float(speeds.get(index, 0.0)),
 				mtu = mtus.get(index, ''),
 				in_octets = 0.0, 				# these will often be nonsense
-				out_octets = 0.0)
+				out_octets = 0.0,
+				last_changed = float(last_changes.get(index, 0.0))/100.0)
 			found.add(name)
 				
 	# alert if interface operational status doesn't match admin status
@@ -295,14 +300,6 @@ def process_interfaces(admin_ip, data, contents, context):
 			open_alert(data, target, key, mesg = mesg, resolution = '', kind = 'error')	# TODO: what about resolution?
 		else:
 			close_alert(data, target, key)
-			
-	# alert if interface operational status changed recently
-	last_changes = get_values(contents, "ifLastChange")
-	for (index, last_change) in last_changes.items():
-		up_time = float(last_change)/100.0
-		if up_time:
-			name = descs.get(index, '?')
-			context['interface_up_times'][(admin_ip, name)] = (up_time, oper_status.get(index, '?'))
 
 # HOST-RESOURCES-MIB::hrMemorySize.0 246004
 # HOST-RESOURCES-MIB::hrStorageIndex[1] 1													one of these for each storage type
@@ -514,12 +511,9 @@ class Poll(object):
 				
 			self.__context['interfaces'] = {}	# (admin ip, ifindex) => Interface instance
 			self.__context['ips'] = {}			# device ip => admin ip
-			self.__context['netmasks'] = {}	# device ip => network mask
-			self.__context['if_indexes'] = {}	# admin ip + if index => device ip
 			self.__context['routes'] = []		# list of {'src':, 'next hop':, 'dest':, 'metric':, 'protocol':}
 			self.__context['system'] = {}		# admin ip => markdown with system info details
 			self.__context['up_times'] = {}	# admin_ip => system up time
-			self.__context['interface_up_times'] = {}	# (admin_ip, ifname) => (interface up time, interface status)
 			
 			threads = self.__spawn_threads()
 			data = self.__process_threads(threads)
@@ -618,19 +612,18 @@ class Poll(object):
 			add_details(data, target, 'System Info', [markdown], opened = 'no', sort_key = 'beta', key = 'system info')
 			
 	def __add_interface_uptime_alert(self, data):
-		for (key, value) in self.__context['interface_up_times'].items():
-			(admin_ip, ifname) = key
-			(interface_uptime, status) = value
+		for (key, interface) in self.__context['interfaces'].items():
+			(admin_ip, ifindex) = key
 			
-			delta = self.__context['up_times'].get(admin_ip, 0.0) - interface_uptime
-			key = '%s-last-change' % ifname
+			delta = self.__context['up_times'].get(admin_ip, 0.0) - interface.last_changed
+			key = '%s-last-change' % interface.name
 			target = 'entities:%s' % admin_ip
 			if delta >= 0.0 and delta < 60.0:
-				mesg = '%s status recently changed to %s.' % (ifname, status)
+				mesg = '%s status recently changed to %s.' % (interface.name, interface.status)
 				open_alert(data, target, key, mesg = mesg, resolution = '', kind = 'warning')
 			else:
 				close_alert(data, target, key)
-		
+			
 	def __add_interface_gauge(self, data, admin_ip, ifname, out_octets, speed):
 		level = None
 		bandwidth = min(out_octets/speed, 1.0)
