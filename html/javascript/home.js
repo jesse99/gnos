@@ -735,9 +735,9 @@ function map_renderer(element, model, model_names)
 				s.relations.push(shape);
 			}
 			
-			max_relation = add_label(model, shape, line, relation.left_label, 0.2, max_relation);
+			max_relation = add_label(model, shape, line, relation.left_label, 0.1, max_relation);
 			max_relation = add_label(model, shape, line, relation.middle_label, 0.5, max_relation);
-			max_relation = add_label(model, shape, line, relation.right_label, 0.8, max_relation);
+			max_relation = add_label(model, shape, line, relation.right_label, 0.9, max_relation);
 		});
 		
 		GNOS.relation_detail.max = max_relation;

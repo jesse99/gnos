@@ -782,7 +782,6 @@ class Poll(object):
 						# Used when forwarding (through a router or through an interface and locally to the router).
 						if route.via_ip in self.__context['ips']:
 							via_admin = self.__context['ips'][route.via_ip]
-							print '   dst_admin: %s, via_admin: %s' % (dst_admin, via_admin)
 							if dst_admin and admin_ip != via_admin:
 								key = (admin_ip, via_admin, dst_admin)
 								routes[key] = route
@@ -790,7 +789,6 @@ class Poll(object):
 						# If the netmask is all ones then this will be a direct link to a peer machine.
 						# Otherwise it is used when forwarding to a device on an attached subnet.
 						dst_admin = self.__find_admin_ip(admin_ip, route.dst_subnet, ip_to_int(route.dst_mask))
-						print '   dst_admin: %s' % dst_admin
 						if dst_admin:
 							key = (admin_ip, dst_admin, dst_admin)
 							routes[key] = route
@@ -800,15 +798,28 @@ class Poll(object):
 			left = 'entities:%s' % src_admin
 			right = 'entities:%s' % via_admin
 			src_interface = self.__context['interfaces'].get((src_admin, route.ifindex), None)
+			
 			if src_interface:
-				left_label = {'label': '%s %s' % (src_interface.name, src_interface.ip), 'level': 2, 'style': 'font-size:x-small'}
+				left_label = {'label': '%s %s' % (src_interface.name, src_interface.ip), 'level': 2, 'style': 'font-size:xx-small'}
 			else:
 				left_label = {'label': src_interface.ip, 'level': 2, 'style': 'font-size:x-small'}
+			
 			middle_label = {'label': '%s cost %s' % (route.protocol, route.metric), 'level': 1, 'style': 'font-size:small'}
-			right_label = {'label': route.via_ip, 'level': 2, 'style': 'font-size:x-small'}	# TODO: get via interface name
+			
+			ifname = self.__find_ifname(route.via_ip)
+			if ifname:
+				ifname += ' '
+			right_label = {'label': ifname + route.via_ip, 'level': 2, 'style': 'font-size:xx-small'}
+			
 			predicate = "options.routes selection.name '%s' ends_with and" % dst_admin
 			add_relation(data, left, right, 'line-type:directed line-color:blue line-width:3', left_label = left_label, middle_label = middle_label, right_label = right_label, predicate = predicate)
 	
+	def __find_ifname(self, device_ip):
+		for (key, interface) in self.__context['interfaces'].items():
+			if interface.ip == device_ip:
+				return interface.name
+		return ''
+		
 	def __find_admin_ip(self, src_admin, network_ip, netmask):
 		# First try the devices we don't know about (these are the devices we want to use when 
 		# forwarding to a device on an attached subnet).

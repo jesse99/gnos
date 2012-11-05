@@ -135,6 +135,8 @@ class Netstat(object):
 		lines = text.splitlines()
 		logger.debug("netstat: '%s'" % lines)
 		
+		# TODO: snmp-modeler can now figure this out so it's not needed. But it would be nice
+		# to add a details table for routing.
 #		gateway_index = find_index(lines[1], "Gateway")
 #		if gateway_index:
 #			target = 'entities:%s' % admin_ip
