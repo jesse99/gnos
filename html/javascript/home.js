@@ -432,7 +432,6 @@ function create_poll_interval_label(last, poll_interval)
 function entities_query(solution)
 {
 	GNOS.old_selection = GNOS.selection;
-	GNOS.selection = null;
 	
 	if (solution.length > 0)
 		GNOS.loaded_entities = true;
@@ -743,6 +742,7 @@ function map_renderer(element, model, model_names)
 	var map = document.getElementById('map');
 	var context = map.getContext('2d');
 	context.clearRect(0, 0, map.width, map.height);
+	GNOS.selection = null;
 	
 	if (GNOS.loaded_entities)
 	{
