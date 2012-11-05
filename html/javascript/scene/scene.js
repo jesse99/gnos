@@ -12,7 +12,7 @@ function Scene(context)
 	{
 		repulsion: 2*1000,	// the force repelling nodes from each other (1000)
 		stiffness: 3*600,		// the rigidity of the edges (600)
-		friction: 100*0.5,		// the amount of damping in the system (0.5) [need a lot of this when there are a bunch of edges]
+		friction: 20*0.5,		// the amount of damping in the system (0.5) [need a lot of this when there are a bunch of edges]
 		gravity: false,			// an additional force attracting nodes to the origin (false)
 		fps: 30,					// frames per second (55)
 		ft: 0.02,				// timestep to use for stepping the simulation (0.02)
@@ -164,6 +164,37 @@ Scene.prototype.toString = function ()
 // not the center to draw directed lines (and many shapes are not symmetric).
 Scene.prototype.do_adjust_graph_positions = function (context)
 {
+	function update_position(nodes, shape)
+	{
+		var left = nodes[shape.from_node];
+		var right = nodes[shape.to_node];
+		if (left && right && (left[1] || right[1]))
+		{
+			var left_pt = left[0].rect.intersect_line(right[0].center);	// TODO: need to offset centers if there are multiple relations between the entities
+			var right_pt = right[0].rect.intersect_line(left[0].center);
+			if (left_pt != undefined && right_pt != undefined)
+			{
+				var line = new Line(left_pt, right_pt);
+				
+				if (shape.styles.indexOf("line-type:directed") >= 0)
+				{
+					line = line.shrink(0, 3);		// might want to add a style for the outdent
+				}
+				else if (shape.styles.indexOf("line-type:bidirectional") >= 0)
+				{
+					line = line.shrink(3, 3);
+				}
+				
+				shape.set_line(line);
+			}
+			else
+			{
+				var line = new Line(Point.zero, Point.zero);
+			}
+			shape.set_line(line);
+		}
+	}
+	
 	var changed = false;
 	var nodes = {};			// node name => [node shape, position changed]
 	
@@ -187,37 +218,13 @@ Scene.prototype.do_adjust_graph_positions = function (context)
 	{
 		this.particles.eachEdge(function (edge)
 		{
-			var left = nodes[edge.data.from_node];
-			var right = nodes[edge.data.to_node];
-			if (left && right && (left[1] || right[1]))
-			{
-				var left_pt = left[0].rect.intersect_line(right[0].center);	// TODO: need to offset centers if there are multiple relations between the entities
-				var right_pt = right[0].rect.intersect_line(left[0].center);
-				if (left_pt != undefined && right_pt != undefined)
-				{
-					var line = new Line(left_pt, right_pt);
-					
-					if (edge.data.styles.indexOf("line-type:directed") >= 0)
-					{
-						line = line.shrink(0, 3);		// might want to add a style for the outdent
-					}
-					else if (edge.data.styles.indexOf("line-type:bidirectional") >= 0)
-					{
-						line = line.shrink(3, 3);
-					}
-					
-					edge.data.set_line(line);
-				}
-				else
-				{
-					var line = new Line(Point.zero, Point.zero);
-				}
-				edge.data.set_line(line);
-				$.each(edge.data.relations, function (i, relation)
-				{
-					relation.set_line(line);
-				});
-			}
+			update_position(nodes, edge.data);
+		});
+		
+		$.each(this.shapes, function (i, shape)
+		{
+			if (shape.from_node && shape.to_node)
+				update_position(nodes, shape);
 		});
 	}
 };
@@ -226,7 +233,6 @@ Scene.prototype.do_draw_graph = function (context)
 {
 	if (GNOS.options['none'])
 	{
-		console.log("drawing edges");
 		this.particles.eachEdge(function (edge)
 		{
 			edge.data.draw(context);

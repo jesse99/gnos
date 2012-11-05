@@ -713,31 +713,25 @@ function map_renderer(element, model, model_names)
 		$.each(model.relations, function (i, relation)
 		{
 			var line = new Line(new Point(0, 0), new Point(1, 0));
-			var shape = new LineShape(context, line, relation.styles, null, null, relation.predicate);
-			GNOS.scene.append(shape);
-			
-			if (!(relation.left in edges))
-				edges[relation.left] = {};
-			if (!(relation.right in edges[relation.left]))
+			if (relation.predicate == 'options.none')
 			{
-				// TODO: Not entirely clear what we want to do here. Maybe the network file should
-				// specify relations and add a special relation. Or possibly just use redundant edges
-				// (not sure arborjs actually supports that).
-				var s = new LineShape(context, line, []);
-				s.from_node = relation.left;
-				s.to_node = relation.right;
-				s.relations = [shape];
-				edges[relation.left][relation.right] = s;
+				if (!(relation.left in edges))
+					edges[relation.left] = {};
+				
+				var shape = new LineShape(context, line, []);
+				edges[relation.left][relation.right] = shape;
 			}
 			else
 			{
-				var s = edges[relation.left][relation.right];
-				s.relations.push(shape);
+				var shape = new LineShape(context, line, relation.styles, null, null, relation.predicate);
+				GNOS.scene.append(shape);
+				
+				max_relation = add_label(model, shape, line, relation.left_label, 0.1, max_relation);
+				max_relation = add_label(model, shape, line, relation.middle_label, 0.5, max_relation);
+				max_relation = add_label(model, shape, line, relation.right_label, 0.9, max_relation);
 			}
-			
-			max_relation = add_label(model, shape, line, relation.left_label, 0.1, max_relation);
-			max_relation = add_label(model, shape, line, relation.middle_label, 0.5, max_relation);
-			max_relation = add_label(model, shape, line, relation.right_label, 0.9, max_relation);
+			shape.from_node = relation.left;
+			shape.to_node = relation.right;
 		});
 		
 		GNOS.relation_detail.max = max_relation;

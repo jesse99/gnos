@@ -10,24 +10,28 @@
 		"GRS-1":
 		{
 			"ip": "10.101.0.2",
+			"links": ["GRS-2", "GRS-4", "App-1"],
 			"authentication": "-v2c -c public",
 			"modeler": "snmp-modeler.py"
 		},
 		"GRS-2":
 		{
 			"ip": "10.102.0.2",
+			"links": ["GRS-3", "App-2"],
 			"authentication": "-v2c -c public",
 			"modeler": "snmp-modeler.py"
 		},
 		"GRS-3":
 		{
 			"ip": "10.103.0.2",
+			"links": ["GRS-4", "App-3"],
 			"authentication": "-v2c -c public",
 			"modeler": "snmp-modeler.py"
 		},
 		"GRS-4":
 		{
 			"ip": "10.104.0.2",
+			"links": ["App-4"],
 			"authentication": "-v2c -c public",
 			"modeler": "snmp-modeler.py"
 		},

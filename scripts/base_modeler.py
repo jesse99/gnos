@@ -140,11 +140,31 @@ def send_update(config, connection, data):
 			logger.error("Error PUTing to %s:%s: %s" % (address, config['path'], e), exc_info = type(e) != socket.error)
 			raise Exception("PUT failed")
 
+# It's a little lame that the edges have to be specified in the network file (using
+# the links list) but relations don't work so well as edges because there are
+# often too many of them (which causes clutter and, even worse, causes a
+# lot of instability in node positions when there are too many forces acting
+# on nodes (even with very high friction levels)).
 def send_entities(config, connection):
+	def find_ip(config, name):
+		for (candidate, device) in config["devices"].items():
+			if candidate == name:
+				return device['ip']
+		logger.error("Couldn't find link to %s" % name)
+		return ''
+		
 	entities = []
+	relations = []
 	for (name, device) in config["devices"].items():
 		style = "font-size:larger font-weight:bolder"
 		entity = {"id": device['ip'], "label": name, "style": style}
 		logger.debug("entity: %s" % entity)
 		entities.append(entity)
-	send_update(config, connection, {"modeler": "config", "entities": entities})
+		
+		if 'links' in device:
+			for link in device['links']:
+				left = 'entities:%s' % device['ip']
+				right = 'entities:%s' % find_ip(config, link)
+				relation = {'left-entity-id': left, 'right-entity-id': right, 'predicate': 'options.none'}
+				relations.append(relation)
+	send_update(config, connection, {"modeler": "config", "entities": entities, 'relations': relations})
