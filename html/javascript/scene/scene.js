@@ -34,7 +34,8 @@ function evaluate(predicate)
 	{
 		try
 		{
-			var context = {'options': GNOS.options, 'selection': GNOS.selection};
+			var selection = GNOS.selection || {'name': 'map'};
+			var context = {'options': GNOS.options, 'selection': selection};
 			passed = eval_predicate(context, predicate);
 		}
 		catch (e)

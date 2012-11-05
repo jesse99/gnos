@@ -50,6 +50,11 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- maybe use grid lines to show magnification
 	- may be some stuff on tufte's site
 	- attach custom info
+* Sliders and option dropdown values should be persisted in a pref:
+	- use web storage?
+	- not exactly clear when the prefs should be applied
+	- set the pref when the associated value changes
+	- use the pref when the associated widget is (re)initialized
 * Balloon layout is interesting:
 	http://lab.kapit.fr/display/visualizationlayouts/Balloon+layout
 * Add a details list for dropped packets:

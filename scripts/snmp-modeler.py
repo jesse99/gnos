@@ -27,6 +27,15 @@ except:
 logger = None
 connection = None
 
+def ip_to_int(ip):
+	parts = ip.split('.')
+	if len(parts) != 4:
+		raise Exception("expected an IP address but found: '%s'" % ip)
+	return (int(parts[0]) << 24) | (int(parts[1]) << 16) | (int(parts[2]) << 8) | int(parts[3])
+
+def int_to_ip(value):
+	return '%s.%s.%s.%s' % ((value << 24) & 0xFF, (value << 16) & 0xFF, (value << 8) & 0xFF, value & 0xFF)
+
 # Used to store details about an interface on a device.
 class Interface(object):
 	def __init__(self):
@@ -110,6 +119,51 @@ class Interface(object):
 	
 	def __repr__(self):
 		return self.__ip
+
+# Used to store details for a route on a device.
+class Route(object):
+	def __init__(self, dst_subnet, dst_mask, via_ip, protocol, metric, ifindex):
+		self.__via_ip = via_ip
+		self.__dst_subnet = dst_subnet
+		self.__dst_mask = dst_mask
+		self.__protocol = protocol
+		self.__metric = metric
+		self.__ifindex = ifindex
+	
+	# Source interface index
+	@property
+	def ifindex(self):
+		return self.__ifindex
+	
+	@property
+	def via_ip(self):
+		return self.__via_ip
+	
+	@property
+	def dst_subnet(self):
+		return self.__dst_subnet
+	
+	@property
+	def dst_mask(self):
+		return self.__dst_mask
+	
+	@property
+	def protocol(self):
+		return self.__protocol
+	
+	@property
+	def metric(self):
+		return self.__metric
+		
+	def get_src_ip(self, admin_ip, context):
+		key = (admin_ip, self.__ifindex)
+		if key in context['interfaces']:
+			return context['interfaces'][key].ip
+		else:
+			return None
+	
+	def __repr__(self):
+		return '%s via %s' % (self.__dst_subnet, self.__via_ip)
 
 # http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput=sysDescr&translate=Translate&submitValue=SUBMIT&submitClicked=true
 # SNMPv2-MIB::sysDescr.0 Linux RTR-4 2.6.39.4 #1 Fri Apr 27 02:41:53 PDT 2012 i686
@@ -211,12 +265,22 @@ def process_ip(admin_ip, data, contents, context):
 		context['interfaces'][key].set_ip(ip, mask)
 	
 	# create a table for routing (we can't build relations until we finish building the device to admin ip mapping)
+	if admin_ip not in context['routes']:
+		context['routes'][admin_ip] = []
+	
 	nexts = get_values(contents, "ipRouteNextHop")
 	metrics = get_values(contents, "ipRouteMetric1")
 	protocols = get_values(contents, "ipRouteProto")	
+	masks = get_values(contents, "ipRouteMask")
+	indexes = get_values(contents, "ipRouteIfIndex")
 	for dest_ip in nexts.keys():
-		entry = {'src': admin_ip, 'next hop': nexts.get(dest_ip, ''), 'dest': dest_ip, 'metric': metrics.get(dest_ip, ''), 'protocol': protocols.get(dest_ip, '')}
-		context['routes'].append(entry)
+		context['routes'][admin_ip].append(Route(
+			dst_subnet = dest_ip,
+			dst_mask = masks.get(dest_ip, ''),
+			via_ip = nexts.get(dest_ip, ''),
+			protocol = protocols.get(dest_ip, ''),
+			metric = metrics.get(dest_ip, ''),
+			ifindex = indexes.get(dest_ip, '')))
 	
 # IF-MIB::ifNumber.0 13				will be one of these for each interface
 # IF-MIB::ifDescr[1] lo			
@@ -511,15 +575,16 @@ class Poll(object):
 			if not self.__args.put:
 				logger.info("-" * 60)
 				
-			self.__context['interfaces'] = {}	# (admin ip, ifindex) => Interface instance
+			self.__context['interfaces'] = {}	# (admin ip, ifindex) => Interface
 			self.__context['ips'] = {}			# device ip => admin ip
-			self.__context['routes'] = []		# list of {'src':, 'next hop':, 'dest':, 'metric':, 'protocol':}
+			self.__context['routes'] = {}		# admin_ip => [Route]
 			self.__context['system'] = {}		# admin ip => markdown with system info details
 			self.__context['up_times'] = {}	# admin_ip => system up time
 			
 			threads = self.__spawn_threads()
 			data = self.__process_threads(threads)
 			self.__add_next_hop_relations(data)
+			self.__add_selection_route_relations(data)
 			self.__add_interfaces_table(data)
 			if self.__num_samples >= 2:
 				self.__add_bandwidth_chart(data, 'out')
@@ -676,34 +741,69 @@ class Poll(object):
 		return table
 		
 	def __add_next_hop_relations(self, data):
-		next_hops = []
-		metrics = {}
-		protocols = {}
-		for route in self.__context['routes']:
-			src_ip = route['src']
-			if route['next hop'] in self.__context['ips']:
-				next_hop = self.__context['ips'][route['next hop']]
-				next_hops.append((src_ip, next_hop))
-				metrics[(src_ip, next_hop)] = route['metric']
-				protocols[(src_ip, next_hop)] = route['protocol']
-			
-		for (src_ip, next_hop) in next_hops:
+		routes = {}			# (src admin ip, via admin ip) => Route
+		for (admin_ip, device_routes) in self.__context['routes'].items():
+			for route in device_routes:
+				src_ip = route.get_src_ip(admin_ip, self.__context)
+				if route.via_ip != '0.0.0.0':
+					if src_ip and src_ip in self.__context['ips'] and route.via_ip in self.__context['ips']:
+						src_admin = self.__context['ips'][src_ip]
+						via_admin = self.__context['ips'][route.via_ip]
+						if src_admin != via_admin:
+							routes[(src_admin, via_admin)] = route
+		
+		for (key, route) in routes.items():
+			(src_admin, via_admin) = key
 			style = None
-			right_label = None
-			if (next_hop, src_ip) in next_hops:
-				if src_ip < next_hop:
+			if (via_admin, src_admin) in routes:
+				if src_admin < via_admin:
 					style = 'line-type:bidirectional'
-					right_label = '%s, cost %s' % (protocols[(next_hop, src_ip)], metrics[(src_ip, next_hop)])
 			else:
 				style = 'line-type:directed'
 			if style:
-				left = 'entities:%s' % src_ip
-				right = 'entities:%s' % next_hop
-				left_label = {'label': '%s, cost %s' % (protocols[(src_ip, next_hop)], metrics[(src_ip, next_hop)]), 'level': 2, 'style': 'font-size:x-small'}
-				if right_label:
-					right_label = {'label': right_label, 'level': 2, 'style': 'font-size:x-small'}
-				predicate = 'options.next_hop'
-				add_relation(data, left, right, style, left_label = left_label, middle_label = {'label': 'next hop', 'level': 1, 'style': 'font-size:small'}, right_label = right_label, predicate = predicate)
+				left = 'entities:%s' % src_admin
+				right = 'entities:%s' % via_admin
+				predicate = "options.routes selection.name 'map' == and"
+				add_relation(data, left, right, style, middle_label = {'label': 'next hop', 'level': 1, 'style': 'font-size:small'}, predicate = predicate)
+	
+	# TODO: This (and a few others) should go into base_modeler.py.
+	def __add_selection_route_relations(self, data):
+		routes = {}			# (src admin ip, via admin ip, dst admin ip) => Route
+		for (admin_ip, device_routes) in self.__context['routes'].items():
+			for route in device_routes:
+				dst_ip = self.__find_ip_by_network_addr(route.dst_subnet, route.dst_mask)
+				if route.via_ip != '0.0.0.0':
+					if dst_ip and route.via_ip in self.__context['ips'] and dst_ip in self.__context['ips']:
+						via_admin = self.__context['ips'][route.via_ip]
+						if admin_ip != via_admin:
+							dst_admin = self.__context['ips'][dst_ip]
+							key = (admin_ip, via_admin, dst_admin)
+							routes[key] = route
+				
+		for (key, route) in routes.items():
+			(src_admin, via_admin, dst_admin) = key
+			left = 'entities:%s' % src_admin
+			right = 'entities:%s' % via_admin
+			src_interface = self.__context['interfaces'].get((src_admin, route.ifindex), None)
+			if src_interface:
+				left_label = {'label': '%s %s' % (src_interface.name, src_interface.ip), 'level': 2, 'style': 'font-size:x-small'}
+			else:
+				left_label = {'label': src_interface.ip, 'level': 2, 'style': 'font-size:x-small'}
+			middle_label = {'label': '%s cost %s' % (route.protocol, route.metric), 'level': 1, 'style': 'font-size:small'}
+			right_label = {'label': route.via_ip, 'level': 2, 'style': 'font-size:x-small'}	# TODO: get via interface name
+			predicate = "options.routes selection.name '%s' ends_with and" % dst_admin
+			add_relation(data, left, right, 'line-type:directed line-color:blue line-width:3', left_label = left_label, middle_label = middle_label, right_label = right_label, predicate = predicate)
+	
+	# Returns either None or the first device ip in the subnet.
+	def __find_ip_by_network_addr(self, subnet, mask):
+		mask = ip_to_int(mask)
+		subnet = ip_to_int(subnet) & mask
+		for (key, interface) in self.__context['interfaces'].items():
+			if interface.ip:
+				candidate = ip_to_int(interface.ip) & mask
+				if candidate == subnet:
+					return interface.ip
+		return None
 	
 	# Devices can have significant variation in how quickly they respond to SNMP queries
 	# so simply joining them one after another isn't great, but it's simple and should work

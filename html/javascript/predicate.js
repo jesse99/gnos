@@ -283,13 +283,13 @@ function eval_binary(stack, operator)
 		case 'ends_with':
 			var suffix = pop_string(stack, operator);
 			var target = pop_string(stack, operator);
-			stack.push(target.endsWith(suffix));
+			stack.push(target.lastIndexOf(suffix) === target.length - suffix.length);
 			break;
 		
 		case 'starts_with':
 			var prefix = pop_string(stack, operator);
 			var target = pop_string(stack, operator);
-			stack.push(target.startsWith(prefix));
+			stack.push(target.indexOf(prefix) === 0);
 			break;
 		
 		default:

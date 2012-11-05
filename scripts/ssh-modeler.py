@@ -149,7 +149,7 @@ class Netstat(object):
 		if parts[gateway_index] != '0.0.0.0':
 			right = 'entities:%s' % parts[gateway_index]
 			style = 'line-type:directed'
-			predicate = 'options.next_hop'
+			predicate = "options.routes selection.name 'map' == and"
 			add_relation(data, target, right, style, middle_label = {'label': 'gateway', 'level': 1, 'style': 'font-size:small'}, predicate = predicate)
 			
 # TODO:

@@ -522,9 +522,6 @@ function alerts_query(solution)
 	{
 		$.each(table, function (target, count)
 		{
-			if (row.predicate)
-				update_predicates(row.predicate);
-			
 			if (count == 1)
 				var label = "1 {0} alert".format(suffix);
 			else
