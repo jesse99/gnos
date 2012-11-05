@@ -18,6 +18,7 @@ $(document).ready(function()
 	var map = document.getElementById('map');
 	var context = map.getContext('2d');
 	GNOS.scene = new Scene(context);
+	GNOS.options['none'] = true;
 	
 	var dropdown = $('#options_dropdown');
 	dropdown.change(options_changed);
@@ -527,7 +528,7 @@ function alerts_query(solution)
 			else
 				var label = "{0} {1} alerts".format(count, suffix);
 				
-			var label = new TextLineShape(context, Point.zero, label, styles, 999, row.predicate);
+			var label = new TextLineShape(context, Point.zero, label, styles, 999);
 			alerts.push({target: target, shape: label, level: level, predicate: ""});
 		});
 	}
@@ -713,12 +714,26 @@ function map_renderer(element, model, model_names)
 		{
 			var line = new Line(new Point(0, 0), new Point(1, 0));
 			var shape = new LineShape(context, line, relation.styles, null, null, relation.predicate);
-			shape.from_node = relation.left;
-			shape.to_node = relation.right;
+			GNOS.scene.append(shape);
 			
 			if (!(relation.left in edges))
 				edges[relation.left] = {};
-			edges[relation.left][relation.right] = shape;
+			if (!(relation.right in edges[relation.left]))
+			{
+				// TODO: Not entirely clear what we want to do here. Maybe the network file should
+				// specify relations and add a special relation. Or possibly just use redundant edges
+				// (not sure arborjs actually supports that).
+				var s = new LineShape(context, line, []);
+				s.from_node = relation.left;
+				s.to_node = relation.right;
+				s.relations = [shape];
+				edges[relation.left][relation.right] = s;
+			}
+			else
+			{
+				var s = edges[relation.left][relation.right];
+				s.relations.push(shape);
+			}
 			
 			max_relation = add_label(model, shape, line, relation.left_label, 0.2, max_relation);
 			max_relation = add_label(model, shape, line, relation.middle_label, 0.5, max_relation);
@@ -737,11 +752,12 @@ function map_renderer(element, model, model_names)
 	
 	if (GNOS.loaded_entities)
 	{
+		GNOS.scene.remove_statics();
+		
 		var nodes = get_nodes(model);
 		var edges = get_edges(context, model);
 		GNOS.scene.merge_graph({nodes: nodes, edges: edges});
 		
-		GNOS.scene.remove_statics();
 		if (model.globals && model.globals.error_count)
 			GNOS.scene.append(model.globals.error_count);
 		

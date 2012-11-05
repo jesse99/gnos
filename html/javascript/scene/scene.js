@@ -10,9 +10,9 @@ function Scene(context)
 	this.shapes = ['graph'];
 	this.particles = arbor.ParticleSystem(
 	{
-		repulsion: 5*1000,	// the force repelling nodes from each other (1000)
+		repulsion: 2*1000,	// the force repelling nodes from each other (1000)
 		stiffness: 3*600,		// the rigidity of the edges (600)
-		friction: 0.5,			// the amount of damping in the system (0.5)
+		friction: 100*0.5,		// the amount of damping in the system (0.5) [need a lot of this when there are a bunch of edges]
 		gravity: false,			// an additional force attracting nodes to the origin (false)
 		fps: 30,					// frames per second (55)
 		ft: 0.02,				// timestep to use for stepping the simulation (0.02)
@@ -165,7 +165,7 @@ Scene.prototype.toString = function ()
 Scene.prototype.do_adjust_graph_positions = function (context)
 {
 	var changed = false;
-	var nodes = {};
+	var nodes = {};			// node name => [node shape, position changed]
 	
 	this.particles.eachNode(function (node, pt)
 	{
@@ -210,8 +210,13 @@ Scene.prototype.do_adjust_graph_positions = function (context)
 				}
 				else
 				{
-					edge.data.set_line(new Line(Point.zero, Point.zero));
+					var line = new Line(Point.zero, Point.zero);
 				}
+				edge.data.set_line(line);
+				$.each(edge.data.relations, function (i, relation)
+				{
+					relation.set_line(line);
+				});
 			}
 		});
 	}
@@ -219,11 +224,14 @@ Scene.prototype.do_adjust_graph_positions = function (context)
 
 Scene.prototype.do_draw_graph = function (context)
 {
-	this.particles.eachEdge(function (edge)
+	if (GNOS.options['none'])
 	{
-		if (evaluate(edge.data.predicate))
+		console.log("drawing edges");
+		this.particles.eachEdge(function (edge)
+		{
 			edge.data.draw(context);
-	});
+		});
+	}
 	
 	this.particles.eachNode(function (node)
 	{

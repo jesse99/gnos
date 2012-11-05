@@ -751,6 +751,11 @@ class Poll(object):
 						via_admin = self.__context['ips'][route.via_ip]
 						if src_admin != via_admin:
 							routes[(src_admin, via_admin)] = route
+				else:
+					dst_admin = self.__find_admin_ip(admin_ip, route.dst_subnet, ip_to_int(route.dst_mask))
+					if dst_admin:
+						src_admin = self.__context['ips'][src_ip]
+						routes[(src_admin, dst_admin)] = route
 		
 		for (key, route) in routes.items():
 			(src_admin, via_admin) = key
@@ -771,13 +776,23 @@ class Poll(object):
 		routes = {}			# (src admin ip, via admin ip, dst admin ip) => Route
 		for (admin_ip, device_routes) in self.__context['routes'].items():
 			for route in device_routes:
-				dst_ip = self.__find_ip_by_network_addr(route.dst_subnet, route.dst_mask)
-				if route.via_ip != '0.0.0.0':
-					if dst_ip and route.via_ip in self.__context['ips'] and dst_ip in self.__context['ips']:
-						via_admin = self.__context['ips'][route.via_ip]
-						if admin_ip != via_admin:
-							dst_admin = self.__context['ips'][dst_ip]
-							key = (admin_ip, via_admin, dst_admin)
+				dst_admin = self.__find_admin_ip(admin_ip, route.dst_subnet, ip_to_int(route.dst_mask))
+				if dst_admin:
+					if route.via_ip != '0.0.0.0':
+						# Used when forwarding (through a router or through an interface and locally to the router).
+						if route.via_ip in self.__context['ips']:
+							via_admin = self.__context['ips'][route.via_ip]
+							print '   dst_admin: %s, via_admin: %s' % (dst_admin, via_admin)
+							if dst_admin and admin_ip != via_admin:
+								key = (admin_ip, via_admin, dst_admin)
+								routes[key] = route
+					else:
+						# If the netmask is all ones then this will be a direct link to a peer machine.
+						# Otherwise it is used when forwarding to a device on an attached subnet.
+						dst_admin = self.__find_admin_ip(admin_ip, route.dst_subnet, ip_to_int(route.dst_mask))
+						print '   dst_admin: %s' % dst_admin
+						if dst_admin:
+							key = (admin_ip, dst_admin, dst_admin)
 							routes[key] = route
 				
 		for (key, route) in routes.items():
@@ -794,15 +809,23 @@ class Poll(object):
 			predicate = "options.routes selection.name '%s' ends_with and" % dst_admin
 			add_relation(data, left, right, 'line-type:directed line-color:blue line-width:3', left_label = left_label, middle_label = middle_label, right_label = right_label, predicate = predicate)
 	
-	# Returns either None or the first device ip in the subnet.
-	def __find_ip_by_network_addr(self, subnet, mask):
-		mask = ip_to_int(mask)
-		subnet = ip_to_int(subnet) & mask
-		for (key, interface) in self.__context['interfaces'].items():
-			if interface.ip:
-				candidate = ip_to_int(interface.ip) & mask
+	def __find_admin_ip(self, src_admin, network_ip, netmask):
+		# First try the devices we don't know about (these are the devices we want to use when 
+		# forwarding to a device on an attached subnet).
+		subnet = ip_to_int(network_ip) & netmask
+		for (name, device) in self.__config["devices"].items():
+			if device['modeler'] != 'snmp-modeler.py':
+				candidate = ip_to_int(device['ip']) & netmask
 				if candidate == subnet:
-					return interface.ip
+					return device['ip']
+		
+		# Then try to find a device we do know about that isn't src_admin.
+		# This will tend to be the direct link to a peer machine case.
+		for (device_ip, admin_ip) in self.__context['ips'].items():
+			candidate = ip_to_int(device_ip) & netmask
+			if candidate == subnet and admin_ip != src_admin:
+				return admin_ip
+		
 		return None
 	
 	# Devices can have significant variation in how quickly they respond to SNMP queries

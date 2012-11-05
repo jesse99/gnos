@@ -135,11 +135,11 @@ class Netstat(object):
 		lines = text.splitlines()
 		logger.debug("netstat: '%s'" % lines)
 		
-		gateway_index = find_index(lines[1], "Gateway")
-		if gateway_index:
-			target = 'entities:%s' % admin_ip
-			for line in lines[2:]:
-				self.__process_line(data, target, line, gateway_index)
+#		gateway_index = find_index(lines[1], "Gateway")
+#		if gateway_index:
+#			target = 'entities:%s' % admin_ip
+#			for line in lines[2:]:
+#				self.__process_line(data, target, line, gateway_index)
 				
 	# TODO: In general the gateway IP will not be the admin IP. Not sure what the
 	# best way to handle this is. Maybe we could point to an alias subject whose value
