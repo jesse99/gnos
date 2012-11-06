@@ -586,6 +586,7 @@ class Poll(object):
 			self.__add_next_hop_relations(data)
 			self.__add_selection_route_relations(data)
 			self.__add_interfaces_table(data)
+			self.__add_routing_table(data)
 			if self.__num_samples >= 2:
 				self.__add_bandwidth_chart(data, 'out')
 				self.__add_bandwidth_chart(data, 'in')
@@ -642,6 +643,42 @@ class Poll(object):
 			target = 'entities:%s' % admin_ip
 			footnote = '*The shaded area in the sparklines is the inter-quartile range: the range in which half the samples appear.*'
 			add_details(data, target, 'Interfaces', [detail, footnote], opened = 'yes', sort_key = 'alpha', key = 'interfaces table')
+			
+	def __add_routing_table(self, data):
+		details = {}		# admin ip => [row]
+		for (admin_ip, routes) in self.__context['routes'].items():
+			rows = []
+			
+			for route in routes:
+				dest = route.dst_subnet
+				subnet = get_subnet(route.dst_mask)
+				dest = '%s/%s' % (dest, subnet)
+				
+				interface = self.__context['interfaces'].get((admin_ip, route.ifindex), None)
+				if interface:
+					out = interface.name
+				else:
+					out = '?'
+				
+				if route.via_ip != '0.0.0.0':
+					ifname = self.__find_ifname(route.via_ip)
+					if ifname:
+						ifname += ' '
+					via = ifname + route.via_ip
+				else:
+					via = ''
+				
+				rows.append([dest, via, out, route.protocol, route.metric])
+			details[admin_ip] = rows
+			
+		for (admin_ip, rows) in details.items():
+			detail = {}
+			detail['style'] = 'plain'
+			detail['header'] = ['Destination', 'Via', 'Out', 'Protocol', 'Cost']
+			detail['rows'] = sorted(rows, key = lambda row: row[0])
+			
+			target = 'entities:%s' % admin_ip
+			add_details(data, target, 'Routes', [detail], opened = 'no', sort_key = 'beta', key = 'routing table')
 			
 	def __add_bandwidth_chart(self, data, direction):
 		ilist = {}					# admin ip => [Interface]
