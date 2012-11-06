@@ -5,7 +5,7 @@ dummy1 := $(shell mkdir bin 2> /dev/null)
 RUSTC ?= rustc
 SCP ?= scp
 
-ifeq ($(strip $(shell command -v jsl)),)
+ifeq ($(strip $(shell command -v jsl 2> /dev/null)),)
 	JSL = true 'skipping jsl lint phase'
 else
 	JSL ?= jsl
