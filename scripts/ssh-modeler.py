@@ -55,7 +55,7 @@ class Uptime(object):
 			# Add an alert if the device has only been up a short time. There is potentially a lot
 			# of variation here so, for now, we'll just match what we need. TODO: Sucks to do
 			# all this lame parsing. Not sure how to do better though. Maybe proc files?
-			if match.group(2) == 'sec' or int(match.group(1)) <= 1:
+			if match.group(2) == 'sec' or (match.group(2) == 'min' and int(match.group(1)) <= 1):
 				# TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
 				open_alert(data, target, key = 'uptime', mesg = 'Device rebooted.', resolution = '', kind = 'error')
 			else:
@@ -157,7 +157,8 @@ class Netstat(object):
 # TODO:
 # add interface table, use: /usr/sbin/ip address show
 # add interface stats, use: /usr/sbin/ip -s  link (netstat -i would be nicer, but not always available)
-		
+# add routing table
+
 class DeviceRunner(object):
 	def __init__(self, ip, ssh, handlers):
 		self.ip = ip

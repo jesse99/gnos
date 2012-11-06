@@ -35,7 +35,6 @@
 			"authentication": "-v2c -c public",
 			"modeler": "snmp-modeler.py"
 		},
-		
 		"App-1":
 		{
 			"ip": "10.101.0.10",
