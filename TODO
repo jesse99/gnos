@@ -59,6 +59,10 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- middle should be network address		10.102.0.0/24
 	- left and right should be 					eth1 10.102.0.2
 	- if there are multiple relations between peers use commas
+* modeler should listen for generic traps and at least a few custom ones admins can add
+	- standard generic traps are: coldStart, warmStart, linkDown, linkUp, authenticationFailure, egpNeighborLoss
+	- net-snmp has fewer: http://www.net-snmp.org/tutorial/tutorial-5/commands/snmptrap.html
+	- net-snmp can be configured to send custom traps: http://serverfault.com/questions/248332/set-up-snmp-trap-for-disk-usage
 * Balloon layout is interesting:
 	http://lab.kapit.fr/display/visualizationlayouts/Balloon+layout
 * Add a details list for dropped packets:

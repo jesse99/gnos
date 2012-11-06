@@ -15,6 +15,8 @@
 # to an arbitrary LAN.
 # 4) This design makes it easy for users to write custom modelers using ssh
 # or whatever.
+#
+# Following site has a bunch of snmp links: http://www.wtcs.org/snmp4tpc/literature.htm
 import cgi, json, itertools, httplib, re, sys, threading, time
 from base_modeler import *
 
