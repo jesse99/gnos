@@ -82,7 +82,7 @@ pub fn parse_command_line(args: ~[~str]) -> Options
 		admin: opt_present(copy matched, ~"admin"),
 		network_file: path.filename().get(),
 		db: opt_present(copy matched, ~"db"),
-		browse: opt_str(copy matched, ~"browse"),
+		browse: if opt_present(copy matched, ~"browse") {opt_str(copy matched, ~"browse")} else {~""},
 		
 		network_name: network.network,
 		client: network.client,
