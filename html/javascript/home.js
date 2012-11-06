@@ -140,6 +140,9 @@ function initEntityDragging()
 				GNOS.selection.deselect(context);
 			}
 			
+			// don't need the mouse click help after the user has clicked
+			$('#mouse_note').detach();
+			
 			$('#map').bind('mousemove', handlers.dragged);
 			$(window).bind('mouseup', handlers.dropped);
 			
