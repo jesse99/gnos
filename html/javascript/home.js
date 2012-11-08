@@ -163,13 +163,14 @@ function initEntityDragging()
 		},
 		dropped: function (e)
 		{
+			$('#map').unbind('mousemove', handlers.dragged);
+			$(window).unbind('mouseup', handlers.dropped);
+			
 			if (dragged === null || dragged.node === undefined) return false;
 			if (dragged.node !== null) dragged.node.fixed = false;		// setting this to true doesn't seem to do anything
 			dragged.node.tempMass = 1000;
 			dragged.node.mass = 1.0e50;									// not sure that this does anything
 			dragged = null;
-			$('#map').unbind('mousemove', handlers.dragged);
-			$(window).unbind('mouseup', handlers.dropped);
 			return false;
 		}
 	};

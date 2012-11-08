@@ -2,7 +2,7 @@
 	"network": "Auto-Fat",
 	"poll-rate": 20,
 	"client": "10.8.0.179",
-	"server": "10.6.210.197",
+	"server": "10.6.210.200",
 	"port": 8080,
 	"path": "/modeler",
 	"devices":
