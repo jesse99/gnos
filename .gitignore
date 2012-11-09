@@ -5,4 +5,6 @@ cisco-snmp.log
 grs-snmp.log
 trimmed-cisco-snmp.log
 trimmed-grs-snmp.log
-
+cisco-switch.log
+trimmed-cisco-switch.log
+trimmed-fat-switch.log
