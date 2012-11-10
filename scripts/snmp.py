@@ -20,13 +20,6 @@
 import cgi, json, itertools, httplib, re, sys, threading, time
 from base_modeler import *
 
-try:
-	import argparse
-except:
-	sys.stderr.write("This script requires Python 2.7 or later\n")
-	sys.exit(2)
-	
-logger = None
 connection = None
 
 def ip_to_int(ip):
@@ -511,8 +504,8 @@ def get_values2(contents, name):
 	return values
 
 def dump_snmp(ip, name, contents):
-	logger.debug('%s %s:' % (ip, name))
-	logger.debug('%s' % (contents))
+	env.logger.debug('%s %s:' % (ip, name))
+	env.logger.debug('%s' % (contents))
 		
 # MAC addresses are normally lower case which is kind of ugly and
 # also are not always two digits which is also ugly, but even more
@@ -553,14 +546,12 @@ class DeviceThread(threading.Thread):
 		try:
 			result = run_process(command)
 		except:
-			logger.error("Error executing `%s`" % command, exc_info = True)
+			env.logger.error("Error executing `%s`" % command, exc_info = True)
 			result = ''
 		return result
 
 class Poll(object):
-	def __init__(self, args, config):
-		self.__args = args
-		self.__config = config
+	def __init__(self):
 		self.__startTime = time.time()
 		self.__last_time = None
 		# TODO: 
@@ -571,11 +562,11 @@ class Poll(object):
 		self.__num_samples = 0
 	
 	def run(self):
-		rate = self.__config['poll-rate']
+		rate = env.config['poll-rate']
 		while True:
 			self.__current_time = time.time()
-			if not self.__args.put:
-				logger.info("-" * 60)
+			if not env.options.put:
+				env.logger.info("-" * 60)
 				
 			self.__context['interfaces'] = {}	# (admin ip, ifindex) => Interface
 			self.__context['ips'] = {}			# device ip => admin ip
@@ -596,13 +587,13 @@ class Poll(object):
 				self.__add_bandwidth_details(data, 'in')
 			self.__add_system_info(data);
 			self.__add_interface_uptime_alert(data)
-			send_update(self.__config, connection, data)
+			send_update(connection, data)
 			
 			elapsed = time.time() - self.__current_time
 			self.__last_time = self.__current_time
 			self.__num_samples += 1
-			logger.info('elapsed: %.1f seconds' % elapsed)
-			if time.time() - self.__startTime < self.__args.duration:
+			env.logger.info('elapsed: %.1f seconds' % elapsed)
+			if time.time() - self.__startTime < env.options.duration:
 				time.sleep(max(rate - elapsed, 5))
 			else:
 				break
@@ -863,7 +854,7 @@ class Poll(object):
 		# First try the devices we don't know about (these are the devices we want to use when 
 		# forwarding to a device on an attached subnet).
 		subnet = ip_to_int(network_ip) & netmask
-		for (name, device) in self.__config["devices"].items():
+		for (name, device) in env.config["devices"].items():
 			if device['modeler'] != 'snmp-modeler.py':
 				candidate = ip_to_int(device['ip']) & netmask
 				if candidate == subnet:
@@ -901,43 +892,27 @@ class Poll(object):
 	# that should be OK.
 	def __spawn_threads(self):
 		threads = []
-		for (name, device) in self.__config["devices"].items():
+		for (name, device) in env.config["devices"].items():
 			if device['modeler'] == 'snmp-modeler.py':
 				thread = DeviceThread(device['ip'], device['authentication'], self.__handlers.keys())
 				thread.start()
 				threads.append(thread)
 		return threads
 
-# Parse command line.
-parser = argparse.ArgumentParser(description = "Uses snmp to model a network and sends the result to a gnos server.")
-parser.add_argument("--dont-put", dest = 'put', action='store_false', default=True, help = 'log results instead of PUTing them')
-parser.add_argument("--duration", action='store', default=float('inf'), type=float, metavar='SECS', help = 'amount of time to poll (for testing)')
-parser.add_argument("--stdout", action='store_true', default=False, help = 'log to stdout instead of snmp-modeler.log')
-parser.add_argument("--verbose", "-v", action='count', help = 'print extra information')
-parser.add_argument("--version", "-V", action='version', version='%(prog)s 0.1')	# TODO: keep this version synced up with the gnos version
-parser.add_argument("config", metavar = "CONFIG-FILE", help = "path to json formatted configuration file")
-args = parser.parse_args()
-
-# Configure logging.
-logger = configure_logging(args, 'snmp-modeler.log')
-
-# Read config info.
-config = None
-with open(args.config, 'r') as f:
-	config = json.load(f)
+def start():
+	global connection
+	if env.options.put:
+		address = "%s:%s" % (env.config['server'], env.config['port'])
+		connection = httplib.HTTPConnection(address, strict = True, timeout = 10)
 	
-if args.put:
-	address = "%s:%s" % (config['server'], config['port'])
-	connection = httplib.HTTPConnection(address, strict = True, timeout = 10)
-
-try:
-	# Send entity information to the server. TODO: only one modeler should do this,
-	# maybe use a command-line option?
-	send_entities(config, connection)
-	
-	# Start polling each device.
-	poller = Poll(args, config)
-	poller.run()
-finally:
-	if connection:
-		connection.close()
+	try:
+		# Send entity information to the server. TODO: only one modeler should do this,
+		# maybe use a command-line option?
+		send_entities(connection)
+		
+		# Start polling each device.
+		poller = Poll()
+		poller.run()
+	finally:
+		if connection:
+			connection.close()

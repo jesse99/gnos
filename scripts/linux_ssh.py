@@ -5,13 +5,6 @@
 import cgi, json, itertools, httplib, re, subprocess, sys, threading, time
 from base_modeler import *
 
-try:
-	import argparse
-except:
-	sys.stderr.write("This script requires Python 2.7 or later\n")
-	sys.exit(2)
-	
-logger = None
 connection = None
 
 def find_index(line, needle):
@@ -27,7 +20,7 @@ class UName(object):
 	
 	# Linux auto-fat 2.6.32-33-server #70-Ubuntu SMP Thu Jul 7 22:28:30 UTC 2011 x86_64 GNU/Linux
 	def process(self, data, admin_ip, text, context):
-		logger.debug("uname: '%s'" % text)
+		env.logger.debug("uname: '%s'" % text)
 		target = 'entities:%s' % admin_ip
 		add_label(data, target, admin_ip, 'a', level = 1, style = 'font-size:small')
 		add_details(data, target, 'OS', [text], opened = 'always', sort_key = 'alpha', key = 'uname')
@@ -44,7 +37,7 @@ class Uptime(object):
 	# 19:08:55 up  9:39, load average: 0.00, 0.01, 0.04
 	# 07:13:42 up 52 days, 16:04,  3 users,  load average: 0.00, 0.00, 0.05
 	def process(self, data, admin_ip, text, context):
-		logger.debug("uptime: '%s'" % text)
+		env.logger.debug("uptime: '%s'" % text)
 		target = 'entities:%s' % admin_ip
 		
 		match = re.search(Uptime.up_expr1, text)
@@ -81,7 +74,7 @@ class CpuInfo(object):
 		
 	# 1
 	def process(self, data, admin_ip, text, context):
-		logger.debug("cpuinfo: '%s'" % text)
+		env.logger.debug("cpuinfo: '%s'" % text)
 		if text.isdigit():
 			context['num_cores'][admin_ip] = int(text)
 		
@@ -97,7 +90,7 @@ class Df(object):
 	# overlayfs:/overlay        7.3M    724.0K      6.5M  10% /
 	def process(self, data, admin_ip, text, context):
 		lines = text.splitlines()
-		logger.debug("df: '%s'" % lines)
+		env.logger.debug("df: '%s'" % lines)
 		
 		use_index = find_index(lines[0], "Use%")
 		mount_index = find_index(lines[0], "Mount")
@@ -133,7 +126,7 @@ class Netstat(object):
 	# 0.0.0.0         10.103.0.2      0.0.0.0         UG        0 0          0 eth0
 	def process(self, data, admin_ip, text, context):
 		lines = text.splitlines()
-		logger.debug("netstat: '%s'" % lines)
+		env.logger.debug("netstat: '%s'" % lines)
 		
 		# TODO: snmp-modeler can now figure this out so it's not needed. But it would be nice
 		# to add a details table for routing.
@@ -170,7 +163,7 @@ class DeviceRunner(object):
 	def run(self):
 		self.results = None
 		command = '%s%s "%s"' % (self.__ssh, self.ip, self.__command)
-		logger.debug(command)
+		env.logger.debug(command)
 		try:
 			result = run_process(command)
 			parts = result.split('^^^')
@@ -179,12 +172,10 @@ class DeviceRunner(object):
 			else:
 				raise Exception("Expected %s results but found '%s'" % (len(self.__handlers), result))
 		except:
-			logger.error("Error executing `%s`" % command, exc_info = True)
+			env.logger.error("Error executing `%s`" % command, exc_info = True)
 
 class Poll(object):
-	def __init__(self, args, config):
-		self.__args = args
-		self.__config = config
+	def __init__(self):
 		self.__startTime = time.time()
 		self.__last_time = None
 		self.__handlers = [UName(), Uptime(), CpuInfo(), Df(), Netstat()]
@@ -192,7 +183,7 @@ class Poll(object):
 		self.__num_samples = 0
 	
 	def run(self):
-		rate = self.__config['poll-rate']
+		rate = env.config['poll-rate']
 		while True:
 			self.__current_time = time.time()
 			
@@ -202,13 +193,13 @@ class Poll(object):
 			threads = self.__spawn_threads()
 			data = self.__process_threads(threads)
 			self.__add_cpu_load_gauge(data)
-			send_update(self.__config, connection, data)
+			send_update(connection, data)
 			
 			elapsed = time.time() - self.__current_time
 			self.__last_time = self.__current_time
 			self.__num_samples += 1
-			logger.info('elapsed: %.1f seconds' % elapsed)
-			if time.time() - self.__startTime < self.__args.duration:
+			env.logger.info('elapsed: %.1f seconds' % elapsed)
+			if time.time() - self.__startTime < env.options.duration:
 				time.sleep(max(rate - elapsed, 5))
 			else:
 				break
@@ -249,38 +240,22 @@ class Poll(object):
 	# nothing is returned for random ssh sesssions).
 	def __spawn_threads(self):
 		threads = []
-		for (name, device) in self.__config["devices"].items():
+		for (name, device) in env.config["devices"].items():
 			if device['modeler'] == 'ssh-modeler.py':
 				thread = DeviceRunner(device['ip'], device['ssh'], self.__handlers)
 				thread.run()
 				threads.append(thread)
 		return threads
 
-# Parse command line.
-parser = argparse.ArgumentParser(description = "Uses ssh to model a network and sends the result to a gnos server.")
-parser.add_argument("--dont-put", dest = 'put', action='store_false', default=True, help = 'log results instead of PUTing them')
-parser.add_argument("--duration", action='store', default=float('inf'), type=float, metavar='SECS', help = 'amount of time to poll (for testing)')
-parser.add_argument("--stdout", action='store_true', default=False, help = 'log to stdout instead of ssh-modeler.log')
-parser.add_argument("--verbose", "-v", action='count', help = 'print extra information')
-parser.add_argument("--version", "-V", action='version', version='%(prog)s 0.1')	# TODO: keep this version synced up with the gnos version
-parser.add_argument("config", metavar = "CONFIG-FILE", help = "path to json formatted configuration file")
-args = parser.parse_args()
-
-# Configure logging.
-logger = configure_logging(args, 'ssh-modeler.log')
-
-# Read config info.
-config = None
-with open(args.config, 'r') as f:
-	config = json.load(f)
+def start():
+	global connection
+	if env.options.put:
+		address = "%s:%s" % (config['server'], config['port'])
+		connection = httplib.HTTPConnection(address, strict = True, timeout = 10)
 	
-if args.put:
-	address = "%s:%s" % (config['server'], config['port'])
-	connection = httplib.HTTPConnection(address, strict = True, timeout = 10)
-
-try:
-	poller = Poll(args, config)
-	poller.run()
-finally:
-	if connection:
-		connection.close()
+	try:
+		poller = Poll()
+		poller.run()
+	finally:
+		if connection:
+			connection.close()

@@ -1,19 +1,25 @@
 # Misc functions that pretty much every Python modeler will need to use.
 import json, logging, logging.handlers, socket, subprocess
 
-logger = None
-
-def configure_logging(args, file_name):
-	global logger
-	logger = logging.getLogger(file_name)
-	if args.verbose <= 1:
-		logger.setLevel(logging.WARNING)
-	elif args.verbose == 2:
-		logger.setLevel(logging.INFO)
-	else:
-		logger.setLevel(logging.DEBUG)
+class Env(object):
+	def __init__(self):
+		self.options = None	# command line options, verbose is required
+		self.config = None		# dictionary, requires server, port, and path entries
+		self.logger = None
 		
-	if args.stdout:
+env = Env()
+
+def configure_logging(use_stdout, file_name):
+	global env
+	env.logger = logging.getLogger(file_name)
+	if env.options.verbose <= 1:
+		env.logger.setLevel(logging.WARNING)
+	elif env.options.verbose == 2:
+		env.logger.setLevel(logging.INFO)
+	else:
+		env.logger.setLevel(logging.DEBUG)
+		
+	if use_stdout:
 		handler = logging.StreamHandler()
 		formatter = logging.Formatter('%(asctime)s  %(message)s', datefmt = '%I:%M:%S')
 	else:
@@ -22,8 +28,7 @@ def configure_logging(args, file_name):
 		handler = logging.FileHandler(file_name, mode = 'w')
 		formatter = logging.Formatter('%(asctime)s  %(message)s', datefmt = '%m/%d %I:%M:%S %p')
 	handler.setFormatter(formatter)
-	logger.addHandler(handler)
-	return logger
+	env.logger.addHandler(handler)
 
 def add_label(data, target, label, key, level = 0, style = ''):
 	if label:
@@ -117,27 +122,27 @@ def run_process(command):
 	process = subprocess.Popen(command, bufsize = 8*1024, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 	(outData, errData) = process.communicate()
 	if process.returncode != 0:
-		logger.error(errData)
+		env.logger.error(errData)
 		raise ValueError('return code was %s:' % process.returncode)
 	return outData
 
-def send_update(config, connection, data):
-	logger.debug("sending update")
-	logger.debug("%s" % json.dumps(data, sort_keys = True, indent = 4))
+def send_update(connection, data):
+	env.logger.debug("sending update")
+	env.logger.debug("%s" % json.dumps(data, sort_keys = True, indent = 4))
 	if connection:
 		try:
 			body = json.dumps(data)
 			headers = {"Content-type": "application/json", "Accept": "text/html"}
 			
-			connection.request("PUT", config['path'], body, headers)
+			connection.request("PUT", env.config['path'], body, headers)
 			response = connection.getresponse()
 			response.read()			# we don't use this but we must call it (or, on the second call, we'll get ResponseNotReady errors)
 			if not str(response.status).startswith('2'):
-				logger.error("Error PUTing: %s %s" % (response.status, response.reason))
+				env.logger.error("Error PUTing: %s %s" % (response.status, response.reason))
 				raise Exception("PUT failed")
 		except Exception as e:
-			address = "%s:%s" % (config['server'], config['port'])
-			logger.error("Error PUTing to %s:%s: %s" % (address, config['path'], e), exc_info = type(e) != socket.error)
+			address = "%s:%s" % (env.config['server'], env.config['port'])
+			env.logger.error("Error PUTing to %s:%s: %s" % (address, env.config['path'], e), exc_info = type(e) != socket.error)
 			raise Exception("PUT failed")
 
 # It's a little lame that the edges have to be specified in the network file (using
@@ -145,26 +150,26 @@ def send_update(config, connection, data):
 # often too many of them (which causes clutter and, even worse, causes a
 # lot of instability in node positions when there are too many forces acting
 # on nodes (even with very high friction levels)).
-def send_entities(config, connection):
-	def find_ip(config, name):
-		for (candidate, device) in config["devices"].items():
+def send_entities(connection):
+	def find_ip(name):
+		for (candidate, device) in env.config["devices"].items():
 			if candidate == name:
 				return device['ip']
-		logger.error("Couldn't find link to %s" % name)
+		env.logger.error("Couldn't find link to %s" % name)
 		return ''
 		
 	entities = []
 	relations = []
-	for (name, device) in config["devices"].items():
+	for (name, device) in env.config["devices"].items():
 		style = "font-size:larger font-weight:bolder"
 		entity = {"id": device['ip'], "label": name, "style": style}
-		logger.debug("entity: %s" % entity)
+		env.logger.debug("entity: %s" % entity)
 		entities.append(entity)
 		
 		if 'links' in device:
 			for link in device['links']:
 				left = 'entities:%s' % device['ip']
-				right = 'entities:%s' % find_ip(config, link)
+				right = 'entities:%s' % find_ip(link)
 				relation = {'left-entity-id': left, 'right-entity-id': right, 'predicate': 'options.none'}
 				relations.append(relation)
-	send_update(config, connection, {"modeler": "config", "entities": entities, 'relations': relations})
+	send_update(connection, {"modeler": "config", "entities": entities, 'relations': relations})
