@@ -19,10 +19,10 @@ class UName(object):
 		return 'uname -a'
 	
 	# Linux auto-fat 2.6.32-33-server #70-Ubuntu SMP Thu Jul 7 22:28:30 UTC 2011 x86_64 GNU/Linux
-	def process(self, data, admin_ip, text, context):
+	def process(self, data, text, query):
 		env.logger.debug("uname: '%s'" % text)
-		target = 'entities:%s' % admin_ip
-		add_label(data, target, admin_ip, 'a', level = 1, style = 'font-size:small')
+		target = 'entities:%s' % query.admin_ip
+		add_label(data, target, query.admin_ip, 'a', level = 1, style = 'font-size:small')
 		add_details(data, target, 'OS', [text], opened = 'always', sort_key = 'alpha', key = 'uname')
 		
 class Uptime(object):
@@ -36,9 +36,9 @@ class Uptime(object):
 	# 04:43:21 up 0 min, load average: 1.02, 0.27, 0.09
 	# 19:08:55 up  9:39, load average: 0.00, 0.01, 0.04
 	# 07:13:42 up 52 days, 16:04,  3 users,  load average: 0.00, 0.00, 0.05
-	def process(self, data, admin_ip, text, context):
+	def process(self, data, text, query):
 		env.logger.debug("uptime: '%s'" % text)
-		target = 'entities:%s' % admin_ip
+		target = 'entities:%s' % query.admin_ip
 		
 		match = re.search(Uptime.up_expr1, text)
 		if match:
@@ -65,7 +65,7 @@ class Uptime(object):
 		# cores there are.
 		match = re.search(Uptime.load_expr, text)
 		if match:
-			context['load averages'][admin_ip] = float(match.group(1))
+			query.load_average = float(match.group(1))
 		
 class CpuInfo(object):
 	# Note that this will count both CPUs and cores.
@@ -73,10 +73,10 @@ class CpuInfo(object):
 		return 'cat /proc/cpuinfo | grep -E "[Pp]rocessor[^:alpha:]+:" | wc -l'
 		
 	# 1
-	def process(self, data, admin_ip, text, context):
+	def process(self, data, text, query):
 		env.logger.debug("cpuinfo: '%s'" % text)
 		if text.isdigit():
-			context['num_cores'][admin_ip] = int(text)
+			query.num_cores = int(text)
 		
 class Df(object):
 	def command(self):
@@ -88,14 +88,14 @@ class Df(object):
 	# tmpfs                   512.0K         0    512.0K   0% /dev
 	# /dev/mtdblock3            7.3M    724.0K      6.5M  10% /overlay
 	# overlayfs:/overlay        7.3M    724.0K      6.5M  10% /
-	def process(self, data, admin_ip, text, context):
+	def process(self, data, text, query):
 		lines = text.splitlines()
 		env.logger.debug("df: '%s'" % lines)
 		
 		use_index = find_index(lines[0], "Use%")
 		mount_index = find_index(lines[0], "Mount")
 		if use_index and mount_index:
-			target = 'entities:%s' % admin_ip
+			target = 'entities:%s' % query.admin_ip
 			for line in lines[1:]:
 				self.__process_line(data, target, line, use_index, mount_index)
 				
@@ -124,7 +124,7 @@ class Netstat(object):
 	# Destination     Gateway         Genmask         Flags   MSS Window  irtt Iface
 	# 10.103.0.0      0.0.0.0         255.255.255.0   U         0 0          0 eth0
 	# 0.0.0.0         10.103.0.2      0.0.0.0         UG        0 0          0 eth0
-	def process(self, data, admin_ip, text, context):
+	def process(self, data, text, query):
 		lines = text.splitlines()
 		env.logger.debug("netstat: '%s'" % lines)
 		
@@ -132,7 +132,7 @@ class Netstat(object):
 		# to add a details table for routing.
 #		gateway_index = find_index(lines[1], "Gateway")
 #		if gateway_index:
-#			target = 'entities:%s' % admin_ip
+#			target = 'entities:%s' % query.admin_ip
 #			for line in lines[2:]:
 #				self.__process_line(data, target, line, gateway_index)
 				
@@ -174,88 +174,44 @@ class DeviceRunner(object):
 		except:
 			env.logger.error("Error executing `%s`" % command, exc_info = True)
 
-class Poll(object):
-	def __init__(self):
-		self.__startTime = time.time()
-		self.__last_time = None
+class QueryDevice(object):
+	def __init__(self, device):
 		self.__handlers = [UName(), Uptime(), CpuInfo(), Df(), Netstat()]
-		self.__context = {}
-		self.__num_samples = 0
+		self.__device = device
+		self.admin_ip = device['ip']
+		self.load_average = None		# 1 min load average
+		self.num_cores = None
 	
-	def run(self):
-		rate = env.config['poll-rate']
-		while True:
-			self.__current_time = time.time()
-			
-			self.__context['load averages'] = {}	# admin ip => 1min load average
-			self.__context['num_cores'] = {}		# admin_ip => number of cores
-			
-			threads = self.__spawn_threads()
-			data = self.__process_threads(threads)
-			self.__add_cpu_load_gauge(data)
-			send_update(connection, data)
-			
-			elapsed = time.time() - self.__current_time
-			self.__last_time = self.__current_time
-			self.__num_samples += 1
-			env.logger.info('elapsed: %.1f seconds' % elapsed)
-			if time.time() - self.__startTime < env.options.duration:
-				time.sleep(max(rate - elapsed, 5))
-			else:
-				break
-				
+	def run(self, data, num_updates):
+		runner = DeviceRunner(self.admin_ip, self.__device['ssh'], self.__handlers)
+		runner.run()
+		
+		self.__process(runner, data)
+		self.__add_cpu_load_gauge(data)
+		
+	def __process(self, runner, data):
+		target = 'entities:%s' % runner.ip
+		close_alert(data, target, key = 'device down')
+		if runner.results:
+			assert len(runner.results) == len(self.__handlers)
+			for i in xrange(0, len(runner.results)):
+				self.__handlers[i].process(data, runner.results[i], self)
+		else:
+			open_alert(data, target, key = 'device down', mesg = 'Device is down.', resolution = 'Check the power cable, power it on if it is off, check the IP address, verify routing.', kind = 'error')
+		
 	def __add_cpu_load_gauge(self, data):
-		for (admin_ip, load) in self.__context['load averages'].items():
-			if self.__context['num_cores'][admin_ip] != None:
-				value = load/self.__context['num_cores'][admin_ip]
-				target = 'entities:%s' % admin_ip
-				level = None
-				if value >= 0.90:
-					level = 1
-					style = 'gauge-bar-color:salmon'
-				elif value >= 0.75:
-					level = 2
-					style = 'gauge-bar-color:darkorange'
-				elif value >= 0.50:
-					level = 3
-					style = 'gauge-bar-color:skyblue'
-				if level:
-					add_gauge(data, target, 'processor load', value, level, style, sort_key = 'y')
-			
-	def __process_threads(self, threads):
-		data = {'modeler': 'ssh', 'entities': [], 'relations': [], 'labels': [], 'gauges': [], 'details': [], 'alerts': [], 'samples': [], 'charts': []}
-		for thread in threads:
-			target = 'entities:%s' % thread.ip
-			close_alert(data, target, key = 'device down')
-			if thread.results:
-				assert len(thread.results) == len(self.__handlers)
-				for i in xrange(0, len(thread.results)):
-					self.__handlers[i].process(data, thread.ip, thread.results[i], self.__context)
-			else:
-				open_alert(data, target, key = 'device down', mesg = 'Device is down.', resolution = 'Check the power cable, power it on if it is off, check the IP address, verify routing.', kind = 'error')
-		return data
-	
-	# It would be much better to actually do these within threads, but at least some Linux devices
-	# seem to have very small limits on the number of outstanding ssh sessions. (When this happens
-	# nothing is returned for random ssh sesssions).
-	def __spawn_threads(self):
-		threads = []
-		for (name, device) in env.config["devices"].items():
-			if device['modeler'] == 'ssh-modeler.py':
-				thread = DeviceRunner(device['ip'], device['ssh'], self.__handlers)
-				thread.run()
-				threads.append(thread)
-		return threads
-
-def start():
-	global connection
-	if env.options.put:
-		address = "%s:%s" % (config['server'], config['port'])
-		connection = httplib.HTTPConnection(address, strict = True, timeout = 10)
-	
-	try:
-		poller = Poll()
-		poller.run()
-	finally:
-		if connection:
-			connection.close()
+		if self.load_average != None and self.num_cores != None:
+			value = self.load_average/self.num_cores
+			target = 'entities:%s' % self.admin_ip
+			level = None
+			if value >= 0.90:
+				level = 1
+				style = 'gauge-bar-color:salmon'
+			elif value >= 0.75:
+				level = 2
+				style = 'gauge-bar-color:darkorange'
+			elif value >= 0.50:
+				level = 3
+				style = 'gauge-bar-color:skyblue'
+			if level:
+				add_gauge(data, target, 'processor load', value, level, style, sort_key = 'y')

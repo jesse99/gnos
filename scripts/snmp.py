@@ -150,12 +150,12 @@ class Route(object):
 	def metric(self):
 		return self.__metric
 		
-	def get_src_ip(self, admin_ip, context):
+	def get_src_ip(self, admin_ip, query):
 		key = (admin_ip, self.__ifindex)
-		if key in context['interfaces']:
-			return context['interfaces'][key].ip
-		else:
-			return None
+#		if key in context['interfaces']:
+#			return context['interfaces'][key].ip
+#		else:
+#			return None
 	
 	def __repr__(self):
 		return '%s via %s' % (self.__dst_subnet, self.__via_ip)
@@ -172,7 +172,7 @@ class Route(object):
 # SNMPv2-MIB::sysORID[1] IP-MIB::ip		will be one of these for each MIB supported by the device
 # SNMPv2-MIB::sysORDescr[1] The MIB module for managing IP and ICMP implementations
 # SNMPv2-MIB::sysORUpTime[1] 0
-def process_system(admin_ip, data, contents, context):
+def process_system(admin_ip, data, contents, query):
 	#dump_snmp(admin_ip, 'system', contents)
 	target = 'entities:%s' % admin_ip
 	add_label(data, target, admin_ip, 'a', level = 1, style = 'font-size:small')
@@ -183,7 +183,7 @@ def process_system(admin_ip, data, contents, context):
 		up_time = get_value(contents, "%s", 'sysUpTimeInstance')
 	if up_time:
 		up_time = float(up_time)/100.0
-		context['up_times'][admin_ip] = up_time
+#		context['up_times'][admin_ip] = up_time
 		add_label(data, target, 'uptime: %s' % secs_to_str(up_time), key, level = 2, style = 'font-size:small')
 		if up_time < 60.0:
 			# TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
@@ -191,9 +191,9 @@ def process_system(admin_ip, data, contents, context):
 		else:
 			close_alert(data, target, key = 'uptime')
 	
-	context['system'][admin_ip] += get_value(contents, '* %s\n', 'sysDescr')
-	context['system'][admin_ip] += get_value(contents, '* %s\n', 'sysContact')
-	context['system'][admin_ip] += get_value(contents, '* location is %s\n', 'sysLocation')
+#	context['system'][admin_ip] += get_value(contents, '* %s\n', 'sysDescr')
+#	context['system'][admin_ip] += get_value(contents, '* %s\n', 'sysContact')
+#	context['system'][admin_ip] += get_value(contents, '* location is %s\n', 'sysLocation')
 	
 # A lot of these stats are deprecated in favor of entries in ipSystemStatsTable. But that isn't always available.
 # IP-MIB::ipForwarding.0 forwarding
@@ -234,19 +234,19 @@ def process_system(admin_ip, data, contents, context):
 # RFC1213-MIB::ipRouteProto[10.0.4.0] local
 # RFC1213-MIB::ipRouteMask[10.0.4.0] 255.255.255.0
 # RFC1213-MIB::ipRouteInfo[10.0.4.0] SNMPv2-SMI::zeroDotZero
-def process_ip(admin_ip, data, contents, context):
+def process_ip(admin_ip, data, contents, query):
 	target = 'entities:%s' % admin_ip
 	key = 'zeppo'
 	
-	if get_value(contents, '%s', 'ipForwarding') == 'forwarding':
-		context['system'][admin_ip] += '* ip forwarding is on\n'
-	else:
-		context['system'][admin_ip] += '* ip forwarding is off\n'
+#	if get_value(contents, '%s', 'ipForwarding') == 'forwarding':
+#		context['system'][admin_ip] += '* ip forwarding is on\n'
+#	else:
+#		context['system'][admin_ip] += '* ip forwarding is off\n'
 		
 	indexes = get_values(contents, "ipAdEntIfIndex")
-	for (ip, if_index) in indexes.items():
-		# create a mapping from device ip to admin ip
-		context['ips'][ip] = admin_ip
+#	for (ip, if_index) in indexes.items():
+#		# create a mapping from device ip to admin ip
+#		context['ips'][ip] = admin_ip
 	
 	# initialize mapping from device ip to Interface
 	masks = get_values(contents, "ipAdEntNetMask")
@@ -254,28 +254,28 @@ def process_ip(admin_ip, data, contents, context):
 		index = indexes.get(ip, '?')
 		mask = masks.get(ip, '?')
 		
-		key = (admin_ip, index)
-		if key not in context['interfaces']:
-			context['interfaces'][key] = Interface()
-		context['interfaces'][key].set_ip(ip, mask)
+#		key = (admin_ip, index)
+#		if key not in context['interfaces']:
+#			context['interfaces'][key] = Interface()
+#		context['interfaces'][key].set_ip(ip, mask)
 	
 	# create a table for routing (we can't build relations until we finish building the device to admin ip mapping)
-	if admin_ip not in context['routes']:
-		context['routes'][admin_ip] = []
+#	if admin_ip not in context['routes']:
+#		context['routes'][admin_ip] = []
 	
 	nexts = get_values(contents, "ipRouteNextHop")
 	metrics = get_values(contents, "ipRouteMetric1")
 	protocols = get_values(contents, "ipRouteProto")	
 	masks = get_values(contents, "ipRouteMask")
 	indexes = get_values(contents, "ipRouteIfIndex")
-	for dest_ip in nexts.keys():
-		context['routes'][admin_ip].append(Route(
-			dst_subnet = dest_ip,
-			dst_mask = masks.get(dest_ip, ''),
-			via_ip = nexts.get(dest_ip, ''),
-			protocol = protocols.get(dest_ip, ''),
-			metric = metrics.get(dest_ip, ''),
-			ifindex = indexes.get(dest_ip, '')))
+#	for dest_ip in nexts.keys():
+#		context['routes'][admin_ip].append(Route(
+#			dst_subnet = dest_ip,
+#			dst_mask = masks.get(dest_ip, ''),
+#			via_ip = nexts.get(dest_ip, ''),
+#			protocol = protocols.get(dest_ip, ''),
+#			metric = metrics.get(dest_ip, ''),
+#			ifindex = indexes.get(dest_ip, '')))
 	
 # IF-MIB::ifNumber.0 13				will be one of these for each interface
 # IF-MIB::ifDescr[1] lo			
@@ -299,7 +299,7 @@ def process_ip(admin_ip, data, contents, context):
 # IF-MIB::ifOutErrors[1] 0
 # IF-MIB::ifOutQLen[1] 0	
 # IF-MIB::ifSpecific[1] SNMPv2-SMI::zeroDotZero
-def process_interfaces(admin_ip, data, contents, context):
+def process_interfaces(admin_ip, data, contents, query):
 	target = 'entities:%s' % admin_ip
 	
 	# create an interfaces table (we can't build details until we know ip addresses)
@@ -320,34 +320,34 @@ def process_interfaces(admin_ip, data, contents, context):
 			key = (admin_ip, index)
 			name = descs.get(index, '')
 			
-			if key not in context['interfaces']:
-				context['interfaces'][key] = Interface()
-			context['interfaces'][key].set_if(
-				desc = name,
-				status = status.get(index, ''),
-				mac_addr = sanitize_mac(macs.get(index, '')),
-				speed = float(speeds.get(index, 0.0)),
-				mtu = mtus.get(index, ''),
-				in_octets = float(in_octets.get(index, 0.0)), 
-				out_octets = float(out_octets.get(index, 0.0)),
-				last_changed = float(last_changes.get(index, 0.0))/100.0)
+#			if key not in context['interfaces']:
+#				context['interfaces'][key] = Interface()
+#			context['interfaces'][key].set_if(
+#				desc = name,
+#				status = status.get(index, ''),
+#				mac_addr = sanitize_mac(macs.get(index, '')),
+#				speed = float(speeds.get(index, 0.0)),
+#				mtu = mtus.get(index, ''),
+#				in_octets = float(in_octets.get(index, 0.0)), 
+#				out_octets = float(out_octets.get(index, 0.0)),
+#				last_changed = float(last_changes.get(index, 0.0))/100.0)
 			found.add(name)
 			
 	for index in descs.keys():
 		name = descs.get(index, '')
 		if status.get(index, '') != 'up' and status.get(index, '') != 'dormant' and name not in found:
 			key = (admin_ip, index)
-			if key not in context['interfaces']:
-				context['interfaces'][key] = Interface()
-			context['interfaces'][key].set_if(
-				desc = descs.get(index, ''),
-				status = status.get(index, ''),
-				mac_addr = sanitize_mac(macs.get(index, '')),
-				speed = float(speeds.get(index, 0.0)),
-				mtu = mtus.get(index, ''),
-				in_octets = 0.0, 				# these will often be nonsense
-				out_octets = 0.0,
-				last_changed = float(last_changes.get(index, 0.0))/100.0)
+#			if key not in context['interfaces']:
+#				context['interfaces'][key] = Interface()
+#			context['interfaces'][key].set_if(
+#				desc = descs.get(index, ''),
+#				status = status.get(index, ''),
+#				mac_addr = sanitize_mac(macs.get(index, '')),
+#				speed = float(speeds.get(index, 0.0)),
+#				mtu = mtus.get(index, ''),
+#				in_octets = 0.0, 				# these will often be nonsense
+#				out_octets = 0.0,
+#				last_changed = float(last_changes.get(index, 0.0))/100.0)
 			found.add(name)
 				
 	# alert if interface operational status doesn't match admin status
@@ -369,7 +369,7 @@ def process_interfaces(admin_ip, data, contents, context):
 # HOST-RESOURCES-MIB::hrStorageAllocationUnits[1] 1024
 # HOST-RESOURCES-MIB::hrStorageSize[1] 246004
 # HOST-RESOURCES-MIB::hrStorageUsed[1] 177396
-def process_storage(admin_ip, data, contents, context):
+def process_storage(admin_ip, data, contents, query):
 	target = 'entities:%s' % admin_ip
 	storage = get_values(contents, "hrStorageDescr")
 	used = get_values(contents, "hrStorageUsed")
@@ -379,9 +379,9 @@ def process_storage(admin_ip, data, contents, context):
 		# update system details with info about storage
 		unit = float(units.get(index, 0))
 		actual = unit*float(size.get(index, 0))/(1024*1024)
-		if actual:
-			use = unit*float(used.get(index, 0))/(1024*1024)/actual
-			context['system'][admin_ip] += '* %s has %.1f MiB with %.0f%% in use\n' % (kind.lower(), actual, 100*use)
+#		if actual:
+#			use = unit*float(used.get(index, 0))/(1024*1024)/actual
+#			context['system'][admin_ip] += '* %s has %.1f MiB with %.0f%% in use\n' % (kind.lower(), actual, 100*use)
 		
 		# add a gauge if virtual memory is full
 		level = None
@@ -438,7 +438,7 @@ def process_storage(admin_ip, data, contents, context):
 # HOST-RESOURCES-MIB::hrFSStorageIndex[1] 31
 # HOST-RESOURCES-MIB::hrFSLastFullBackupDate[1] 0-1-1,0:0:0.0
 # HOST-RESOURCES-MIB::hrFSLastPartialBackupDate[1] 0-1-1,0:0:0.0
-def process_device(admin_ip, data, contents, context):
+def process_device(admin_ip, data, contents, query):
 	descrs = get_values(contents, "hrDeviceDescr")
 	status = get_values(contents, "hrDeviceStatus")
 	errors = get_values(contents, "hrDeviceErrors")
@@ -446,8 +446,8 @@ def process_device(admin_ip, data, contents, context):
 		# update system details with info about devices
 		stat = status.get(index, '')
 		errs = errors.get(index, '0')
-		if stat:
-			context['system'][admin_ip] += '* %s is %s with %s errors\n' % (desc, stat, errs)
+#		if stat:
+#			context['system'][admin_ip] += '* %s is %s with %s errors\n' % (desc, stat, errs)
 		
 	# add a gauge if processor load is high
 	load = get_value(contents, '%s', 'hrProcessorLoad')
@@ -526,9 +526,8 @@ def add_units(value, unit):
 		value = '%s %s' % (value, unit)
 	return value
 
-class DeviceThread(threading.Thread):
+class DeviceRunner(object):
 	def __init__(self, ip, authentication, mib_names):
-		threading.Thread.__init__(self)
 		self.ip = ip
 		self.__authentication = authentication
 		self.__mib_names = mib_names
@@ -550,54 +549,47 @@ class DeviceThread(threading.Thread):
 			result = ''
 		return result
 
-class Poll(object):
-	def __init__(self):
-		self.__startTime = time.time()
-		self.__last_time = None
+class QueryDevice(object):
+	def __init__(self, device):
 		# TODO: 
-		# alert if hrSystemDate is too far from admin machine's datetime
+		# alert if hrSystemDate is too far from admin machine's datetime (5min maybe)
 		# might be nice to do something with tcp and udp stats
 		self.__handlers = {'system': process_system, 'ip': process_ip, 'interfaces': process_interfaces, 'hrStorage': process_storage, 'hrDevice': process_device}
-		self.__context = {}
-		self.__num_samples = 0
+		self.__device = device
+		self.admin_ip = device['ip']
+#		self.__context = {}
 	
-	def run(self):
-		rate = env.config['poll-rate']
-		while True:
-			self.__current_time = time.time()
-			if not env.options.put:
-				env.logger.info("-" * 60)
-				
-			self.__context['interfaces'] = {}	# (admin ip, ifindex) => Interface
-			self.__context['ips'] = {}			# device ip => admin ip
-			self.__context['routes'] = {}		# admin_ip => [Route]
-			self.__context['system'] = {}		# admin ip => markdown with system info details
-			self.__context['up_times'] = {}	# admin_ip => system up time
-			
-			threads = self.__spawn_threads()
-			data = self.__process_threads(threads)
-			self.__add_next_hop_relations(data)
-			self.__add_selection_route_relations(data)
-			self.__add_interfaces_table(data)
-			self.__add_routing_table(data)
-			if self.__num_samples >= 2:
-				self.__add_bandwidth_chart(data, 'out')
-				self.__add_bandwidth_chart(data, 'in')
-				self.__add_bandwidth_details(data, 'out')
-				self.__add_bandwidth_details(data, 'in')
-			self.__add_system_info(data);
-			self.__add_interface_uptime_alert(data)
-			send_update(connection, data)
-			
-			elapsed = time.time() - self.__current_time
-			self.__last_time = self.__current_time
-			self.__num_samples += 1
-			env.logger.info('elapsed: %.1f seconds' % elapsed)
-			if time.time() - self.__startTime < env.options.duration:
-				time.sleep(max(rate - elapsed, 5))
-			else:
-				break
-			
+	def run(self, data, num_updates):
+		self.__num_updates = num_updates
+		
+#		self.__context['interfaces'] = {}	# (admin ip, ifindex) => Interface
+#		self.__context['ips'] = {}			# device ip => admin ip
+#		self.__context['routes'] = {}		# admin_ip => [Route]
+#		self.__context['system'] = {}		# admin ip => markdown with system info details
+#		self.__context['up_times'] = {}	# admin_ip => system up time
+		
+		runner = DeviceRunner(self.admin_ip, self.__device['authentication'], self.__handlers.keys())
+		runner.run()
+		self.__process_threads(runner, data)
+#		self.__add_next_hop_relations(data)
+#		self.__add_selection_route_relations(data)
+#		self.__add_interfaces_table(data)
+#		self.__add_routing_table(data)
+#		if num_updates >= 2:
+#			self.__add_bandwidth_chart(data, 'out')
+#			self.__add_bandwidth_chart(data, 'in')
+#			self.__add_bandwidth_details(data, 'out')
+#			self.__add_bandwidth_details(data, 'in')
+#		self.__add_system_info(data);
+#		self.__add_interface_uptime_alert(data)
+	
+	def __process_threads(self, runner, data):
+		target = 'entities:%s' % self.admin_ip
+		for (mib, contents) in runner.results.items():
+#			if self.admin_ip not in self.__context['system']:
+#				self.__context['system'][thread.ip] = ''
+			self.__handlers[mib](self.admin_ip, data, contents, self)
+		
 	def __add_interfaces_table(self, data):
 		details = {}		# admin ip => [row]
 		for (key, interface) in self.__context['interfaces'].items():
@@ -700,7 +692,7 @@ class Poll(object):
 			if chart['direction'] == direction:
 				target = 'entities:%s' % chart['admin_ip']
 				name = chart['name']
-				markdown = '![bandwidth](/generated/%s.png#%s)' % (name, self.__num_samples)
+				markdown = '![bandwidth](/generated/%s.png#%s)' % (name, self.__num_updates)
 				add_details(data, target, '%s Bandwidth' % direction.title(), [markdown], opened = 'no', sort_key = 'alpha-' + direction, key = '%s bandwidth' % name)
 			
 	def __add_system_info(self, data):
@@ -757,14 +749,14 @@ class Poll(object):
 			if elapsed > 1.0:
 				value = (table['raw'] - self.__context[table['key']])/elapsed
 		table['value'] = value
-		if self.__num_samples >= 2:
+		if self.__num_updates >= 2:
 			data['samples'].append({'name': table['key'], 'value': value, 'units': table['units']})
 		
 		# When dynamically adding html content browsers will not reload images that have
 		# been already loaded. To work around this we add a unique fragment identifier
 		# which the server will ignore.
-		if self.__num_samples >= 2:
-			url = '/generated/%s.png#%s' % (table['key'], self.__num_samples)
+		if self.__num_updates >= 2:
+			url = '/generated/%s.png#%s' % (table['key'], self.__num_updates)
 			table['html'] = "<img src = '%s' alt = '%s'>" % (url, table['key'])
 		
 		self.__context[table['key']] = table['raw']
@@ -868,51 +860,3 @@ class Poll(object):
 				return admin_ip
 		
 		return None
-	
-	# Devices can have significant variation in how quickly they respond to SNMP queries
-	# so simply joining them one after another isn't great, but it's simple and should work
-	# fine most of the time.
-	def __process_threads(self, threads):
-		data = {'modeler': 'snmp', 'entities': [], 'relations': [], 'labels': [], 'gauges': [], 'details': [], 'alerts': [], 'samples': [], 'charts': []}
-		for thread in threads:
-			thread.join(3.0)
-			
-			target = 'entities:%s' % thread.ip
-			if not thread.isAlive():
-				close_alert(data, target, key = 'device down')
-				for (mib, contents) in thread.results.items():
-					if thread.ip not in self.__context['system']:
-						self.__context['system'][thread.ip] = ''
-					self.__handlers[mib](thread.ip, data, contents, self.__context)
-			else:
-				open_alert(data, target, key = 'device down', mesg = 'Device is down.', resolution = 'Check the power cable, power it on if it is off, check the IP address, verify routing.', kind = 'error')
-		return data
-	
-	# This could be a lot of threads but they spend nearly all their time blocked so
-	# that should be OK.
-	def __spawn_threads(self):
-		threads = []
-		for (name, device) in env.config["devices"].items():
-			if device['modeler'] == 'snmp-modeler.py':
-				thread = DeviceThread(device['ip'], device['authentication'], self.__handlers.keys())
-				thread.start()
-				threads.append(thread)
-		return threads
-
-def start():
-	global connection
-	if env.options.put:
-		address = "%s:%s" % (env.config['server'], env.config['port'])
-		connection = httplib.HTTPConnection(address, strict = True, timeout = 10)
-	
-	try:
-		# Send entity information to the server. TODO: only one modeler should do this,
-		# maybe use a command-line option?
-		send_entities(connection)
-		
-		# Start polling each device.
-		poller = Poll()
-		poller.run()
-	finally:
-		if connection:
-			connection.close()
