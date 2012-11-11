@@ -468,40 +468,42 @@ class Poll(object):
 	def __add_interfaces_table(self, data, device):
 		rows = []
 		for interface in device.interfaces:
-			name = cgi.escape(interface.name)
-			
-			ip = interface.ip
-			if interface.net_mask:
-				subnet = get_subnet(interface.net_mask)
-				if ip == device.admin_ip:
-					ip = '<strong>%s/%s</strong>' % (ip, subnet)
-				else:
-					ip = '%s/%s' % (ip, subnet)
-			
-			# We always need to add samples so that they stay in sync with one another.
-			if interface.in_octets != None:
-				in_octets = self.__process_sample(data, {'key': '%s-%s-in_octets' % (device.admin_ip, name), 'raw': 8*interface.in_octets/1000, 'units': 'kbps'})
-			if interface.out_octets != None:
-				out_octets = self.__process_sample(data, {'key':  '%s-%s-out_octets' % (device.admin_ip, name), 'raw': 8*interface.out_octets/1000, 'units': 'kbps'})
-			
-			if interface.active and interface.speed:
-				speed = interface.speed
-				if speed:
-					if out_octets['value']:
-						self.__add_interface_gauge(data, device.admin_ip, name, out_octets['value'], speed/1000)
-					speed = speed/1000000
-					speed = '%.1f Mbps' % speed
+			if interface.name:
+				name = cgi.escape(interface.name)
 				
-				rows.append([name, ip, interface.mac_addr, speed, add_units(interface.mtu, 'B'), in_octets['html'], out_octets['html']])
+				ip = interface.ip
+				if interface.net_mask:
+					subnet = get_subnet(interface.net_mask)
+					if ip == device.admin_ip:
+						ip = '<strong>%s/%s</strong>' % (ip, subnet)
+					else:
+						ip = '%s/%s' % (ip, subnet)
+				
+				# We always need to add samples so that they stay in sync with one another.
+				if interface.in_octets != None:
+					in_octets = self.__process_sample(device, data, {'key': '%s-%s-in_octets' % (device.admin_ip, name), 'raw': 8*interface.in_octets/1000, 'units': 'kbps'})
+				if interface.out_octets != None:
+					out_octets = self.__process_sample(device, data, {'key':  '%s-%s-out_octets' % (device.admin_ip, name), 'raw': 8*interface.out_octets/1000, 'units': 'kbps'})
+				
+				if interface.active and interface.speed:
+					speed = interface.speed
+					if speed:
+						if out_octets['value']:
+							self.__add_interface_gauge(data, device.admin_ip, name, out_octets['value'], speed/1000)
+						speed = speed/1000000
+						speed = '%.1f Mbps' % speed
+					
+					rows.append([name, ip, interface.mac_addr, speed, add_units(interface.mtu, 'B'), in_octets['html'], out_octets['html']])
 			
-		detail = {}
-		detail['style'] = 'html'
-		detail['header'] = ['Name', 'IP Address', 'Mac Address', 'Speed', 'MTU', 'In Octets (kbps)', 'Out Octets (kbps)']
-		detail['rows'] = sorted(rows, key = lambda row: row[0])
-		
-		target = 'entities:%s' % device.admin_ip
-		footnote = '*The shaded area in the sparklines is the inter-quartile range: the range in which half the samples appear.*'
-		add_details(data, target, 'Interfaces', [detail, footnote], opened = 'yes', sort_key = 'alpha', key = 'interfaces table')
+		if rows:
+			detail = {}
+			detail['style'] = 'html'
+			detail['header'] = ['Name', 'IP Address', 'Mac Address', 'Speed', 'MTU', 'In Octets (kbps)', 'Out Octets (kbps)']
+			detail['rows'] = sorted(rows, key = lambda row: row[0])
+			
+			target = 'entities:%s' % device.admin_ip
+			footnote = '*The shaded area in the sparklines is the inter-quartile range: the range in which half the samples appear.*'
+			add_details(data, target, 'Interfaces', [detail, footnote], opened = 'yes', sort_key = 'alpha', key = 'interfaces table')
 			
 	def __add_interface_gauge(self, data, admin_ip, ifname, out_octets, speed):
 		level = None
@@ -528,7 +530,7 @@ class Poll(object):
 	# 2) It ships the new sample off to the server.
 	# 3) An html entry is initialized with either a blank value or an url to a sparkline chart for the sample.
 	# 4) The sample value and html link are returned to out caller.
-	def __process_sample(self, data, table):
+	def __process_sample(self, device, data, table):
 		# On input table has: key, raw, and units
 		# On exit: value and html are added
 		table['value'] = None
