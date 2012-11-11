@@ -207,9 +207,25 @@ priv fn append_r_script(chart: &Chart, samples: &[RingBuffer], script: &mut ~str
 	
 	for samples.eachi |i, buffer|
 	{
-		assert buffer.len() == num_samples;
-		let values = do iter::map_to_vec(buffer) |x| {x.to_str()};
-		*script += fmt!("samples%? = c(%s)\n", i+1, str::connect(values, ", "));
+		// TODO: Currently samples are only used for interface stats. Unfortunately
+		// tap interfaces are managed by applications and may come and go (for
+		// example after a reboot the normal interfaces can come up before the
+		// tap interfaces).
+		//
+		// A good fix for this seems painful. Perhaps the way to go is to have a SampleSet
+		// abstraction in rust that manages multiple samples as a unit. When a new sample
+		// appears it can be prepended with zeros. When samples are added if one is
+		// missing it can be given a zero value.
+		if buffer.len() == num_samples
+		{
+			let values = do iter::map_to_vec(buffer) |x| {x.to_str()};
+			*script += fmt!("samples%? = c(%s)\n", i+1, str::connect(values, ", "));
+		}
+		else
+		{
+			// This sucks but the chart will recover once the ring buffers fill up.
+			error!("For %s number of %s samples doesn't match %s", chart.path, chart.sample_sets[i], chart.sample_sets[0]);
+		}
 	}
 	
 	let (interval, x_units) = get_time_interval(chart.interval, num_samples);
