@@ -43,8 +43,9 @@ The schema is defined with the aid of a couple of different namespace prefixes:\
 \b xsd
 \b0  - http://www.w3.org/2001/XMLSchema#\
 \
+\pard\pardeftab480\pardirnatural
 
-\b\fs50 map:<store>/globals\
+\b\fs50 \cf0 map:<store>/globals\
 \pard\pardeftab480\pardirnatural
 
 \b0\fs36 \cf0 gnos:poll_interval	xsd:integer		30 (seconds, optional)\
@@ -121,9 +122,9 @@ For tables detail is json formatted as:\
 
 \b0\fs36 \ul gnos:left\ulnone 				xsd:anyURI		map:auto-fat/entities/10.1.0.1\
 gnos:right			xsd:anyURI		map:auto-fat/entities/10.1.0.2\
-gnos:left_info		blank				_:label-eth1 (optional)\
-gnos:middle_info	blank				_:label-cost1 (optional) [could make this 0-N by pointing to a list of infos]\
-gnos:right_info		blank				_:label-eth2 (optional)\
+gnos:left_infos		xsd:string			["_:label-eth1"] (optional)\
+gnos:middle_infos	xsd:string			["_:label-cost1"] (optional)\
+gnos:right_infos		xsd:string			["_:label-eth2"] (optional)\
 gnos:style			xsd:string			"line-type:directed line-width:4 line-color:blue" (optional)\
 gnos:predicate		xsd:string			"options.ospf selection.name '10.1.0.4'
 \f1\fs24  

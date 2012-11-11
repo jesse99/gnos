@@ -23,14 +23,14 @@ def add_gauge(data, target, label, value, level, style, sort_key):
 def add_details(data, target, label, details, opened, sort_key, key):
 	data['details'].append({'entity-id': target, 'label': label, 'details': json.dumps(details), 'open': opened, 'sort-key': sort_key, 'id': key})
 
-def add_relation(data, left, right, style = '', left_label = None, middle_label = None, right_label = None, predicate = None):
+def add_relation(data, left, right, style = '', left_labels = None, middle_labels = None, right_labels = None, predicate = None):
 	relation = {'left-entity-id': left, 'right-entity-id': right, 'style': style}
-	if left_label:
-		relation['left-label'] = left_label
-	if middle_label:
-		relation['middle-label'] = middle_label
-	if right_label:
-		relation['right-label'] = right_label
+	if left_labels:
+		relation['left-labels'] = left_labels
+	if middle_labels:
+		relation['middle-labels'] = middle_labels
+	if right_labels:
+		relation['right-labels'] = right_labels
 	if predicate:
 		relation['predicate'] = predicate
 	data['relations'].append(relation)

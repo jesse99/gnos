@@ -423,20 +423,28 @@ class Poll(object):
 			left = 'entities:%s' % src_admin
 			right = 'entities:%s' % via_admin
 			
+			left_labels = []
 			if route.src_interface:
-				left_label = {'label': '%s %s' % (route.src_interface.name, route.src_interface.ip), 'level': 2, 'style': 'font-size:xx-small'}
-			else:
-				left_label = {'label': route.src_interface.ip, 'level': 2, 'style': 'font-size:xx-small'}
+				left_labels.append({'label': route.src_interface.name, 'level': 1, 'style': 'font-size:x-small'})
+				left_labels.append({'label': route.src_interface.ip, 'level': 1, 'style': 'font-size:xx-small'})
+				if route.src_interface.mac_addr:
+					left_labels.append({'label': route.src_interface.mac_addr, 'level': 2, 'style': 'font-size:xx-small'})
 			
-			middle_label = {'label': '%s cost %s' % (route.protocol, route.metric), 'level': 1, 'style': 'font-size:small'}
+			middle_labels = [{'label': '%s cost %s' % (route.protocol, route.metric), 'level': 1, 'style': 'font-size:small'}]
 			
-			ifname = ''
-			if route.via_interface and route.via_interface.name:
-				ifname = route.via_interface.name + ' '
-			right_label = {'label': ifname + route.via_ip, 'level': 2, 'style': 'font-size:xx-small'}
+			right_labels = []
+			if route.via_interface:
+				right_labels.append({'label': route.via_interface.name, 'level': 1, 'style': 'font-size:x-small'})
+			if route.via_ip != '0.0.0.0':
+				right_labels.append({'label': route.via_ip, 'level': 1, 'style': 'font-size:xx-small'})
+			elif route.dst_subnet and route.dst_mask:
+				subnet = get_subnet(route.dst_mask)
+				right_labels.append({'label': "%s/%s" % (route.dst_subnet, subnet), 'level': 1, 'style': 'font-size:xx-small'})
+			if route.via_interface and route.via_interface.mac_addr:
+				right_labels.append({'label': route.via_interface.mac_addr, 'level': 2, 'style': 'font-size:xx-small'})
 			
 			predicate = "options.routes selection.name '%s' ends_with and" % dst_admin
-			add_relation(data, left, right, 'line-type:directed line-color:blue line-width:3', left_label = left_label, middle_label = middle_label, right_label = right_label, predicate = predicate)
+			add_relation(data, left, right, 'line-type:directed line-color:blue line-width:3', left_labels = left_labels, middle_labels = middle_labels, right_labels = right_labels, predicate = predicate)
 		
 	def __add_next_hop_relations(self, data, devices):
 		routes = {}			# (src admin ip, via admin ip) => Route
@@ -463,7 +471,7 @@ class Poll(object):
 				left = 'entities:%s' % src_admin
 				right = 'entities:%s' % via_admin
 				predicate = "options.routes selection.name 'map' == and"
-				add_relation(data, left, right, style, middle_label = {'label': 'next hop', 'level': 1, 'style': 'font-size:small'}, predicate = predicate)
+				add_relation(data, left, right, style, middle_labels = [{'label': 'next hop', 'level': 1, 'style': 'font-size:small'}], predicate = predicate)
 		
 	def __add_interfaces_table(self, data, device):
 		rows = []
@@ -567,9 +575,12 @@ env.options = parser.parse_args()
 # Configure logging.
 configure_logging(env.options.stdout, 'net-modeler.log')
 
-# Read config info.
-with open(env.options.config, 'r') as f:
-	env.config = json.load(f)
-	
-poller = Poll()
-poller.run()
+try:
+	# Read config info.
+	with open(env.options.config, 'r') as f:
+		env.config = json.load(f)
+		
+	poller = Poll()
+	poller.run()
+except:
+	env.logger.error("net-modeler failed", exc_info = True)

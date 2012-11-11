@@ -303,7 +303,7 @@ WHERE 														\
 	'															\
 SELECT 														\
 	?left ?right 													\
-	?style ?predicate ?left_info ?middle_info ?right_info		\
+	?style ?predicate ?left_infos ?middle_infos ?right_infos	\
 WHERE 														\
 {																\
 	?subject gnos:left ?left .									\
@@ -318,15 +318,15 @@ WHERE 														\
 	}															\
 	OPTIONAL												\
 	{															\
-		?subject gnos:left_info ?left_info .						\
+		?subject gnos:left_infos ?left_infos .					\
 	}															\
 	OPTIONAL												\
 	{															\
-		?subject gnos:middle_info ?middle_info .				\
+		?subject gnos:middle_infos ?middle_infos .			\
 	}															\
 	OPTIONAL												\
 	{															\
-		?subject gnos:right_info ?right_info .					\
+		?subject gnos:right_infos ?right_infos .				\
 	}															\
 }'];
 	var model_names = ["globals", "entities", "labels", "gauges", "alerts", "relations"];
@@ -559,7 +559,7 @@ function alerts_query(solution)
 
 // solution rows have 
 // required fields: left, right
-// optional fields: style, predicate, left_info, middle_info, right_info
+// optional fields: style, predicate, left_infos, middle_infos, right_infos
 function relations_query(solution)
 {
 	var relations = [];
@@ -571,7 +571,7 @@ function relations_query(solution)
 		var style = row.style || "";
 		var styles = style.split(' ');
 		
-		relations.push({left: row.left, right: row.right, left_label: row.left_info, middle_label: row.middle_info, right_label: row.right_info, styles: styles, predicate: row.predicate || ""});
+		relations.push({left: row.left, right: row.right, left_labels: row.left_infos, middle_labels: row.middle_infos, right_labels: row.right_infos, styles: styles, predicate: row.predicate || ""});
 	});
 	
 	return {relations: relations};
@@ -691,18 +691,27 @@ function map_renderer(element, model, model_names)
 	
 	function get_edges(context, model)
 	{
-		function add_label(model, shape, line, name, p, max_relation)
+		function add_labels(model, shape, line, names, p, max_relation)
 		{
-			if (name && name in model.labels)
+			if (names)
 			{
-				var label = model.labels[name];
-				max_relation = Math.max(label.level, max_relation);
+				var children = [];
+				$.each(names.split(' '), function (i, name)
+				{
+					if (name && name in model.labels)
+					{
+						var label = model.labels[name];
+						max_relation = Math.max(label.level, max_relation);
+						
+						if (label.level <= GNOS.relation_detail.value)
+							children.push(label.shape);
+					}
+				});
 				
-				if (label.level <= GNOS.relation_detail.value)
+				if (children.length > 0)
 				{
 					var styles = ['frame-width:0', 'frame-back-color:white'];
-					var children = [label.shape];
-					var child = new EntityShape(context, "", Point.zero, styles, children, label.predicate);
+					var child = new EntityShape(context, "", Point.zero, styles, children);
 					shape.add_shape(p, child);
 				}
 			}
@@ -729,9 +738,9 @@ function map_renderer(element, model, model_names)
 				var shape = new LineShape(context, line, relation.styles, null, null, relation.predicate);
 				GNOS.scene.append(shape);
 				
-				max_relation = add_label(model, shape, line, relation.left_label, 0.1, max_relation);
-				max_relation = add_label(model, shape, line, relation.middle_label, 0.5, max_relation);
-				max_relation = add_label(model, shape, line, relation.right_label, 0.9, max_relation);
+				max_relation = add_labels(model, shape, line, relation.left_labels, 0.1, max_relation);
+				max_relation = add_labels(model, shape, line, relation.middle_labels, 0.5, max_relation);
+				max_relation = add_labels(model, shape, line, relation.right_labels, 0.9, max_relation);
 			}
 			shape.from_node = relation.left;
 			shape.to_node = relation.right;
@@ -789,6 +798,7 @@ function EntityShape(context, name, center, styles, shapes, predicate)
 	this.name = name;
 	this.predicate = predicate;
 	this.clickable = true;
+	assert(shapes.every(function (s) {return s;}), "null child shape");
 	this.set_center(context, center);
 }
 
@@ -816,18 +826,21 @@ EntityShape.prototype.draw = function (context)
 {
 	this.rect.draw(context);
 	
-	var dx = this.rect.geometry.left + this.rect.width/2;
-	var dy = this.rect.geometry.top + this.rect.height/2 - this.total_height/2 + 0.2*this.shapes[0].height;	// TODO: hopefully when text metrics work a bit better we can get rid of that last term (think we need leading)
-	$.each(this.shapes, function (i, shape)
+	if (this.shapes.length > 0)
 	{
-		context.save();
-		
-		context.translate(dx, dy + shape.height/2);
-		shape.draw(context);
-		
-		dy += shape.height;
-		context.restore();
-	});
+		var dx = this.rect.geometry.left + this.rect.width/2;
+		var dy = this.rect.geometry.top + this.rect.height/2 - this.total_height/2 + 0.2*this.shapes[0].height;	// TODO: hopefully when text metrics work a bit better we can get rid of that last term (think we need leading)
+		$.each(this.shapes, function (i, shape)
+		{
+			context.save();
+			
+			context.translate(dx, dy + shape.height/2);
+			shape.draw(context);
+			
+			dy += shape.height;
+			context.restore();
+		});
+	}
 };
 
 EntityShape.prototype.hit_test = function (pt)

@@ -10,12 +10,10 @@ The JSON should be formatted like this:\
 \{\
 	\cf2 # if present old RDF statements generated with this modeler are removed \
 	# before new statements are added\cf0 \
-\pard\pardeftab480\pardirnatural
-\cf0 	"
+	"
 \b modeler
 \b0 ": "snmp",		\
-\pard\pardeftab480\pardirnatural
-\cf0 	"
+	"
 \b entities
 \b0 ": [\
 		\{\
@@ -45,14 +43,14 @@ The JSON should be formatted like this:\
 \b right-entity-id
 \b0 ": "device-2", \
 			"
-\b left-label
-\b0 ": \{...\}, 			\cf2 # if present contains label, level, and optional style\cf0 \
+\b left-labels
+\b0 ": [\{...\}], 		\cf2 # dicts contains label, level, and optional style\cf0 \
 			"
-\b middle-label
-\b0 ": \{...\}, 		\cf2 # if present contains label, level, and optional style\cf0 \
+\b middle-labels
+\b0 ": [\{...\}], 	\cf2 # dicts contains label, level, and optional style\cf0 \
 			"
-\b right-label
-\b0 ": \{...\}, 		\cf2 # if present contains label, level, and optional style\cf0 \
+\b right-labels
+\b0 ": [\{...\}], 		\cf2 # dicts contains label, level, and optional style\cf0 \
 			"
 \b style
 \b0 ": "line-type:directed line-width:4 line-color:blue", 	\cf2 # optional\cf0 \

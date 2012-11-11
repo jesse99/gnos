@@ -381,7 +381,7 @@ priv fn add_relation(store: &Store, lhs: ~str, rhs: ~str, style: ~str, label1: ~
 				(~"gnos:level",	IntValue(1)),
 				(~"gnos:sort_key",StringValue(~"1", ~"")),
 			]);
-			~[(~"gnos:middle_info",	BlankValue(info1))]
+			~[(~"gnos:middle_infos",	StringValue(info1, ~""))]
 		}
 		else
 		{
@@ -398,7 +398,7 @@ priv fn add_relation(store: &Store, lhs: ~str, rhs: ~str, style: ~str, label1: ~
 				(~"gnos:level",	IntValue(2)),
 				(~"gnos:sort_key",StringValue(~"2", ~"")),
 			]);
-			~[(~"gnos:left_info",	BlankValue(info2))]
+			~[(~"gnos:left_infos",	StringValue(info2, ~""))]
 		}
 		else
 		{
