@@ -12,13 +12,15 @@
 			"ip": "10.102.0.2",
 			"links": ["App-2"],
 			"authentication": "-v2c -c public",
-			"modeler": "snmp"
+			"modeler": "net-modeler.py",
+			"type": "snmp"
 		},
 		"App-2":
 		{
 			"ip": "10.102.0.10",
 			"ssh": "sshpass -p root ssh -f root@",
-			"modeler": "linux_ssh"
+			"modeler": "net-modeler.py",
+			"type": "linux_ssh"
 		}
 	}
 }

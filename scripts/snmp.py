@@ -19,147 +19,21 @@
 # Following site has a bunch of snmp links: http://www.wtcs.org/snmp4tpc/literature.htm
 import cgi, json, itertools, httplib, re, sys, threading, time
 from base_modeler import *
+from net_types import *
 
 connection = None
 
-def ip_to_int(ip):
-	parts = ip.split('.')
-	if len(parts) != 4:
-		raise Exception("expected an IP address but found: '%s'" % ip)
-	return (int(parts[0]) << 24) | (int(parts[1]) << 16) | (int(parts[2]) << 8) | int(parts[3])
-
-def int_to_ip(value):
-	return '%s.%s.%s.%s' % ((value << 24) & 0xFF, (value << 16) & 0xFF, (value << 8) & 0xFF, value & 0xFF)
-
-# Used to store details about an interface on a device.
-class Interface(object):
-	def __init__(self):
-		self.__status = ''
-		self.__mac_addr = '?'
-		self.__name = ''
-		self.__ip = ''
-		self.__net_mask = ''
-		self.__speed = 0.0
-		self.__mtu = ''
-		self.__in_octets = 0.0
-		self.__out_octets = 0.0
-		self.__last_changed = 0.0
+def find_interface(device, ifindex):
+	for candidate in device.interfaces:
+		if candidate.index == ifindex:
+			return candidate
 	
-	def set_ip(self, ip, net_mask):
-		self.__ip = ip
-		self.__net_mask = net_mask
+	interface = Interface()
+	interface.admin_ip = device.admin_ip
+	interface.index = ifindex
+	device.interfaces.append(interface)
+	return interface
 	
-	def set_if(self, desc, status, mac_addr, speed, mtu, in_octets, out_octets, last_changed):
-		self.__status = status
-		self.__mac_addr = mac_addr
-		self.__name = desc
-		self.__speed = speed
-		self.__mtu = mtu
-		self.__in_octets = in_octets
-		self.__out_octets = out_octets
-		self.__last_changed = last_changed
-	
-	@property
-	def name(self):
-		return self.__name
-	
-	# True if the interface is able to communicate.
-	@property
-	def active(self):
-		return self.__status == 'up' or self.__status == 'dormant'
-	
-	@property
-	def status(self):
-		return self.__status
-	
-	# May not be set if the device is inactive.
-	@property
-	def ip(self):
-		return self.__ip
-	
-	# May not be set if the device is inactive.
-	@property
-	def mac_addr(self):
-		return self.__mac_addr
-	
-	# May not be set if the device is inactive.
-	@property
-	def net_mask(self):
-		return self.__net_mask
-	
-	# In bps
-	@property
-	def speed(self):
-		return self.__speed
-	
-	# In bytes
-	@property
-	def mtu(self):
-		return self.__mtu
-	
-	# In bytes
-	@property
-	def in_octets(self):
-		return self.__in_octets
-	
-	# In bytes
-	@property
-	def out_octets(self):
-		return self.__out_octets
-	
-	# In seconds
-	@property
-	def last_changed(self):
-		return self.__last_changed
-	
-	def __repr__(self):
-		return self.__ip
-
-# Used to store details for a route on a device.
-class Route(object):
-	def __init__(self, dst_subnet, dst_mask, via_ip, protocol, metric, ifindex):
-		self.__via_ip = via_ip
-		self.__dst_subnet = dst_subnet
-		self.__dst_mask = dst_mask
-		self.__protocol = protocol
-		self.__metric = metric
-		self.__ifindex = ifindex
-	
-	# Source interface index
-	@property
-	def ifindex(self):
-		return self.__ifindex
-	
-	@property
-	def via_ip(self):
-		return self.__via_ip
-	
-	@property
-	def dst_subnet(self):
-		return self.__dst_subnet
-	
-	@property
-	def dst_mask(self):
-		return self.__dst_mask
-	
-	@property
-	def protocol(self):
-		return self.__protocol
-	
-	@property
-	def metric(self):
-		return self.__metric
-		
-	def get_src_ip(self, admin_ip, query):
-		key = (admin_ip, self.__ifindex)
-#		if key in context['interfaces']:
-#			return context['interfaces'][key].ip
-#		else:
-#			return None
-	
-	def __repr__(self):
-		return '%s via %s' % (self.__dst_subnet, self.__via_ip)
-
 # http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput=sysDescr&translate=Translate&submitValue=SUBMIT&submitClicked=true
 # SNMPv2-MIB::sysDescr.0 Linux RTR-4 2.6.39.4 #1 Fri Apr 27 02:41:53 PDT 2012 i686
 # SNMPv2-MIB::sysObjectID.0 NET-SNMP-MIB::netSnmpAgentOIDs.10
@@ -172,28 +46,17 @@ class Route(object):
 # SNMPv2-MIB::sysORID[1] IP-MIB::ip		will be one of these for each MIB supported by the device
 # SNMPv2-MIB::sysORDescr[1] The MIB module for managing IP and ICMP implementations
 # SNMPv2-MIB::sysORUpTime[1] 0
-def process_system(admin_ip, data, contents, query):
-	#dump_snmp(admin_ip, 'system', contents)
-	target = 'entities:%s' % admin_ip
-	add_label(data, target, admin_ip, 'a', level = 1, style = 'font-size:small')
-	
-	key = 'alpha'		# want these to appear before most other labels
+def process_system(data, contents, query):
+	#dump_snmp(query.device.admin_ip, 'system', contents)
 	up_time = get_value(contents, "%s", 'sysUpTime')
 	if not up_time:
 		up_time = get_value(contents, "%s", 'sysUpTimeInstance')
 	if up_time:
-		up_time = float(up_time)/100.0
-#		context['up_times'][admin_ip] = up_time
-		add_label(data, target, 'uptime: %s' % secs_to_str(up_time), key, level = 2, style = 'font-size:small')
-		if up_time < 60.0:
-			# TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
-			open_alert(data, target, key = 'uptime', mesg = 'Device rebooted.', resolution = '', kind = 'error')
-		else:
-			close_alert(data, target, key = 'uptime')
+		query.device.uptime = float(up_time)/100.0
 	
-#	context['system'][admin_ip] += get_value(contents, '* %s\n', 'sysDescr')
-#	context['system'][admin_ip] += get_value(contents, '* %s\n', 'sysContact')
-#	context['system'][admin_ip] += get_value(contents, '* location is %s\n', 'sysLocation')
+	query.device.system_info += get_value(contents, '* %s\n', 'sysDescr')
+	query.device.system_info += get_value(contents, '* %s\n', 'sysContact')
+	query.device.system_info += get_value(contents, '* location is %s\n', 'sysLocation')
 	
 # A lot of these stats are deprecated in favor of entries in ipSystemStatsTable. But that isn't always available.
 # IP-MIB::ipForwarding.0 forwarding
@@ -234,49 +97,39 @@ def process_system(admin_ip, data, contents, query):
 # RFC1213-MIB::ipRouteProto[10.0.4.0] local
 # RFC1213-MIB::ipRouteMask[10.0.4.0] 255.255.255.0
 # RFC1213-MIB::ipRouteInfo[10.0.4.0] SNMPv2-SMI::zeroDotZero
-def process_ip(admin_ip, data, contents, query):
-	target = 'entities:%s' % admin_ip
-	key = 'zeppo'
-	
-#	if get_value(contents, '%s', 'ipForwarding') == 'forwarding':
-#		context['system'][admin_ip] += '* ip forwarding is on\n'
-#	else:
-#		context['system'][admin_ip] += '* ip forwarding is off\n'
+def process_ip(data, contents, query):
+	# update system info
+	if get_value(contents, '%s', 'ipForwarding') == 'forwarding':
+		query.device.system_info += '* ip forwarding is on\n'
+	else:
+		query.device.system_info += '* ip forwarding is off\n'
 		
+	# update interfaces
 	indexes = get_values(contents, "ipAdEntIfIndex")
-#	for (ip, if_index) in indexes.items():
-#		# create a mapping from device ip to admin ip
-#		context['ips'][ip] = admin_ip
-	
-	# initialize mapping from device ip to Interface
 	masks = get_values(contents, "ipAdEntNetMask")
 	for ip in indexes.keys():
 		index = indexes.get(ip, '?')
-		mask = masks.get(ip, '?')
-		
-#		key = (admin_ip, index)
-#		if key not in context['interfaces']:
-#			context['interfaces'][key] = Interface()
-#		context['interfaces'][key].set_ip(ip, mask)
+		interface = find_interface(query.device, index)
+		interface.ip = ip
+		interface.mask = masks.get(ip, '?')
 	
-	# create a table for routing (we can't build relations until we finish building the device to admin ip mapping)
-#	if admin_ip not in context['routes']:
-#		context['routes'][admin_ip] = []
-	
+	# update routes
 	nexts = get_values(contents, "ipRouteNextHop")
 	metrics = get_values(contents, "ipRouteMetric1")
 	protocols = get_values(contents, "ipRouteProto")	
 	masks = get_values(contents, "ipRouteMask")
 	indexes = get_values(contents, "ipRouteIfIndex")
-#	for dest_ip in nexts.keys():
-#		context['routes'][admin_ip].append(Route(
-#			dst_subnet = dest_ip,
-#			dst_mask = masks.get(dest_ip, ''),
-#			via_ip = nexts.get(dest_ip, ''),
-#			protocol = protocols.get(dest_ip, ''),
-#			metric = metrics.get(dest_ip, ''),
-#			ifindex = indexes.get(dest_ip, '')))
-	
+	for dest_ip in nexts.keys():
+		route = Route()
+		route.via_ip = nexts.get(dest_ip, '')
+		route.dst_subnet = dest_ip
+		route.dst_mask = masks.get(dest_ip, '')
+		route.protocol = protocols.get(dest_ip, '')
+		route.metric = metrics.get(dest_ip, '')
+		route.ifindex = indexes.get(dest_ip, '')
+		
+		query.device.routes.append(route)
+		
 # IF-MIB::ifNumber.0 13				will be one of these for each interface
 # IF-MIB::ifDescr[1] lo			
 # IF-MIB::ifType[1] softwareLoopback or tunnel or ethernetCsmacd
@@ -299,10 +152,8 @@ def process_ip(admin_ip, data, contents, query):
 # IF-MIB::ifOutErrors[1] 0
 # IF-MIB::ifOutQLen[1] 0	
 # IF-MIB::ifSpecific[1] SNMPv2-SMI::zeroDotZero
-def process_interfaces(admin_ip, data, contents, query):
-	target = 'entities:%s' % admin_ip
-	
-	# create an interfaces table (we can't build details until we know ip addresses)
+def process_interfaces(data, contents, query):
+	# update interfaces
 	descs = get_values(contents, "ifDescr")
 	macs = get_values(contents, "ifPhysAddress")
 	speeds = get_values(contents, "ifSpeed")
@@ -317,40 +168,36 @@ def process_interfaces(admin_ip, data, contents, query):
 		# entries land in the table. So what we'll do is add the ones that are enabled and
 		# then add any that we missed that are down.
 		if status.get(index, '') == 'up' or status.get(index, '') == 'dormant':
-			key = (admin_ip, index)
 			name = descs.get(index, '')
-			
-#			if key not in context['interfaces']:
-#				context['interfaces'][key] = Interface()
-#			context['interfaces'][key].set_if(
-#				desc = name,
-#				status = status.get(index, ''),
-#				mac_addr = sanitize_mac(macs.get(index, '')),
-#				speed = float(speeds.get(index, 0.0)),
-#				mtu = mtus.get(index, ''),
-#				in_octets = float(in_octets.get(index, 0.0)), 
-#				out_octets = float(out_octets.get(index, 0.0)),
-#				last_changed = float(last_changes.get(index, 0.0))/100.0)
 			found.add(name)
+			
+			interface = find_interface(query.device, index)
+			interface.name = name
+			interface.status = status.get(index, '')
+			interface.mac_addr = sanitize_mac(macs.get(index, ''))
+			interface.speed = float(speeds.get(index, 0.0))
+			interface.mtu = int(mtus.get(index, ''))
+			interface.in_octets = float(in_octets.get(index, 0.0))
+			interface.out_octets = float(out_octets.get(index, 0.0))
+			interface.last_changed = float(last_changes.get(index, 0.0))/100.0
 			
 	for index in descs.keys():
 		name = descs.get(index, '')
 		if status.get(index, '') != 'up' and status.get(index, '') != 'dormant' and name not in found:
-			key = (admin_ip, index)
-#			if key not in context['interfaces']:
-#				context['interfaces'][key] = Interface()
-#			context['interfaces'][key].set_if(
-#				desc = descs.get(index, ''),
-#				status = status.get(index, ''),
-#				mac_addr = sanitize_mac(macs.get(index, '')),
-#				speed = float(speeds.get(index, 0.0)),
-#				mtu = mtus.get(index, ''),
-#				in_octets = 0.0, 				# these will often be nonsense
-#				out_octets = 0.0,
-#				last_changed = float(last_changes.get(index, 0.0))/100.0)
 			found.add(name)
-				
-	# alert if interface operational status doesn't match admin status
+			
+			interface = find_interface(query.device, index)
+			interface.name = name
+			interface.status = status.get(index, '')
+			interface.mac_addr = sanitize_mac(macs.get(index, ''))
+			interface.speed = float(speeds.get(index, 0.0))
+			interface.mtu = int(mtus.get(index, ''))
+			interface.in_octets = 0.0 				# these will often be nonsense
+			interface.out_octets = 0.0
+			interface.last_changed = float(last_changes.get(index, 0.0))/100.0
+	
+	# alert if operational status doesn't match admin status
+	target = 'entities:%s' % query.device.admin_ip
 	admin_status = get_values(contents, "ifAdminStatus")
 	oper_status = get_values(contents, "ifOperStatus")
 	for (index, admin) in admin_status.items():
@@ -369,8 +216,8 @@ def process_interfaces(admin_ip, data, contents, query):
 # HOST-RESOURCES-MIB::hrStorageAllocationUnits[1] 1024
 # HOST-RESOURCES-MIB::hrStorageSize[1] 246004
 # HOST-RESOURCES-MIB::hrStorageUsed[1] 177396
-def process_storage(admin_ip, data, contents, query):
-	target = 'entities:%s' % admin_ip
+def process_storage(data, contents, query):
+	target = 'entities:%s' % query.device.admin_ip
 	storage = get_values(contents, "hrStorageDescr")
 	used = get_values(contents, "hrStorageUsed")
 	size = get_values(contents, "hrStorageSize")
@@ -379,9 +226,9 @@ def process_storage(admin_ip, data, contents, query):
 		# update system details with info about storage
 		unit = float(units.get(index, 0))
 		actual = unit*float(size.get(index, 0))/(1024*1024)
-#		if actual:
-#			use = unit*float(used.get(index, 0))/(1024*1024)/actual
-#			context['system'][admin_ip] += '* %s has %.1f MiB with %.0f%% in use\n' % (kind.lower(), actual, 100*use)
+		if actual:
+			use = unit*float(used.get(index, 0))/(1024*1024)/actual
+			query.device.system_info += '* %s has %.1f MiB with %.0f%% in use\n' % (kind.lower(), actual, 100*use)
 		
 		# add a gauge if virtual memory is full
 		level = None
@@ -438,7 +285,7 @@ def process_storage(admin_ip, data, contents, query):
 # HOST-RESOURCES-MIB::hrFSStorageIndex[1] 31
 # HOST-RESOURCES-MIB::hrFSLastFullBackupDate[1] 0-1-1,0:0:0.0
 # HOST-RESOURCES-MIB::hrFSLastPartialBackupDate[1] 0-1-1,0:0:0.0
-def process_device(admin_ip, data, contents, query):
+def process_device(data, contents, query):
 	descrs = get_values(contents, "hrDeviceDescr")
 	status = get_values(contents, "hrDeviceStatus")
 	errors = get_values(contents, "hrDeviceErrors")
@@ -446,13 +293,13 @@ def process_device(admin_ip, data, contents, query):
 		# update system details with info about devices
 		stat = status.get(index, '')
 		errs = errors.get(index, '0')
-#		if stat:
-#			context['system'][admin_ip] += '* %s is %s with %s errors\n' % (desc, stat, errs)
+		if stat:
+			query.device.system_info += '* %s is %s with %s errors\n' % (desc, stat, errs)
 		
 	# add a gauge if processor load is high
 	load = get_value(contents, '%s', 'hrProcessorLoad')
 	if load:
-		target = 'entities:%s' % admin_ip
+		target = 'entities:%s' % query.device.admin_ip
 		level = None
 		value = int(load)/100.0
 		if value >= 0.90:
@@ -521,11 +368,6 @@ def sanitize_mac(mac):
 			result.append(part)
 	return ':'.join(result)
 
-def add_units(value, unit):
-	if value or type(value) == float:
-		value = '%s %s' % (value, unit)
-	return value
-
 class DeviceRunner(object):
 	def __init__(self, ip, authentication, mib_names):
 		self.ip = ip
@@ -555,308 +397,12 @@ class QueryDevice(object):
 		# alert if hrSystemDate is too far from admin machine's datetime (5min maybe)
 		# might be nice to do something with tcp and udp stats
 		self.__handlers = {'system': process_system, 'ip': process_ip, 'interfaces': process_interfaces, 'hrStorage': process_storage, 'hrDevice': process_device}
-		self.__device = device
-		self.admin_ip = device['ip']
-#		self.__context = {}
+		self.device = device
 	
 	def run(self, data, num_updates):
 		self.__num_updates = num_updates
 		
-#		self.__context['interfaces'] = {}	# (admin ip, ifindex) => Interface
-#		self.__context['ips'] = {}			# device ip => admin ip
-#		self.__context['routes'] = {}		# admin_ip => [Route]
-#		self.__context['system'] = {}		# admin ip => markdown with system info details
-#		self.__context['up_times'] = {}	# admin_ip => system up time
-		
-		runner = DeviceRunner(self.admin_ip, self.__device['authentication'], self.__handlers.keys())
+		runner = DeviceRunner(self.device.admin_ip, self.device.config['authentication'], self.__handlers.keys())
 		runner.run()
-		self.__process_threads(runner, data)
-#		self.__add_next_hop_relations(data)
-#		self.__add_selection_route_relations(data)
-#		self.__add_interfaces_table(data)
-#		self.__add_routing_table(data)
-#		if num_updates >= 2:
-#			self.__add_bandwidth_chart(data, 'out')
-#			self.__add_bandwidth_chart(data, 'in')
-#			self.__add_bandwidth_details(data, 'out')
-#			self.__add_bandwidth_details(data, 'in')
-#		self.__add_system_info(data);
-#		self.__add_interface_uptime_alert(data)
-	
-	def __process_threads(self, runner, data):
-		target = 'entities:%s' % self.admin_ip
 		for (mib, contents) in runner.results.items():
-#			if self.admin_ip not in self.__context['system']:
-#				self.__context['system'][thread.ip] = ''
-			self.__handlers[mib](self.admin_ip, data, contents, self)
-		
-	def __add_interfaces_table(self, data):
-		details = {}		# admin ip => [row]
-		for (key, interface) in self.__context['interfaces'].items():
-			(admin_ip, ifindex) = key
-			name = cgi.escape(interface.name)
-			
-			ip = interface.ip
-			subnet = get_subnet(interface.net_mask)
-			if ip == admin_ip:
-				ip = '<strong>%s/%s</strong>' % (ip, subnet)
-			else:
-				ip = '%s/%s' % (ip, subnet)
-			
-			# We always need to add samples so that they stay in sync with one another.
-			in_octets = self.__process_sample(data, {'key': '%s-%s-in_octets' % (admin_ip, name), 'raw': 8*interface.in_octets/1000, 'units': 'kbps'})
-			out_octets = self.__process_sample(data, {'key':  '%s-%s-out_octets' % (admin_ip, name), 'raw': 8*interface.out_octets/1000, 'units': 'kbps'})
-			
-			if interface.active:
-				speed = interface.speed
-				if speed:
-					if out_octets['value']:
-						self.__add_interface_gauge(data, admin_ip, name, out_octets['value'], speed/1000)
-					speed = speed/1000000
-					speed = '%.1f Mbps' % speed
-				
-				if admin_ip not in details:
-					details[admin_ip] = []
-				details[admin_ip].append([name, ip, interface.mac_addr, speed, add_units(interface.mtu, 'B'), in_octets['html'], out_octets['html']])
-			
-		for (admin_ip, rows) in details.items():
-			detail = {}
-			detail['style'] = 'html'
-			detail['header'] = ['Name', 'IP Address', 'Mac Address', 'Speed', 'MTU', 'In Octets (kbps)', 'Out Octets (kbps)']
-			detail['rows'] = sorted(rows, key = lambda row: row[0])
-			
-			target = 'entities:%s' % admin_ip
-			footnote = '*The shaded area in the sparklines is the inter-quartile range: the range in which half the samples appear.*'
-			add_details(data, target, 'Interfaces', [detail, footnote], opened = 'yes', sort_key = 'alpha', key = 'interfaces table')
-			
-	def __add_routing_table(self, data):
-		details = {}		# admin ip => [row]
-		for (admin_ip, routes) in self.__context['routes'].items():
-			rows = []
-			
-			for route in routes:
-				dest = route.dst_subnet
-				subnet = get_subnet(route.dst_mask)
-				dest = '%s/%s' % (dest, subnet)
-				
-				interface = self.__context['interfaces'].get((admin_ip, route.ifindex), None)
-				if interface:
-					out = interface.name
-				else:
-					out = '?'
-				
-				if route.via_ip != '0.0.0.0':
-					ifname = self.__find_ifname(route.via_ip)
-					if ifname:
-						ifname += ' '
-					via = ifname + route.via_ip
-				else:
-					via = ''
-				
-				rows.append([dest, via, out, route.protocol, route.metric])
-			details[admin_ip] = rows
-			
-		for (admin_ip, rows) in details.items():
-			detail = {}
-			detail['style'] = 'plain'
-			detail['header'] = ['Destination', 'Via', 'Out', 'Protocol', 'Cost']
-			detail['rows'] = sorted(rows, key = lambda row: row[0])
-			
-			target = 'entities:%s' % admin_ip
-			add_details(data, target, 'Routes', [detail], opened = 'no', sort_key = 'beta', key = 'routing table')
-			
-	def __add_bandwidth_chart(self, data, direction):
-		ilist = {}					# admin ip => [Interface]
-		for (key, interface) in self.__context['interfaces'].items():
-			(admin_ip, ifindex) = key
-			
-			if admin_ip not in ilist:
-				ilist[admin_ip] = []
-			ilist[admin_ip].append(interface)
-			
-		for (admin_ip, interfaces) in ilist.items():
-			samples = []
-			legends = []
-			table = sorted(interfaces, key = lambda i: i.name)
-			for interface in table:
-				if interface.active:
-					name = interface.name
-					legends.append(name)
-					samples.append('%s-%s-%s_octets' % (admin_ip, name, direction))
-			
-			name = "%s-%s_interfaces" % (admin_ip, direction)
-			data['charts'].append({'admin_ip': admin_ip, 'direction': direction, 'name': name, 'samples': samples, 'legends': legends, 'title': '%s Bandwidth' % direction.title(), 'y_label': 'Bandwidth (kbps)'})
-		
-	def __add_bandwidth_details(self, data, direction):
-		for chart in data['charts']:
-			if chart['direction'] == direction:
-				target = 'entities:%s' % chart['admin_ip']
-				name = chart['name']
-				markdown = '![bandwidth](/generated/%s.png#%s)' % (name, self.__num_updates)
-				add_details(data, target, '%s Bandwidth' % direction.title(), [markdown], opened = 'no', sort_key = 'alpha-' + direction, key = '%s bandwidth' % name)
-			
-	def __add_system_info(self, data):
-		for (admin_ip, markdown) in self.__context['system'].items():
-			target = 'entities:%s' % admin_ip
-			add_details(data, target, 'System Info', [markdown], opened = 'no', sort_key = 'beta', key = 'system info')
-			
-	def __add_interface_uptime_alert(self, data):
-		for (key, interface) in self.__context['interfaces'].items():
-			(admin_ip, ifindex) = key
-			
-			delta = self.__context['up_times'].get(admin_ip, 0.0) - interface.last_changed
-			key = '%s-last-change' % interface.name
-			target = 'entities:%s' % admin_ip
-			if delta >= 0.0 and delta < 60.0:
-				mesg = '%s status recently changed to %s.' % (interface.name, interface.status)
-				open_alert(data, target, key, mesg = mesg, resolution = '', kind = 'warning')
-			else:
-				close_alert(data, target, key)
-			
-	def __add_interface_gauge(self, data, admin_ip, ifname, out_octets, speed):
-		level = None
-		bandwidth = min(out_octets/speed, 1.0)
-		if bandwidth >= 0.75:
-			level = 1
-			style = 'gauge-bar-color:salmon'
-		elif bandwidth >= 0.50:
-			level = 1
-			style = 'gauge-bar-color:darkorange'
-		elif bandwidth >= 0.25:
-			level = 2
-			style = 'gauge-bar-color:skyblue'
-		elif bandwidth >= 0.10:
-			level = 4
-			style = 'gauge-bar-color:limegreen'
-		if level:
-			target = 'entities:%s' % admin_ip
-			add_gauge(data, target, '%s bandwidth' % ifname, bandwidth, level, style, sort_key = 'z')
-		
-	# Bit of an ugly function: it does four different things:
-	# 1) It computes the current sample value. If a per sec value cannot be computed zero is used
-	# (we need to always record a sample value so that the various sample sets align).
-	# 2) It ships the new sample off to the server.
-	# 3) An html entry is initialized with either a blank value or an url to a sparkline chart for the sample.
-	# 4) The sample value and html link are returned to out caller.
-	def __process_sample(self, data, table):
-		# On input table has: key, raw, and units
-		# On exit: value and html are added
-		table['value'] = None
-		table['html'] = ''
-		value = 0.0
-		if self.__last_time and self.__context.get(table['key'], 0.0) > 0.0:
-			elapsed = self.__current_time - self.__last_time
-			if elapsed > 1.0:
-				value = (table['raw'] - self.__context[table['key']])/elapsed
-		table['value'] = value
-		if self.__num_updates >= 2:
-			data['samples'].append({'name': table['key'], 'value': value, 'units': table['units']})
-		
-		# When dynamically adding html content browsers will not reload images that have
-		# been already loaded. To work around this we add a unique fragment identifier
-		# which the server will ignore.
-		if self.__num_updates >= 2:
-			url = '/generated/%s.png#%s' % (table['key'], self.__num_updates)
-			table['html'] = "<img src = '%s' alt = '%s'>" % (url, table['key'])
-		
-		self.__context[table['key']] = table['raw']
-		return table
-		
-	def __add_next_hop_relations(self, data):
-		routes = {}			# (src admin ip, via admin ip) => Route
-		for (admin_ip, device_routes) in self.__context['routes'].items():
-			for route in device_routes:
-				src_ip = route.get_src_ip(admin_ip, self.__context)
-				if route.via_ip != '0.0.0.0':
-					if src_ip and src_ip in self.__context['ips'] and route.via_ip in self.__context['ips']:
-						src_admin = self.__context['ips'][src_ip]
-						via_admin = self.__context['ips'][route.via_ip]
-						if src_admin != via_admin:
-							routes[(src_admin, via_admin)] = route
-				else:
-					dst_admin = self.__find_admin_ip(admin_ip, route.dst_subnet, ip_to_int(route.dst_mask))
-					if dst_admin:
-						src_admin = self.__context['ips'][src_ip]
-						routes[(src_admin, dst_admin)] = route
-		
-		for (key, route) in routes.items():
-			(src_admin, via_admin) = key
-			style = None
-			if (via_admin, src_admin) in routes:
-				if src_admin < via_admin:
-					style = 'line-type:bidirectional'
-			else:
-				style = 'line-type:directed'
-			if style:
-				left = 'entities:%s' % src_admin
-				right = 'entities:%s' % via_admin
-				predicate = "options.routes selection.name 'map' == and"
-				add_relation(data, left, right, style, middle_label = {'label': 'next hop', 'level': 1, 'style': 'font-size:small'}, predicate = predicate)
-	
-	# TODO: This (and a few others) should go into base_modeler.py.
-	def __add_selection_route_relations(self, data):
-		routes = {}			# (src admin ip, via admin ip, dst admin ip) => Route
-		for (admin_ip, device_routes) in self.__context['routes'].items():
-			for route in device_routes:
-				dst_admin = self.__find_admin_ip(admin_ip, route.dst_subnet, ip_to_int(route.dst_mask))
-				if dst_admin:
-					if route.via_ip != '0.0.0.0':
-						# Used when forwarding (through a router or through an interface and locally to the router).
-						if route.via_ip in self.__context['ips']:
-							via_admin = self.__context['ips'][route.via_ip]
-							if dst_admin and admin_ip != via_admin:
-								key = (admin_ip, via_admin, dst_admin)
-								routes[key] = route
-					else:
-						# If the netmask is all ones then this will be a direct link to a peer machine.
-						# Otherwise it is used when forwarding to a device on an attached subnet.
-						dst_admin = self.__find_admin_ip(admin_ip, route.dst_subnet, ip_to_int(route.dst_mask))
-						if dst_admin:
-							key = (admin_ip, dst_admin, dst_admin)
-							routes[key] = route
-				
-		for (key, route) in routes.items():
-			(src_admin, via_admin, dst_admin) = key
-			left = 'entities:%s' % src_admin
-			right = 'entities:%s' % via_admin
-			src_interface = self.__context['interfaces'].get((src_admin, route.ifindex), None)
-			
-			if src_interface:
-				left_label = {'label': '%s %s' % (src_interface.name, src_interface.ip), 'level': 2, 'style': 'font-size:xx-small'}
-			else:
-				left_label = {'label': src_interface.ip, 'level': 2, 'style': 'font-size:x-small'}
-			
-			middle_label = {'label': '%s cost %s' % (route.protocol, route.metric), 'level': 1, 'style': 'font-size:small'}
-			
-			ifname = self.__find_ifname(route.via_ip)
-			if ifname:
-				ifname += ' '
-			right_label = {'label': ifname + route.via_ip, 'level': 2, 'style': 'font-size:xx-small'}
-			
-			predicate = "options.routes selection.name '%s' ends_with and" % dst_admin
-			add_relation(data, left, right, 'line-type:directed line-color:blue line-width:3', left_label = left_label, middle_label = middle_label, right_label = right_label, predicate = predicate)
-	
-	def __find_ifname(self, device_ip):
-		for (key, interface) in self.__context['interfaces'].items():
-			if interface.ip == device_ip:
-				return interface.name
-		return ''
-		
-	def __find_admin_ip(self, src_admin, network_ip, netmask):
-		# First try the devices we don't know about (these are the devices we want to use when 
-		# forwarding to a device on an attached subnet).
-		subnet = ip_to_int(network_ip) & netmask
-		for (name, device) in env.config["devices"].items():
-			if device['modeler'] != 'snmp-modeler.py':
-				candidate = ip_to_int(device['ip']) & netmask
-				if candidate == subnet:
-					return device['ip']
-		
-		# Then try to find a device we do know about that isn't src_admin.
-		# This will tend to be the direct link to a peer machine case.
-		for (device_ip, admin_ip) in self.__context['ips'].items():
-			candidate = ip_to_int(device_ip) & netmask
-			if candidate == subnet and admin_ip != src_admin:
-				return admin_ip
-		
-		return None
+			self.__handlers[mib](data, contents, self)

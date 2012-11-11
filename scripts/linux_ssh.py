@@ -21,16 +21,14 @@ class UName(object):
 	# Linux auto-fat 2.6.32-33-server #70-Ubuntu SMP Thu Jul 7 22:28:30 UTC 2011 x86_64 GNU/Linux
 	def process(self, data, text, query):
 		env.logger.debug("uname: '%s'" % text)
-		target = 'entities:%s' % query.admin_ip
-		add_label(data, target, query.admin_ip, 'a', level = 1, style = 'font-size:small')
-		add_details(data, target, 'OS', [text], opened = 'always', sort_key = 'alpha', key = 'uname')
+		query.device.system_info += text + "\n"
 		
 class Uptime(object):
 	def command(self):
 		return 'uptime'
 		
 	up_expr1 = re.compile(r'up \s+ (\d+) \s+ (min|sec|day)', re.MULTILINE | re.VERBOSE)
-	up_expr2 = re.compile(r'up \s+ (\d+ : \d+) ,', re.MULTILINE | re.VERBOSE)
+	up_expr2 = re.compile(r'up \s+ (\d+) : (\d+) ,', re.MULTILINE | re.VERBOSE)
 	load_expr = re.compile(r'load\ average: \s+ ([\d.]+)', re.MULTILINE | re.VERBOSE)
 	
 	# 04:43:21 up 0 min, load average: 1.02, 0.27, 0.09
@@ -38,26 +36,21 @@ class Uptime(object):
 	# 07:13:42 up 52 days, 16:04,  3 users,  load average: 0.00, 0.00, 0.05
 	def process(self, data, text, query):
 		env.logger.debug("uptime: '%s'" % text)
-		target = 'entities:%s' % query.admin_ip
+		target = 'entities:%s' % query.device.admin_ip
 		
-		match = re.search(Uptime.up_expr1, text)
-		if match:
-			# Add a label with the uptime.
-			add_label(data, target, 'uptime: %s %s' % (match.group(1), match.group(2)), 'alpha', level = 2, style = 'font-size:small')
-			
-			# Add an alert if the device has only been up a short time. There is potentially a lot
-			# of variation here so, for now, we'll just match what we need. TODO: Sucks to do
-			# all this lame parsing. Not sure how to do better though. Maybe proc files?
-			if match.group(2) == 'sec' or (match.group(2) == 'min' and int(match.group(1)) <= 1):
-				# TODO: Can we add something helpful for resolution? Some log files to look at? A web site?
-				open_alert(data, target, key = 'uptime', mesg = 'Device rebooted.', resolution = '', kind = 'error')
-			else:
-				close_alert(data, target, key = 'uptime')
-			
-		match = re.search(Uptime.up_expr2, text)
-		if match:
-			add_label(data, target, 'uptime: %s' % match.group(1), 'alpha', level = 2, style = 'font-size:small')
-			close_alert(data, target, key = 'uptime')
+		match1 = re.search(Uptime.up_expr1, text)
+		match2 = re.search(Uptime.up_expr2, text)
+		if match1:
+			if match1.group(2) == 'sec':
+				query.device.uptime = float(match1.group(1))
+			elif match1.group(2) == 'min':
+				query.device.uptime = 60*float(match1.group(1))
+			elif match1.group(2) == 'day':
+				query.device.uptime = 1.1574074E-5*float(match1.group(1))
+		elif match2:
+			query.device.uptime = 60*60*float(match2.group(1)) + 60*float(match2.group(2))
+		else:
+			env.logger.error("Failed to match uptime: %s" % text)
 			
 		# The load average is an average of the number of processes forced to wait
 		# for CPU over the last 1, 5, and 15 minutes. We'll record the average for the 
@@ -95,7 +88,7 @@ class Df(object):
 		use_index = find_index(lines[0], "Use%")
 		mount_index = find_index(lines[0], "Mount")
 		if use_index and mount_index:
-			target = 'entities:%s' % query.admin_ip
+			target = 'entities:%s' % query.device.admin_ip
 			for line in lines[1:]:
 				self.__process_line(data, target, line, use_index, mount_index)
 				
@@ -132,7 +125,7 @@ class Netstat(object):
 		# to add a details table for routing.
 #		gateway_index = find_index(lines[1], "Gateway")
 #		if gateway_index:
-#			target = 'entities:%s' % query.admin_ip
+#			target = 'entities:%s' % query.device.admin_ip
 #			for line in lines[2:]:
 #				self.__process_line(data, target, line, gateway_index)
 				
@@ -177,13 +170,12 @@ class DeviceRunner(object):
 class QueryDevice(object):
 	def __init__(self, device):
 		self.__handlers = [UName(), Uptime(), CpuInfo(), Df(), Netstat()]
-		self.__device = device
-		self.admin_ip = device['ip']
+		self.device = device
 		self.load_average = None		# 1 min load average
 		self.num_cores = None
 	
 	def run(self, data, num_updates):
-		runner = DeviceRunner(self.admin_ip, self.__device['ssh'], self.__handlers)
+		runner = DeviceRunner(self.device.admin_ip, self.device.config['ssh'], self.__handlers)
 		runner.run()
 		
 		self.__process(runner, data)
@@ -202,7 +194,7 @@ class QueryDevice(object):
 	def __add_cpu_load_gauge(self, data):
 		if self.load_average != None and self.num_cores != None:
 			value = self.load_average/self.num_cores
-			target = 'entities:%s' % self.admin_ip
+			target = 'entities:%s' % self.device.admin_ip
 			level = None
 			if value >= 0.90:
 				level = 1

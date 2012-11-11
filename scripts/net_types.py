@@ -2,16 +2,18 @@
 
 class Interface(object):
 	def __init__(self):
-		self.name = ''				# "eth1"
-		self.status = ''				# "up", "down", "dormant", etc
-		self.ip = ''					# "10.143.0.254"			may not be set if the device is inactive
-		self.net_mask = ''			# "255.255.255.0"			may not be set if the device is inactive
-		self.mac_addr = ''			# "00:19:bb:5f:59:8a"		may not be set if the device is inactive
-		self.speed = 0.0			# 10000000.0 bps
-		self.mtu = ''				# "1500" bytes
-		self.in_octets = 0.0			# 9840.0 bytes
-		self.out_octets = 0.0		# 9840.0 bytes
-		self.last_changed = 0.0	# 2191.0 seconds
+		self.admin_ip = None		# "10.143.0.2"
+		self.name = None			# "eth1"
+		self.status = None			# "up", "down", "dormant", etc
+		self.ip = None				# "10.143.0.254"			may not be set if the device is inactive
+		self.index = None			# "2"
+		self.net_mask = None		# "255.255.255.0"			may not be set if the device is inactive
+		self.mac_addr = None		# "00:19:bb:5f:59:8a"		may not be set if the device is inactive
+		self.speed = None			# 10000000.0 bps
+		self.mtu = None			# 1500 bytes
+		self.in_octets = None		# 9840.0 bytes
+		self.out_octets = None		# 9840.0 bytes
+		self.last_changed = None	# 2191.0 seconds
 	
 	# True if the interface is able to communicate.
 	@property
@@ -19,56 +21,40 @@ class Interface(object):
 		return self.status == 'up' or self.status == 'dormant'
 	
 	def __repr__(self):
-		return self.ip
+		return self.ip or '?'
 
 class Route(object):
 	def __init__(self):
-		self.via_ip = ''
-		self.dst_subnet = ''
-		self.dst_mask = ''
-		self.protocol = ''
-		self.metric = ''
-		self.ifindex = ''				# source interface index
+		self.via_ip = None
+		self.dst_subnet = None
+		self.dst_mask = None
+		self.protocol = None
+		self.metric = None
+		self.ifindex = None		# source interface index
+		
+		self.src_interface = None
+		self.via_interface = None
+		self.dst_admin_ip = None
 	
 	def __repr__(self):
-		return '%s via %s' % (self.dst_subnet, self.via_ip)
+		return '%s via %s' % (self.dst_subnet or '?', self.via_ip or '?')
 
 class Device(object):
-	def __init__(self, name, admin_ip, modeler):
-		self.__name = name
-		self.__admin_ip = admin_ip
-		self.__modeler = modeler
+	def __init__(self, config):
+		self.__config = config		# from network json
 		
+		self.uptime = None		# 60.0 seconds
+		self.system_info = ''		# "markdown"
 		self.interfaces = []			# [Interface]
 		self.routes = []				# [Route]
-		self.system_info = []		#[markdown]
 	
 	@property
-	def name(self):
-		return self.__name
+	def config(self):
+		return self.__config
 	
 	@property
 	def admin_ip(self):
-		return self.__admin_ip
-	
-	@property
-	def modeler(self):
-		return self.__modeler
+		return self.__config['ip']
 	
 	def __repr__(self):
-		return self.admin_ip
-
-class Network(object):
-	def __init__(self, devices):
-		self.__devices = devices
-	
-	# admin ip => Device
-	@property
-	def devices(self):
-		return self.__devices
-	
-	# List of all the admin IP addresses in the network.
-	@property
-	def admin_ips(self):
-		return self.__devices.keys()
-	
+		return self.__config['ip']
