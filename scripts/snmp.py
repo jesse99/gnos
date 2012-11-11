@@ -378,20 +378,23 @@ class QueryDevice(object):
 	
 	def run(self):
 		self.__results = {}
-		for name in self.__handlers.keys():
-			self.__results[name] = self.__walk_mib(name)
+		try:
+			# When only a few items are used it would be faster to use something like:
+			# snmpbulkget -v2c -c public 10.101.0.2 -Oq -Ot -OU -OX ipRouteMask ipFragFails ipDefaultTTL
+			for name in self.__handlers.keys():
+				command = 'snmpbulkwalk %s %s -Oq -Ot -OU -OX %s' % (self.device.config['authentication'], self.device.admin_ip, name)
+				result = run_process(command)
+				if result:
+					self.__results[name] = result
+		except:
+			env.logger.error("snmpwalk failed for %s" % self.device.admin_ip, exc_info = True)
+			pass
 	
 	def process(self, data):
-		for (mib, contents) in self.__results.items():
-			self.__handlers[mib](data, contents, self)
-		
-	# When only a few items are used it would be faster to use something like:
-	# snmpbulkget -v2c -c public 10.101.0.2 -Oq -Ot -OU -OX ipRouteMask ipFragFails ipDefaultTTL
-	def __walk_mib(self, name):
-		command = 'snmpbulkwalk %s %s -Oq -Ot -OU -OX %s' % (self.device.config['authentication'], self.device.admin_ip, name)
-		try:
-			result = run_process(command)
-		except:
-			env.logger.error("Error executing `%s`" % command, exc_info = True)
-			result = ''
-		return result
+		target = 'entities:%s' % self.device.admin_ip
+		if self.__results:
+			close_alert(data, target, key = 'device down')
+			for (mib, contents) in self.__results.items():
+				self.__handlers[mib](data, contents, self)
+		else:
+			open_alert(data, target, key = 'device down', mesg = 'Device is down.', resolution = 'Check the power cable, power it on if it is off, check the IP address, verify routing.', kind = 'error')
