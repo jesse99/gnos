@@ -1,34 +1,13 @@
 # Misc functions that pretty much every Python modeler will need to use.
-import json, logging, logging.handlers, socket, subprocess
+import json, logging, logging.handlers, subprocess
 
 class Env(object):
 	def __init__(self):
 		self.options = None	# command line options, verbose is required
 		self.config = None		# dictionary, requires server, port, and path entries
 		self.logger = None
-		
-env = Env()
 
-def configure_logging(use_stdout, file_name):
-	global env
-	env.logger = logging.getLogger(file_name)
-	if env.options.verbose <= 1:
-		env.logger.setLevel(logging.WARNING)
-	elif env.options.verbose == 2:
-		env.logger.setLevel(logging.INFO)
-	else:
-		env.logger.setLevel(logging.DEBUG)
-		
-	if use_stdout:
-		handler = logging.StreamHandler()
-		formatter = logging.Formatter('%(asctime)s  %(message)s', datefmt = '%I:%M:%S')
-	else:
-		# Note that we don't use SysLogHandler because, on Ubuntu at least, /etc/default/syslogd
-		# has to be configured to accept remote logging requests.
-		handler = logging.FileHandler(file_name, mode = 'w')
-		formatter = logging.Formatter('%(asctime)s  %(message)s', datefmt = '%m/%d %I:%M:%S %p')
-	handler.setFormatter(formatter)
-	env.logger.addHandler(handler)
+env = Env()
 
 def add_label(data, target, label, key, level = 0, style = ''):
 	if label:
@@ -37,7 +16,7 @@ def add_label(data, target, label, key, level = 0, style = ''):
 			data['labels'].append({'target-id': target, 'label': label, 'level': level, 'sort-key': sort_key, 'style': style})
 		else:
 			data['labels'].append({'target-id': target, 'label': label, 'level': level, 'sort-key': sort_key})
-		
+
 def add_gauge(data, target, label, value, level, style, sort_key):
 	data['gauges'].append({'entity-id': target, 'label': label, 'value': value, 'level': level, 'style': style, 'sort-key': sort_key})
 
@@ -77,46 +56,6 @@ def secs_to_str(secs):
 		return '%.0f seconds' % secs
 	else:
 		return '%.3f msecs' % (1000*secs)
-			
-def get_subnet(s):
-	def count_leading_ones(mask):
-		count = 0
-		
-		bit = 1 << 31
-		while bit > 0:
-			if mask & bit == bit:
-				count += 1
-				bit >>= 1
-			else:
-				break
-		
-		return count
-	
-	def count_trailing_zeros(mask):
-		count = 0
-		
-		bit = 1
-		while bit < (1 << 32):
-			if mask & bit == 0:
-				count += 1
-				bit <<= 1
-			else:
-				break
-		
-		return count;
-	
-	if s:
-		parts = s.split('.')
-		bytes = map(lambda p: int(p), parts)
-		mask = reduce(lambda sum, current: 256*sum + current, bytes, 0)
-		leading = count_leading_ones(mask)
-		trailing = count_trailing_zeros(mask)
-		if leading + trailing == 32:
-			return leading
-		else:
-			return s		# unusual netmask where 0s and 1s are mixed.
-	else:
-		'?'
 
 def run_process(command):
 	process = subprocess.Popen(command, bufsize = 8*1024, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
@@ -126,50 +65,3 @@ def run_process(command):
 		raise ValueError('return code was %s:' % process.returncode)
 	return outData
 
-def send_update(connection, data):
-	env.logger.debug("sending update")
-	env.logger.debug("%s" % json.dumps(data, sort_keys = True, indent = 4))
-	if connection:
-		try:
-			body = json.dumps(data)
-			headers = {"Content-type": "application/json", "Accept": "text/html"}
-			
-			connection.request("PUT", env.config['path'], body, headers)
-			response = connection.getresponse()
-			response.read()			# we don't use this but we must call it (or, on the second call, we'll get ResponseNotReady errors)
-			if not str(response.status).startswith('2'):
-				env.logger.error("Error PUTing: %s %s" % (response.status, response.reason))
-				raise Exception("PUT failed")
-		except Exception as e:
-			address = "%s:%s" % (env.config['server'], env.config['port'])
-			env.logger.error("Error PUTing to %s:%s: %s" % (address, env.config['path'], e), exc_info = type(e) != socket.error)
-			raise Exception("PUT failed")
-
-# It's a little lame that the edges have to be specified in the network file (using
-# the links list) but relations don't work so well as edges because there are
-# often too many of them (which causes clutter and, even worse, causes a
-# lot of instability in node positions when there are too many forces acting
-# on nodes (even with very high friction levels)).
-def send_entities(connection):
-	def find_ip(name):
-		for (candidate, device) in env.config["devices"].items():
-			if candidate == name:
-				return device['ip']
-		env.logger.error("Couldn't find link to %s" % name)
-		return ''
-		
-	entities = []
-	relations = []
-	for (name, device) in env.config["devices"].items():
-		style = "font-size:larger font-weight:bolder"
-		entity = {"id": device['ip'], "label": name, "style": style}
-		env.logger.debug("entity: %s" % entity)
-		entities.append(entity)
-		
-		if 'links' in device:
-			for link in device['links']:
-				left = 'entities:%s' % device['ip']
-				right = 'entities:%s' % find_ip(link)
-				relation = {'left-entity-id': left, 'right-entity-id': right, 'predicate': 'options.none'}
-				relations.append(relation)
-	send_update(connection, {"modeler": "config", "entities": entities, 'relations': relations})
