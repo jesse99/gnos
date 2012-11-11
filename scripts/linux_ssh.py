@@ -180,8 +180,8 @@ class QueryDevice(object):
 		
 	def process(self, data):
 		target = 'entities:%s' % self.__runner.ip
-		close_alert(data, target, key = 'device down')
 		if self.__runner.results:
+			close_alert(data, target, key = 'device down')
 			assert len(self.__runner.results) == len(self.__handlers)
 			for i in xrange(0, len(self.__runner.results)):
 				self.__handlers[i].process(data, self.__runner.results[i], self)
