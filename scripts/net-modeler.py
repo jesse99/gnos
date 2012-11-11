@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # Collects information about a network using snmp and ssh. Ships the results off to gnos using json.
-import cgi, httplib, json, sys, time		# , , itertools, , re, , threading, 
+import cgi, httplib, json, sys, threading, time
 import linux_ssh, snmp
 from base_modeler import *
 from net_types import *
@@ -25,6 +25,48 @@ def add_units(value, unit):
 		value = '%s %s' % (value, unit)
 	return value
 
+class SnmpThread(threading.Thread):
+	def __init__(self, device, queriers, check_queries):
+		threading.Thread.__init__(self)
+		self.__query = snmp.QueryDevice(device)
+		self.__queriers = queriers
+		self.__check_queries = check_queries
+		
+	def run(self):
+		self.__query.run()
+		
+		self.__check_queries.acquire()
+		try:
+			self.__queriers.append(self.__query)
+			self.__check_queries.notify()
+		finally:
+			self.__check_queries.release()
+		
+class SshThread(threading.Thread):
+	def __init__(self, queriers, check_queries):
+		threading.Thread.__init__(self)
+		self.__queries = []
+		self.__queriers = queriers
+		self.__check_queries = check_queries
+		
+	@property
+	def num_devices(self):
+		return len(self.__queries)
+		
+	def add_device(self, device):
+		self.__queries.append(linux_ssh.QueryDevice(device))
+		
+	def run(self):
+		for query in self.__queries:
+			query.run()
+		
+		self.__check_queries.acquire()
+		try:
+			self.__queriers.extend(self.__queries)
+			self.__check_queries.notify()
+		finally:
+			self.__check_queries.release()
+		
 class Poll(object):
 	def __init__(self):
 		self.__startTime = time.time()
@@ -49,8 +91,7 @@ class Poll(object):
 					
 				devices = map(lambda d: Device(d), env.config['devices'].values())
 				data = {'modeler': 'net', 'entities': [], 'relations': [], 'labels': [], 'gauges': [], 'details': [], 'alerts': [], 'samples': [], 'charts': []}
-				for device in devices:
-					self.__query_device(data, device)
+				self.__query_devices(data, devices)
 				self.__update_routes(devices)
 				
 				for device in devices:
@@ -75,17 +116,47 @@ class Poll(object):
 			if self.__connection:
 				self.__connection.close()
 				
-	def __query_device(self, data, device):
-		if device.config['type'] == 'linux_ssh':
-			query = linux_ssh.QueryDevice(device)
-		elif device.config['type'] == 'snmp':
-			query = snmp.QueryDevice(device)
-		else:
-			env.logger.error("bad modeler: %s" % device.config['modeler'])
+	def __query_devices(self, data, devices):
+		threads = []
+		queriers = []
+		check_queries = threading.Condition(threading.Lock())
+		
+		# Query the devices using a thread get the raw data and possibly
+		# update device.
+		ssh = SshThread(queriers, check_queries)
+		for device in devices:
+			if device.config['type'] == 'snmp':
+				thread = SnmpThread(device, queriers, check_queries)
+				thread.start()
+				threads.append(thread)
+			elif device.config['type'] == 'linux_ssh':
+				ssh.add_device(device)
+			else:
+				env.logger.error("bad modeler: %s" % device.config['modeler'])
+				
+		# For some reason when we try to ssh using multiple threads the results are
+		# empty for all or (sometimes) all but one.
+		if ssh.num_devices > 0:
+			ssh.start()
+			threads.append(ssh)
 			
-		if query:
-			query.run(data, self.__num_updates)
-			
+		# But the data argument is a shared resource so only update that from one
+		# thread.
+		count = 0
+		while count < len(threads):
+			check_queries.acquire()
+			try:
+				while len(queriers) == 0:
+					check_queries.wait(max(5.0, 2.0*ssh.num_devices))
+				while len(queriers) > 0:
+					queriers.pop().process(data)
+					count += 1
+			except RuntimeError:
+				env.logger.error("Failed to get data for a device (probably timed out)", exc_info=True)
+				count = len(threads)
+			finally:
+				check_queries.release()
+		
 	def __update_routes(self, devices):
 		def interface_by_index(device, ifindex):
 			for candidate in device.interfaces:

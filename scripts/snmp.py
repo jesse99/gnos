@@ -399,10 +399,10 @@ class QueryDevice(object):
 		self.__handlers = {'system': process_system, 'ip': process_ip, 'interfaces': process_interfaces, 'hrStorage': process_storage, 'hrDevice': process_device}
 		self.device = device
 	
-	def run(self, data, num_updates):
-		self.__num_updates = num_updates
-		
-		runner = DeviceRunner(self.device.admin_ip, self.device.config['authentication'], self.__handlers.keys())
-		runner.run()
-		for (mib, contents) in runner.results.items():
+	def run(self):
+		self.__runner = DeviceRunner(self.device.admin_ip, self.device.config['authentication'], self.__handlers.keys())
+		self.__runner.run()
+	
+	def process(self, data):
+		for (mib, contents) in self.__runner.results.items():
 			self.__handlers[mib](data, contents, self)

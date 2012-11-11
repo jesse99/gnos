@@ -174,22 +174,21 @@ class QueryDevice(object):
 		self.load_average = None		# 1 min load average
 		self.num_cores = None
 	
-	def run(self, data, num_updates):
-		runner = DeviceRunner(self.device.admin_ip, self.device.config['ssh'], self.__handlers)
-		runner.run()
+	def run(self):
+		self.__runner = DeviceRunner(self.device.admin_ip, self.device.config['ssh'], self.__handlers)
+		self.__runner.run()
 		
-		self.__process(runner, data)
-		self.__add_cpu_load_gauge(data)
-		
-	def __process(self, runner, data):
-		target = 'entities:%s' % runner.ip
+	def process(self, data):
+		target = 'entities:%s' % self.__runner.ip
 		close_alert(data, target, key = 'device down')
-		if runner.results:
-			assert len(runner.results) == len(self.__handlers)
-			for i in xrange(0, len(runner.results)):
-				self.__handlers[i].process(data, runner.results[i], self)
+		if self.__runner.results:
+			assert len(self.__runner.results) == len(self.__handlers)
+			for i in xrange(0, len(self.__runner.results)):
+				self.__handlers[i].process(data, self.__runner.results[i], self)
 		else:
 			open_alert(data, target, key = 'device down', mesg = 'Device is down.', resolution = 'Check the power cable, power it on if it is off, check the IP address, verify routing.', kind = 'error')
+		
+		self.__add_cpu_load_gauge(data)
 		
 	def __add_cpu_load_gauge(self, data):
 		if self.load_average != None and self.num_cores != None:
