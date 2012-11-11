@@ -550,9 +550,9 @@ function alerts_query(solution)
 	});
 	
 	var alerts = [];
-	add_alert(alerts, errors, "error", ['font-color:red', 'font-weight:bolder'], 0);
-	add_alert(alerts, warnings, "warning", ['font-color:orange'], 2);
-	add_alert(alerts, infos, "info", ['font-color:blue'], 3);
+	add_alert(alerts, errors, "error", ['font-size:small', 'font-color:red', 'font-weight:bolder'], 0);
+	add_alert(alerts, warnings, "warning", ['font-size:small', 'font-color:orange'], 2);
+	add_alert(alerts, infos, "info", ['font-size:small', 'font-color:blue'], 3);
 	
 	return {alerts: alerts};
 }
@@ -738,9 +738,9 @@ function map_renderer(element, model, model_names)
 				var shape = new LineShape(context, line, relation.styles, null, null, relation.predicate);
 				GNOS.scene.append(shape);
 				
-				max_relation = add_labels(model, shape, line, relation.left_labels, 0.1, max_relation);
+				max_relation = add_labels(model, shape, line, relation.left_labels, 0.15, max_relation);
 				max_relation = add_labels(model, shape, line, relation.middle_labels, 0.5, max_relation);
-				max_relation = add_labels(model, shape, line, relation.right_labels, 0.9, max_relation);
+				max_relation = add_labels(model, shape, line, relation.right_labels, 0.85, max_relation);
 			}
 			shape.from_node = relation.left;
 			shape.to_node = relation.right;

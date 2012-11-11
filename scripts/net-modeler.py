@@ -81,7 +81,7 @@ def send_entities(connection):
 	entities = []
 	relations = []
 	for (name, device) in env.config["devices"].items():
-		style = "font-size:larger font-weight:bolder"
+		style = "font-weight:bolder"
 		entity = {"id": device['ip'], "label": name, "style": style}
 		env.logger.debug("entity: %s" % entity)
 		entities.append(entity)
@@ -313,12 +313,12 @@ class Poll(object):
 	def __process_device(self, data, device):
 		# admin ip label
 		target = 'entities:%s' % device.admin_ip
-		add_label(data, target, device.admin_ip, 'a', level = 1, style = 'font-size:small')
+		add_label(data, target, device.admin_ip, 'a', level = 1, style = 'font-size:x-small')
 		
 		if device.uptime:
 			# uptime label
 			key = 'alpha'		# want these to appear before most other labels
-			add_label(data, target, 'uptime: %s' % secs_to_str(device.uptime), key, level = 2, style = 'font-size:small')
+			add_label(data, target, 'uptime: %s' % secs_to_str(device.uptime), key, level = 2, style = 'font-size:x-small')
 			
 			# uptime alert
 			if device.uptime < 60.0:
@@ -425,23 +425,23 @@ class Poll(object):
 			
 			left_labels = []
 			if route.src_interface:
-				left_labels.append({'label': route.src_interface.name, 'level': 1, 'style': 'font-size:x-small'})
-				left_labels.append({'label': route.src_interface.ip, 'level': 1, 'style': 'font-size:xx-small'})
+				left_labels.append({'label': route.src_interface.name, 'level': 2, 'style': 'font-size:xx-small'})
+				left_labels.append({'label': route.src_interface.ip, 'level': 3, 'style': 'font-size:xxx-small'})
 				if route.src_interface.mac_addr:
-					left_labels.append({'label': route.src_interface.mac_addr, 'level': 2, 'style': 'font-size:xx-small'})
+					left_labels.append({'label': route.src_interface.mac_addr, 'level': 4, 'style': 'font-size:xxx-small'})
 			
-			middle_labels = [{'label': '%s cost %s' % (route.protocol, route.metric), 'level': 1, 'style': 'font-size:small'}]
+			middle_labels = [{'label': '%s cost %s' % (route.protocol, route.metric), 'level': 1, 'style': 'font-size:x-small'}]
 			
 			right_labels = []
 			if route.via_interface:
-				right_labels.append({'label': route.via_interface.name, 'level': 1, 'style': 'font-size:x-small'})
+				right_labels.append({'label': route.via_interface.name, 'level': 2, 'style': 'font-size:xx-small'})
 			if route.via_ip != '0.0.0.0':
-				right_labels.append({'label': route.via_ip, 'level': 1, 'style': 'font-size:xx-small'})
+				right_labels.append({'label': route.via_ip, 'level': 3, 'style': 'font-size:xxx-small'})
 			elif route.dst_subnet and route.dst_mask:
 				subnet = get_subnet(route.dst_mask)
-				right_labels.append({'label': "%s/%s" % (route.dst_subnet, subnet), 'level': 1, 'style': 'font-size:xx-small'})
+				right_labels.append({'label': "%s/%s" % (route.dst_subnet, subnet), 'level': 3, 'style': 'font-size:xxx-small'})
 			if route.via_interface and route.via_interface.mac_addr:
-				right_labels.append({'label': route.via_interface.mac_addr, 'level': 2, 'style': 'font-size:xx-small'})
+				right_labels.append({'label': route.via_interface.mac_addr, 'level': 4, 'style': 'font-size:xxx-small'})
 			
 			predicate = "options.routes selection.name '%s' ends_with and" % dst_admin
 			add_relation(data, left, right, 'line-type:directed line-color:blue line-width:3', left_labels = left_labels, middle_labels = middle_labels, right_labels = right_labels, predicate = predicate)
@@ -471,7 +471,7 @@ class Poll(object):
 				left = 'entities:%s' % src_admin
 				right = 'entities:%s' % via_admin
 				predicate = "options.routes selection.name 'map' == and"
-				add_relation(data, left, right, style, middle_labels = [{'label': 'next hop', 'level': 1, 'style': 'font-size:small'}], predicate = predicate)
+				add_relation(data, left, right, style, middle_labels = [{'label': 'next hop', 'level': 1, 'style': 'font-size:x-small'}], predicate = predicate)
 		
 	def __add_interfaces_table(self, data, device):
 		rows = []

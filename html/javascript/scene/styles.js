@@ -92,7 +92,11 @@ function font_weight(context, value)
 
 function font_size(context, value)
 {
-	if (value === 'xx-small')
+	if (value === 'xxx-small')
+	{
+		context.font_parts[2] = 6;
+	}
+	else if (value === 'xx-small')
 	{
 		context.font_parts[2] = 8;
 	}
