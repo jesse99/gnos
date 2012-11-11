@@ -2,7 +2,7 @@
 # Collects information about a network using snmp and ssh. Ships the results off to gnos using json.
 import cgi, httplib, json, sys, threading, time
 import linux_ssh, snmp
-from base_modeler import *
+from helpers import *
 from net_types import *
 
 try:

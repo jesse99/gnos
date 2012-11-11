@@ -3,7 +3,7 @@
 # designed to be fairly minimal (if you want detailed information then get
 # SNMP running).
 import cgi, json, itertools, httplib, re, subprocess, sys, threading, time
-from base_modeler import *
+from helpers import *
 
 connection = None
 

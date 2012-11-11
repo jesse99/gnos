@@ -18,7 +18,7 @@
 #
 # Following site has a bunch of snmp links: http://www.wtcs.org/snmp4tpc/literature.htm
 import cgi, json, itertools, httplib, re, sys, threading, time
-from base_modeler import *
+from helpers import *
 from net_types import *
 
 connection = None
@@ -368,29 +368,6 @@ def sanitize_mac(mac):
 			result.append(part)
 	return ':'.join(result)
 
-class DeviceRunner(object):
-	def __init__(self, ip, authentication, mib_names):
-		self.ip = ip
-		self.__authentication = authentication
-		self.__mib_names = mib_names
-		self.results = None									# mapping from mib name to results of the query for that mib
-		
-	def run(self):
-		self.results = {}
-		for name in self.__mib_names:
-			self.results[name] = self.__walk_mib(name)
-		
-	# When only a few items are used it would be faster to use something like:
-	# snmpbulkget -v2c -c public 10.101.0.2 -Oq -Ot -OU -OX ipRouteMask ipFragFails ipDefaultTTL
-	def __walk_mib(self, name):
-		command = 'snmpbulkwalk %s %s -Oq -Ot -OU -OX %s' % (self.__authentication, self.ip, name)
-		try:
-			result = run_process(command)
-		except:
-			env.logger.error("Error executing `%s`" % command, exc_info = True)
-			result = ''
-		return result
-
 class QueryDevice(object):
 	def __init__(self, device):
 		# TODO: 
@@ -400,9 +377,21 @@ class QueryDevice(object):
 		self.device = device
 	
 	def run(self):
-		self.__runner = DeviceRunner(self.device.admin_ip, self.device.config['authentication'], self.__handlers.keys())
-		self.__runner.run()
+		self.__results = {}
+		for name in self.__handlers.keys():
+			self.__results[name] = self.__walk_mib(name)
 	
 	def process(self, data):
-		for (mib, contents) in self.__runner.results.items():
+		for (mib, contents) in self.__results.items():
 			self.__handlers[mib](data, contents, self)
+		
+	# When only a few items are used it would be faster to use something like:
+	# snmpbulkget -v2c -c public 10.101.0.2 -Oq -Ot -OU -OX ipRouteMask ipFragFails ipDefaultTTL
+	def __walk_mib(self, name):
+		command = 'snmpbulkwalk %s %s -Oq -Ot -OU -OX %s' % (self.device.config['authentication'], self.device.admin_ip, name)
+		try:
+			result = run_process(command)
+		except:
+			env.logger.error("Error executing `%s`" % command, exc_info = True)
+			result = ''
+		return result
