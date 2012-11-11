@@ -12,7 +12,7 @@ function Scene(context)
 	{
 		repulsion: 2*1000,	// the force repelling nodes from each other (1000)
 		stiffness: 3*600,		// the rigidity of the edges (600)
-		friction: 20*0.5,		// the amount of damping in the system (0.5) [need a lot of this when there are a bunch of edges]
+		friction: 1*0.5,		// the amount of damping in the system (0.5) [need a lot of this when there are a bunch of edges]
 		gravity: false,			// an additional force attracting nodes to the origin (false)
 		fps: 30,					// frames per second (55)
 		ft: 0.02,				// timestep to use for stepping the simulation (0.02)
