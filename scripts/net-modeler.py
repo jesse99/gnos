@@ -11,15 +11,6 @@ except:
 	sys.stderr.write("This script requires Python 2.7 or later\n")
 	sys.exit(2)
 
-def ip_to_int(ip):
-	parts = ip.split('.')
-	if len(parts) != 4:
-		raise Exception("expected an IP address but found: '%s'" % ip)
-	return (int(parts[0]) << 24) | (int(parts[1]) << 16) | (int(parts[2]) << 8) | int(parts[3])
-
-def int_to_ip(value):
-	return '%s.%s.%s.%s' % ((value << 24) & 0xFF, (value << 16) & 0xFF, (value << 8) & 0xFF, value & 0xFF)
-
 def add_units(value, unit):
 	if value or type(value) == float:
 		value = '%s %s' % (value, unit)
@@ -94,7 +85,7 @@ def send_entities(connection):
 				relations.append(relation)
 	send_update(connection, {"modeler": "config", "entities": entities, 'relations': relations})
 
-def get_subnet(s):
+def mask_to_subnet(s):
 	def count_leading_ones(mask):
 		count = 0
 		
@@ -359,9 +350,10 @@ class Poll(object):
 		table = sorted(device.interfaces, key = lambda i: i.name)
 		for interface in table:
 			if interface.active:
-				name = interface.name
-				legends.append(name)
-				samples.append('%s-%s-%s_octets' % (device.admin_ip, name, direction))
+				if (direction == 'in' and interface.in_octets != None) and (direction == 'out' and interface.out_octets != None):
+					name = interface.name
+					legends.append(name)
+					samples.append('%s-%s-%s_octets' % (device.admin_ip, name, direction))
 		
 		if samples:
 			name = "%s-%s_interfaces" % (device.admin_ip, direction)
@@ -379,7 +371,7 @@ class Poll(object):
 		rows = []
 		for route in device.routes:
 			dest = route.dst_subnet
-			subnet = get_subnet(route.dst_mask)
+			subnet = mask_to_subnet(route.dst_mask)
 			dest = '%s/%s' % (dest, subnet)
 			
 			if route.src_interface:
@@ -438,7 +430,7 @@ class Poll(object):
 			if route.via_ip != '0.0.0.0':
 				right_labels.append({'label': route.via_ip, 'level': 3, 'style': 'font-size:xxx-small'})
 			elif route.dst_subnet and route.dst_mask:
-				subnet = get_subnet(route.dst_mask)
+				subnet = mask_to_subnet(route.dst_mask)
 				right_labels.append({'label': "%s/%s" % (route.dst_subnet, subnet), 'level': 3, 'style': 'font-size:xxx-small'})
 			if route.via_interface and route.via_interface.mac_addr:
 				right_labels.append({'label': route.via_interface.mac_addr, 'level': 4, 'style': 'font-size:xxx-small'})
@@ -481,7 +473,7 @@ class Poll(object):
 				
 				ip = interface.ip
 				if interface.net_mask:
-					subnet = get_subnet(interface.net_mask)
+					subnet = mask_to_subnet(interface.net_mask)
 					if ip == device.admin_ip:
 						ip = '<strong>%s/%s</strong>' % (ip, subnet)
 					else:
@@ -490,8 +482,14 @@ class Poll(object):
 				# We always need to add samples so that they stay in sync with one another.
 				if interface.in_octets != None:
 					in_octets = self.__process_sample(device, data, {'key': '%s-%s-in_octets' % (device.admin_ip, name), 'raw': 8*interface.in_octets/1000, 'units': 'kbps'})
+					in_cell = in_octets['html']
+				else:
+					in_cell = ''
 				if interface.out_octets != None:
 					out_octets = self.__process_sample(device, data, {'key':  '%s-%s-out_octets' % (device.admin_ip, name), 'raw': 8*interface.out_octets/1000, 'units': 'kbps'})
+					out_cell = out_octets['html']
+				else:
+					out_cell = ''
 				
 				if interface.active and interface.speed:
 					speed = interface.speed
@@ -500,8 +498,11 @@ class Poll(object):
 							self.__add_interface_gauge(data, device.admin_ip, name, out_octets['value'], speed/1000)
 						speed = speed/1000000
 						speed = '%.1f Mbps' % speed
-					
-					rows.append([name, ip, interface.mac_addr, speed, add_units(interface.mtu, 'B'), in_octets['html'], out_octets['html']])
+				else:
+					speed = ''
+				
+				if interface.active:
+					rows.append([name, ip, interface.mac_addr, speed, add_units(interface.mtu, 'B'), in_cell, out_cell])
 			
 		if rows:
 			detail = {}

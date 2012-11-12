@@ -4,6 +4,7 @@
 # SNMP running).
 import cgi, json, itertools, httplib, re, subprocess, sys, threading, time
 from helpers import *
+from net_types import *
 
 connection = None
 
@@ -13,6 +14,18 @@ def find_index(line, needle):
 		if parts[i].startswith(needle):
 			return i
 	return None
+
+def subnet_to_mask(s):
+	count = int(s)
+	
+	result = 0
+	bit = 1 << 31
+	while count > 0:
+		result |= bit
+		bit >>= 1
+		count -= 1
+	
+	return int_to_ip(result)
 
 class UName(object):
 	def command(self):
@@ -109,6 +122,84 @@ class Df(object):
 			if level:
 				add_gauge(data, target, parts[mount_index], value, level, style, sort_key = 'zzz')
 		
+class IpAddress(object):
+	def command(self):
+		return '/usr/sbin/ip -o address show'
+		
+	# 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 16436 qdisc noqueue state UNKNOWN \    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+	# 1: lo    inet 127.0.0.1/8 brd 127.255.255.255 scope host lo
+	# 2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UNKNOWN qlen 100\    link/ether 00:08:a2:04:15:4e brd ff:ff:ff:ff:ff:ff
+	# 2: eth0    inet 10.102.0.10/24 brd 10.102.0.255 scope global eth0
+	# 3: eth1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN qlen 100\    link/ether 00:08:a2:04:15:4f brd ff:ff:ff:ff:ff:ff
+	# 5: gre0: <NOARP> mtu 1476 qdisc noop state DOWN \    link/gre 0.0.0.0 brd 0.0.0.0
+	def process(self, data, text, query):
+		lines = text.splitlines()
+		env.logger.debug("ip: '%s'" % lines)
+		
+		# This is pretty crappy. Not sure if there's a way to get more machine readable information
+		# (other than snmp).
+		for line in lines:
+			interface = self.__find_interface(query.device, line)
+			if interface:
+				self.__set_name(interface, line)
+				self.__set_status(interface, line)
+				self.__set_mtu(interface, line)
+				self.__set_ip(interface, line)
+				self.__set_mac(interface, line)
+			
+	def __set_name(self, interface, line):
+		parts = line.split()
+		name = parts[1]
+		if name[-1] == ':':
+			name = name[:-1]
+		interface.name = name
+	
+	def __set_status(self, interface, line):
+		if '<UP,' in line or ',UP,' in line or ',UP>' in line:
+			interface.status = 'up'
+		
+	def __set_mtu(self, interface, line):
+		parts = line.split()
+		if 'mtu' in parts:
+			i = parts.index('mtu')
+			interface.mtu = int(parts[i+1])
+			
+	def __set_ip(self, interface, line):
+		parts = line.split()
+		if 'inet' in parts:
+			i = parts.index('inet')
+			pieces = parts[i+1].split('/')
+			if len(pieces) == 1:
+				interface.ip = pieces[0]
+			elif len(pieces) == 2:
+				interface.ip = pieces[0]
+				interface.net_mask = subnet_to_mask(pieces[1])
+			
+	def __set_mac(self, interface, line):
+		parts = line.split()
+		if 'link/ether' in parts:
+			i = parts.index('link/ether')
+			interface.mac_addr = parts[i+1]
+		else:
+			interface.mac_addr = ''
+	
+	def __find_interface(self, device, line):
+		i = line.find(':')
+		if i:
+			n = line[:i]
+			if n.isdigit():
+				for candidate in device.interfaces:
+					if candidate.index == n:
+						return candidate
+				
+				interface = Interface()
+				interface.admin_ip = device.admin_ip
+				interface.index = n
+				interface.status = 'down'
+				device.interfaces.append(interface)
+				return interface
+		return None
+		
 class Netstat(object):
 	def command(self):
 		return 'netstat -rn'
@@ -121,25 +212,34 @@ class Netstat(object):
 		lines = text.splitlines()
 		env.logger.debug("netstat: '%s'" % lines)
 		
-		# TODO: snmp-modeler can now figure this out so it's not needed. But it would be nice
-		# to add a details table for routing.
-#		gateway_index = find_index(lines[1], "Gateway")
-#		if gateway_index:
-#			target = 'entities:%s' % query.device.admin_ip
-#			for line in lines[2:]:
-#				self.__process_line(data, target, line, gateway_index)
-				
-	# TODO: In general the gateway IP will not be the admin IP. Not sure what the
-	# best way to handle this is. Maybe we could point to an alias subject whose value
-	# is the actual gateway device subject.
-	def __process_line(self, data, target, line, gateway_index):
-		parts = line.split()
-		if parts[gateway_index] != '0.0.0.0':
-			right = 'entities:%s' % parts[gateway_index]
-			style = 'line-type:directed'
-			predicate = "options.routes selection.name 'map' == and"
-			add_relation(data, target, right, style, middle_labels = [{'label': 'gateway', 'level': 1, 'style': 'font-size:small'}], predicate = predicate)
-			
+		if find_index(lines[1], "Gateway"):
+			for line in lines[2:]:
+				self.__process_line(query.device, lines[1], line)
+	
+	def __process_line(self, device, header, line):
+		route = Route()
+		route.via_ip = self.__get(header, line, 'Gateway')
+		route.dst_subnet = self.__get(header, line, 'Destination')
+		route.dst_mask = self.__get(header, line, 'Genmask')
+		route.protocol = 'local'
+		route.metric = 1
+		route.ifindex = self.__find_interface(device, self.__get(header, line, 'Iface'))
+		device.routes.append(route)
+		
+	def __get(self, header, line, name):
+		i = find_index(header, name)
+		if i != None:
+			return line.split()[i]
+		return None
+		
+	# Assumes IpAddress has already run.
+	def __find_interface(self, device, ifname):
+		if ifname:
+			for candidate in device.interfaces:
+				if candidate.name == ifname:
+					return candidate.index
+		return None
+		
 # TODO:
 # add interface table, use: /usr/sbin/ip address show
 # add interface stats, use: /usr/sbin/ip -s  link (netstat -i would be nicer, but not always available)
@@ -169,7 +269,7 @@ class DeviceRunner(object):
 
 class QueryDevice(object):
 	def __init__(self, device):
-		self.__handlers = [UName(), Uptime(), CpuInfo(), Df(), Netstat()]
+		self.__handlers = [UName(), Uptime(), CpuInfo(), Df(), IpAddress(), Netstat()]
 		self.device = device
 		self.load_average = None		# 1 min load average
 		self.num_cores = None

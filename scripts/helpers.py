@@ -9,6 +9,15 @@ class Env(object):
 
 env = Env()
 
+def ip_to_int(ip):
+	parts = ip.split('.')
+	if len(parts) != 4:
+		raise Exception("expected an IP address but found: '%s'" % ip)
+	return (int(parts[0]) << 24) | (int(parts[1]) << 16) | (int(parts[2]) << 8) | int(parts[3])
+
+def int_to_ip(value):
+	return '%s.%s.%s.%s' % ((value >> 24) & 0xFF, (value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF)
+
 def add_label(data, target, label, key, level = 0, style = ''):
 	if label:
 		sort_key = '%s-%s' % (level, key)

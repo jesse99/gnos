@@ -7,14 +7,6 @@
 	"path": "/modeler",
 	"devices":
 	{
-		"GRS-2":
-		{
-			"ip": "10.102.0.2",
-			"links": ["App-2"],
-			"authentication": "-v2c -c public",
-			"modeler": "net-modeler.py",
-			"type": "snmp"
-		},
 		"App-2":
 		{
 			"ip": "10.102.0.10",

@@ -3,10 +3,10 @@
 class Interface(object):
 	def __init__(self):
 		self.admin_ip = None		# "10.143.0.2"
+		self.index = None			# "2"
 		self.name = None			# "eth1"
 		self.status = None			# "up", "down", "dormant", etc
 		self.ip = None				# "10.143.0.254"			may not be set if the device is inactive
-		self.index = None			# "2"
 		self.net_mask = None		# "255.255.255.0"			may not be set if the device is inactive
 		self.mac_addr = None		# "00:19:bb:5f:59:8a"		may not be set if the device is inactive
 		self.speed = None			# 10000000.0 bps
