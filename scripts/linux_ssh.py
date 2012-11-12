@@ -59,7 +59,7 @@ class Uptime(object):
 			elif match1.group(2) == 'min':
 				query.device.uptime = 60*float(match1.group(1))
 			elif match1.group(2) == 'day':
-				query.device.uptime = 1.1574074E-5*float(match1.group(1))
+				query.device.uptime = 86400*float(match1.group(1))
 		elif match2:
 			query.device.uptime = 60*60*float(match2.group(1)) + 60*float(match2.group(2))
 		else:
