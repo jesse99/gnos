@@ -40,13 +40,18 @@ class Route(object):
 		return '%s via %s' % (self.dst_subnet or '?', self.via_ip or '?')
 
 class Device(object):
-	def __init__(self, config):
+	def __init__(self, name, config):
+		self.__name = name		# from network json
 		self.__config = config		# from network json
 		
 		self.uptime = None		# 60.0 seconds
 		self.system_info = ''		# "markdown"
 		self.interfaces = []			# [Interface]
 		self.routes = []				# [Route]
+	
+	@property
+	def name(self):
+		return self.__name
 	
 	@property
 	def config(self):

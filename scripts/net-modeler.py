@@ -189,7 +189,7 @@ class Poll(object):
 				if not env.options.put:
 					env.logger.info("-" * 60)
 					
-				devices = map(lambda d: Device(d), env.config['devices'].values())
+				devices = map(lambda e: Device(e[0], e[1]), env.config['devices'].items())
 				data = {'modeler': 'net', 'entities': [], 'relations': [], 'labels': [], 'gauges': [], 'details': [], 'alerts': [], 'samples': [], 'charts': []}
 				self.__query_devices(data, devices)
 				self.__update_routes(devices)
@@ -198,6 +198,7 @@ class Poll(object):
 					self.__process_device(data, device)
 				self.__add_next_hop_relations(data, devices)
 				self.__add_selection_route_relations(data, devices)
+				self.__add_ips(data, devices)
 				if self.__num_updates >= 2:
 					self.__add_bandwidth_details(data, 'out')
 					self.__add_bandwidth_details(data, 'in')
@@ -465,6 +466,43 @@ class Poll(object):
 				predicate = "options.routes selection.name 'map' == and"
 				add_relation(data, left, right, style, middle_labels = [{'label': 'next hop', 'level': 1, 'style': 'font-size:x-small'}], predicate = predicate)
 		
+	def __add_ips(self, data, devices):
+		rows = []
+		for device in devices:
+			for interface in device.interfaces:
+				if interface.name and interface.ip != '127.0.0.1':
+					ifname = cgi.escape(interface.name)
+					
+					ip = interface.ip
+					if interface.net_mask:
+						subnet = mask_to_subnet(interface.net_mask)
+						ip = '%s/%s' % (ip, subnet)
+					if interface.ip == device.admin_ip:
+						ip = '<strong>%s</strong>' % ip
+					elif interface.ip == None:
+						ip = ' '
+					
+					if interface.active and interface.speed:
+						speed = interface.speed
+						if speed:
+							speed = speed/1000000
+							speed = '%.1f Mbps' % speed
+					else:
+						speed = ''
+					
+					if interface.active:
+						name = cgi.escape(device.name)
+						rows.append([name, ifname, ip, interface.mac_addr, speed, add_units(interface.mtu, 'B')])
+			
+		if rows:
+			detail = {}
+			detail['style'] = 'html'
+			detail['header'] = ['Device', 'Name', 'IP Address', 'Mac Address', 'Speed', 'MTU']
+			detail['rows'] = sorted(rows, key = lambda row: row[0])
+			
+			target = 'entities:network'
+			add_details(data, target, 'Interfaces', [detail], opened = 'always', sort_key = 'alpha', key = 'ips table')
+		
 	def __add_interfaces_table(self, data, device):
 		rows = []
 		for interface in device.interfaces:
@@ -474,10 +512,11 @@ class Poll(object):
 				ip = interface.ip
 				if interface.net_mask:
 					subnet = mask_to_subnet(interface.net_mask)
-					if ip == device.admin_ip:
-						ip = '<strong>%s/%s</strong>' % (ip, subnet)
-					else:
-						ip = '%s/%s' % (ip, subnet)
+					ip = '%s/%s' % (ip, subnet)
+				if interface.ip == device.admin_ip:
+					ip = '<strong>%s</strong>' % ip
+				elif interface.ip == None:
+					ip = ' '
 				
 				# We always need to add samples so that they stay in sync with one another.
 				if interface.in_octets != None:

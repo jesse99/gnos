@@ -399,6 +399,7 @@ priv fn get_selector(queries: HashMap<~str, Selector>, query: &str) -> result::R
 				result::Err(copy err) =>
 				{
 					error!("Failed to compile: expected %s", err);
+					error!("%s", query);
 					result::Err(err)
 				}
 			}

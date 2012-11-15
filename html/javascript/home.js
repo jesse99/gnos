@@ -91,7 +91,7 @@ function handle_dblclick(e)
 	var mouseP = arbor.Point(e.pageX - pos.left, e.pageY - pos.top);
 	var obj = GNOS.scene.particles.nearest(mouseP);
 	
-	if (obj && obj.node !== null)
+	if (obj && obj.node !== null && obj.distance <= obj.node.data.radius)
 	{
 		var url = obj.node.name.replace("/map/", "/details/");
 		var i = url.indexOf('/details/');
@@ -101,6 +101,14 @@ function handle_dblclick(e)
 			GNOS.windows[url].focus();
 		else
 			GNOS.windows[url] = window.open(url, obj.node.name);
+	}
+	else
+	{
+		var url = "/details/primary/entities/network";
+		if (url in GNOS.windows && !GNOS.windows[url].closed)
+			GNOS.windows[url].focus();
+		else
+			GNOS.windows[url] = window.open(url, "Network");
 	}
 }
 
