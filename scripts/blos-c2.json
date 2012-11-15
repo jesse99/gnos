@@ -1,0 +1,42 @@
+{
+	"network": "BLOS-C2",
+	"poll-rate": 20,
+	"client": "10.4.0.3",
+	"server": "10.6.210.104",
+	"port": 8080,
+	"path": "/modeler",
+	"devices":
+	{
+		"DDG-RTR":
+		{
+			"ip": "192.168.0.10",
+			"links": ["CAP1-RTR"],
+			"authentication": "-v3 -m all -u net_user -l authPriv -a md5 -A authpass -x des -X privpass",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"CAP1-RTR":
+		{
+			"ip": "192.168.0.20",
+			"links": ["CAP2-RTR"],
+			"authentication": "-v3 -m all -u net_user -l authPriv -a md5 -A authpass -x des -X privpass",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"CAP2-RTR":
+		{
+			"ip": "192.168.0.30",
+			"links": ["GCE-RTR"],
+			"authentication": "-v3 -m all -u net_user -l authPriv -a md5 -A authpass -x des -X privpass",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"GCE-RTR":
+		{
+			"ip": "192.168.0.40",
+			"authentication": "-v3 -m all -u net_user -l authPriv -a md5 -A authpass -x des -X privpass",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		}
+	}
+}

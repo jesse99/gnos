@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # Collects information about a network using snmp and ssh. Ships the results off to gnos using json.
-import cgi, httplib, json, sys, threading, time
+import cgi, httplib, json, socket, sys, threading, time
 import linux_ssh, snmp
 from helpers import *
 from net_types import *
@@ -341,7 +341,7 @@ class Poll(object):
 				target = 'entities:%s' % device.admin_ip
 				if delta >= 0.0 and delta < 60.0:
 					mesg = '%s status recently changed to %s.' % (interface.name, interface.status)
-					open_alert(data, target, key, mesg = mesg, resolution = '', kind = 'warning')
+					open_alert(data, target, key, mesg = mesg, resolution = '', kind = 'warning') 
 				else:
 					close_alert(data, target, key)
 	
@@ -351,7 +351,7 @@ class Poll(object):
 		table = sorted(device.interfaces, key = lambda i: i.name)
 		for interface in table:
 			if interface.active:
-				if (direction == 'in' and interface.in_octets != None) and (direction == 'out' and interface.out_octets != None):
+				if (direction == 'in' and interface.in_octets != None) or (direction == 'out' and interface.out_octets != None):
 					name = interface.name
 					legends.append(name)
 					samples.append('%s-%s-%s_octets' % (device.admin_ip, name, direction))

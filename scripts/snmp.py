@@ -56,7 +56,10 @@ def process_system(data, contents, query):
 	
 	query.device.system_info += get_value(contents, '* %s\n', 'sysDescr')
 	query.device.system_info += get_value(contents, '* %s\n', 'sysContact')
-	query.device.system_info += get_value(contents, '* location is %s\n', 'sysLocation')
+	
+	loc = get_value(contents, '%s', 'sysLocation')
+	if loc:
+		query.device.system_info += '* location is %s\n' % loc
 	
 # A lot of these stats are deprecated in favor of entries in ipSystemStatsTable. But that isn't always available.
 # IP-MIB::ipForwarding.0 forwarding
@@ -168,7 +171,7 @@ def process_interfaces(data, contents, query):
 		# entries land in the table. So what we'll do is add the ones that are enabled and
 		# then add any that we missed that are down.
 		if status.get(index, '') == 'up' or status.get(index, '') == 'dormant':
-			name = descs.get(index, '')
+			name = descs.get(index, '').replace('/', '_')	# Ciscos use ifnames like FastEthernet0/0.8 which can cause problems with file paths and urls
 			found.add(name)
 			
 			interface = find_interface(query.device, index)
@@ -182,7 +185,7 @@ def process_interfaces(data, contents, query):
 			interface.last_changed = float(last_changes.get(index, 0.0))/100.0
 			
 	for index in descs.keys():
-		name = descs.get(index, '')
+		name = descs.get(index, '').replace('/', '_')
 		if status.get(index, '') != 'up' and status.get(index, '') != 'dormant' and name not in found:
 			found.add(name)
 			
@@ -325,7 +328,12 @@ def get_value(contents, fmt, name):
 	expr = re.compile(r'::%s (?= \W) .*? \  (.+)$' % name, re.MULTILINE | re.VERBOSE)	# TODO: faster to cache these
 	match = re.search(expr, contents)
 	if match:
-		return fmt % match.group(1)
+		value = match.group(1)
+		if value and value[0] == '"':		# TODO: on cisco's stuff like sysDescr can be multi-line which causes some problems here
+			value = value[1:]
+		if value and value[-1] == '"':
+			value = value[:-1]
+		return fmt % value
 	return None
 
 # Matches "MIB::<name>[<key>] <value>" and returns a dict
@@ -335,7 +343,10 @@ def get_values(contents, name):
 	
 	expr = re.compile(r'::%s \[ ([^\]]+) \] \  (.+)$' % name, re.MULTILINE | re.VERBOSE)
 	for match in re.finditer(expr, contents):
-		values[match.group(1)] = match.group(2)
+		value = match.group(2)
+		if len(value) >= 2 and value[0] == '"' and value[-1] == '"':
+			value = value[1:-1]
+		values[match.group(1)] = value
 	
 	return values
 
@@ -353,19 +364,28 @@ def get_values2(contents, name):
 def dump_snmp(ip, name, contents):
 	env.logger.debug('%s %s:' % (ip, name))
 	env.logger.debug('%s' % (contents))
-		
-# MAC addresses are normally lower case which is kind of ugly and
-# also are not always two digits which is also ugly, but even more
-# important causes problems when we try to match up information
-# from different MIBs.
+	
+# We'd like a consistent look for the MIBs (which is nice for users and required when
+# matching up macs across devices).
 def sanitize_mac(mac):
 	result = []
-	for part in mac.split(':'):		# classier to do this with map but lambda are weak in Python
-		part = part.upper()
-		if len(part) == 1:
-			result.append('0' + part)
-		else:
-			result.append(part)
+	if ' ' in mac:
+		# cisco's separate the octets with spaces
+		for part in mac.strip().split(' '):
+			part = part.upper()
+			if len(part) == 1:
+				result.append('0' + part)
+			else:
+				result.append(part)
+	else:
+		# linux uses colons but uses lower cases and single digits
+		for part in mac.split(':'):		# classier to do this with map but lambda are weak in Python
+			part = part.upper()
+			if len(part) == 1:
+				result.append('0' + part)
+			else:
+				result.append(part)
+		
 	return ':'.join(result)
 
 class QueryDevice(object):
