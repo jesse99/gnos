@@ -342,6 +342,48 @@ def process_flash(data, contents, query):
 			if level:
 				add_gauge(data, target, name, use, level, style, sort_key = 'zz')
 
+#  CISCO-ENVMON-MIB::ciscoEnvMonTemperatureStatusDescr[1] chassis
+# CISCO-ENVMON-MIB::ciscoEnvMonTemperatureStatusValue[1] 23
+# CISCO-ENVMON-MIB::ciscoEnvMonTemperatureThreshold[1] 65
+# CISCO-ENVMON-MIB::ciscoEnvMonTemperatureState[1] normal		or warning, critical, shutdown, notPresent, notFunctioning
+# CISCO-ENVMON-MIB::ciscoEnvMonTemperatureLastShutdown[1] 0
+def process_temp(data, contents, query):
+	#dump_snmp(query.device.admin_ip, 'temp', contents)
+	target = 'entities:%s' % query.device.admin_ip
+	names = get_values(contents, "ciscoEnvMonTemperatureStatusDescr")
+	status = get_values(contents, "ciscoEnvMonTemperatureStatusValue")
+	threshold = get_values(contents, "ciscoEnvMonTemperatureThreshold")
+	states = get_values(contents, "ciscoEnvMonTemperatureState")		# TODO: probably should add an alert if ciscoEnvMonTemperatureLastShutdown is non-zero
+	for (key, name) in names.items():
+		current = int(status.get(key, 0))*9/5 + 32
+		maximum = int(threshold.get(key, 0))*9/5 + 32
+		if current and maximum:
+			# update system details with info about temperature
+			state = states.get(key, '')
+			query.device.system_info += '* %s is %s F (%s). Shutdown will happen at %s F.\n' % (name, current, state, maximum)
+			
+			# add a gauge if the temperature is too high
+			level = None
+			if state == 'critical' or state == 'shutdown':
+				level = 1
+				style = 'gauge-bar-color:salmon'
+			elif state == 'warning':
+				level = 2
+				style = 'gauge-bar-color:darkorange'
+			if level:
+				add_gauge(data, target, name, float(current)/maximum, level, style, sort_key = 'zz')
+				
+			# add an alert if the temperature is too high
+			key = '%s-temp' % name
+			if state == 'critical' or state == 'shutdown':
+				mesg = '%s temperature is %s F, shutdown will happen at %s F (%s).' % (name, current, maximum, state)
+				open_alert(data, target, key, mesg = mesg, resolution = '', kind = 'error')
+			elif state == 'warning':
+				mesg = '%s temperature is %s F, shutdown will happen at %s F.' % (name, current, maximum)
+				open_alert(data, target, key, mesg = mesg, resolution = '', kind = 'warning')
+			else:
+				close_alert(data, target, key)
+
 # HOST-RESOURCES-MIB::hrDeviceIndex[768] 768																one of these for each processor, each network interface, disk, etc
 # HOST-RESOURCES-MIB::hrDeviceType[768] HOST-RESOURCES-TYPES::hrDeviceProcessor				or hrDeviceNetwork, hrDeviceDiskStorage
 # HOST-RESOURCES-MIB::hrDeviceDescr[768] GenuineIntel: Intel(R) Atom(TM) CPU  330   @ 1.60GHz		or eth2, SCSI disk, etc
@@ -489,6 +531,7 @@ class QueryDevice(object):
 		for mib in device.config.get('mibs', '').split(' '):
 			if mib == 'cisco-router':
 				add_if_missing(self.__mibs, 'ciscoFlashPartitions')
+				add_if_missing(self.__mibs, 'ciscoEnvMonTemperatureStatusTable')
 			elif mib == 'linux-router' or  mib == 'linux-host':
 				add_if_missing(self.__mibs, 'hrStorage')
 				add_if_missing(self.__mibs, 'hrDevice')
@@ -504,6 +547,7 @@ class QueryDevice(object):
 			'hrStorage': process_storage,
 			'hrDevice': process_device,
 			'ciscoFlashPartitions': process_flash,
+			'ciscoEnvMonTemperatureStatusTable': process_temp,
 		}
 		self.device = device
 	
