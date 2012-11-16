@@ -392,6 +392,34 @@ def process_fan(data, contents, query):
 			else:
 				close_alert(data, target, key)
 
+# CISCO-PROCESS-MIB::cpmCPUTotalPhysicalIndex[1] 0
+# CISCO-PROCESS-MIB::cpmCPUTotal5sec[1] 2
+# CISCO-PROCESS-MIB::cpmCPUTotal1min[1] 2
+# CISCO-PROCESS-MIB::cpmCPUTotal5min[1] 2
+# CISCO-PROCESS-MIB::cpmCPUTotal5secRev[1] 2
+# CISCO-PROCESS-MIB::cpmCPUTotal1minRev[1] 2
+# CISCO-PROCESS-MIB::cpmCPUTotal5minRev[1] 2
+# CISCO-PROCESS-MIB::cpmCPUMonInterval[1] 5
+# CISCO-PROCESS-MIB::cpmCPUTotalMonIntervalValue[1] 2
+# CISCO-PROCESS-MIB::cpmCPUInterruptMonIntervalValue[1] 0
+def process_cpu(data, contents, query):
+	target = 'entities:%s' % query.device.admin_ip
+	cpu = get_values(contents, "cpmCPUTotal1minRev")
+	for (key, v) in cpu.items():
+		value = float(v)/100.0
+		level = None
+		if value >= 0.90:
+			level = 1
+			style = 'gauge-bar-color:salmon'
+		elif value >= 0.75:
+			level = 2
+			style = 'gauge-bar-color:darkorange'
+		elif value >= 0.50:
+			level = 3
+			style = 'gauge-bar-color:skyblue'
+		if level:
+			add_gauge(data, target, 'processor load', value, level, style, sort_key = 'y')
+
 # HOST-RESOURCES-MIB::hrDeviceIndex[768] 768																one of these for each processor, each network interface, disk, etc
 # HOST-RESOURCES-MIB::hrDeviceType[768] HOST-RESOURCES-TYPES::hrDeviceProcessor				or hrDeviceNetwork, hrDeviceDiskStorage
 # HOST-RESOURCES-MIB::hrDeviceDescr[768] GenuineIntel: Intel(R) Atom(TM) CPU  330   @ 1.60GHz		or eth2, SCSI disk, etc
@@ -541,6 +569,7 @@ class QueryDevice(object):
 				add_if_missing(self.__mibs, 'ciscoFlashPartitions')
 				add_if_missing(self.__mibs, 'ciscoEnvMonTemperatureStatusTable')
 				add_if_missing(self.__mibs, 'ciscoEnvMonFanStatusTable')
+				add_if_missing(self.__mibs, 'cpmCPUTotalTable')
 			elif mib == 'linux-router' or  mib == 'linux-host':
 				add_if_missing(self.__mibs, 'hrStorage')
 				add_if_missing(self.__mibs, 'hrDevice')
@@ -558,6 +587,7 @@ class QueryDevice(object):
 			'ciscoFlashPartitions': process_flash,
 			'ciscoEnvMonTemperatureStatusTable': process_temp,
 			'ciscoEnvMonFanStatusTable': process_fan,
+			'cpmCPUTotalTable': process_cpu,
 		}
 		self.device = device
 	
