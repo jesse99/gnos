@@ -297,6 +297,8 @@ class Poll(object):
 		for device in devices:
 			for route in device.routes:
 				route.src_interface = interface_by_index(device, route.ifindex)
+				if not route.src_interface:
+					env.logger.	warning("Couldn't find an interface for route %s on %s" % (route, device.admin_ip))
 				if route.via_ip != None and route.via_ip != '0.0.0.0':
 					route.via_interface = interface_by_device_ip(devices, route.via_ip)
 				if route.dst_subnet:
@@ -378,10 +380,12 @@ class Poll(object):
 			if route.src_interface:
 				out = route.src_interface.name
 			else:
-				out = '?'
+				out = ''
 			
 			if route.via_interface:
 				via = route.via_interface.name + ' ' + route.via_ip
+			elif route.via_ip != '0.0.0.0':
+				via = route.via_ip
 			else:
 				via = ''
 			
@@ -448,7 +452,7 @@ class Poll(object):
 					via_admin = route.via_interface.admin_ip
 					if src_admin != via_admin:
 						routes[(src_admin, via_admin)] = route
-				elif route.dst_admin_ip:
+				elif route.dst_admin_ip and route.src_interface:
 					src_admin = route.src_interface.admin_ip
 					routes[(src_admin, route.dst_admin_ip)] = route
 		

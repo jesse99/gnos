@@ -92,7 +92,7 @@ def process_system(data, contents, query):
 # IP-MIB::ipNetToMediaNetAddress[5][10.104.0.254] 10.104.0.254
 # IP-MIB::ipNetToMediaType[5][10.104.0.254] dynamic
 #
-# RFC1213-MIB::ipRouteDest[10.0.4.0] 10.0.4.0	will be one of these for each route
+# RFC1213-MIB::ipRouteDest[10.0.4.0] 10.0.4.0	one for each route (linux)
 # RFC1213-MIB::ipRouteIfIndex[10.0.4.0] 7
 # RFC1213-MIB::ipRouteMetric1[10.0.4.0] 0
 # RFC1213-MIB::ipRouteNextHop[10.0.4.0] 0.0.0.0
@@ -100,6 +100,23 @@ def process_system(data, contents, query):
 # RFC1213-MIB::ipRouteProto[10.0.4.0] local
 # RFC1213-MIB::ipRouteMask[10.0.4.0] 255.255.255.0
 # RFC1213-MIB::ipRouteInfo[10.0.4.0] SNMPv2-SMI::zeroDotZero
+#
+# IP-FORWARD-MIB::ipCidrRouteDest[17.11.12.0][255.255.255.0][0][0.0.0.0] 17.11.12.0		one for each route (cisco)
+# IP-FORWARD-MIB::ipCidrRouteMask[17.11.12.0][255.255.255.0][0][0.0.0.0] 255.255.255.0
+# IP-FORWARD-MIB::ipCidrRouteTos[17.11.12.0][255.255.255.0][0][0.0.0.0] 0
+# IP-FORWARD-MIB::ipCidrRouteNextHop[17.11.12.0][255.255.255.0][0][0.0.0.0] 0.0.0.0
+# IP-FORWARD-MIB::ipCidrRouteIfIndex[17.11.12.0][255.255.255.0][0][0.0.0.0] 24
+# IP-FORWARD-MIB::ipCidrRouteType[17.11.12.0][255.255.255.0][0][0.0.0.0] local
+# IP-FORWARD-MIB::ipCidrRouteProto[17.11.12.0][255.255.255.0][0][0.0.0.0] local
+# IP-FORWARD-MIB::ipCidrRouteAge[17.11.12.0][255.255.255.0][0][0.0.0.0] 366040
+# IP-FORWARD-MIB::ipCidrRouteInfo[17.11.12.0][255.255.255.0][0][0.0.0.0] SNMPv2-SMI::zeroDotZero
+# IP-FORWARD-MIB::ipCidrRouteNextHopAS[17.11.12.0][255.255.255.0][0][0.0.0.0] 0
+# IP-FORWARD-MIB::ipCidrRouteMetric1[17.11.12.0][255.255.255.0][0][0.0.0.0] 0
+# IP-FORWARD-MIB::ipCidrRouteMetric2[17.11.12.0][255.255.255.0][0][0.0.0.0] -1
+# IP-FORWARD-MIB::ipCidrRouteMetric3[17.11.12.0][255.255.255.0][0][0.0.0.0] -1
+# IP-FORWARD-MIB::ipCidrRouteMetric4[17.11.12.0][255.255.255.0][0][0.0.0.0] -1
+# IP-FORWARD-MIB::ipCidrRouteMetric5[17.11.12.0][255.255.255.0][0][0.0.0.0] -1
+# IP-FORWARD-MIB::ipCidrRouteStatus[17.11.12.0][255.255.255.0][0][0.0.0.0] active
 def process_ip(data, contents, query):
 	# update system info
 	if get_value(contents, '%s', 'ipForwarding') == 'forwarding':
@@ -132,6 +149,25 @@ def process_ip(data, contents, query):
 		route.ifindex = indexes.get(dest_ip, '')
 		
 		query.device.routes.append(route)
+		
+	if not nexts:
+		nexts = get_values3(contents, "ipCidrRouteNextHop")
+		metrics = get_values3(contents, "ipCidrRouteMetric1")
+		protocols = get_values3(contents, "ipCidrRouteProto")
+		masks = get_values3(contents, "ipCidrRouteMask")
+		indexes = get_values3(contents, "ipCidrRouteIfIndex")
+		status = get_values3(contents, "ipCidrRouteStatus")
+		for dest_ip in nexts.keys():
+			if status.get(dest_ip, '') == 'active':
+				route = Route()
+				route.via_ip = nexts.get(dest_ip, '')
+				route.dst_subnet = dest_ip
+				route.dst_mask = masks.get(dest_ip, '')
+				route.protocol = protocols.get(dest_ip, '')
+				route.metric = metrics.get(dest_ip, '')
+				route.ifindex = indexes.get(dest_ip, '')
+				
+				query.device.routes.append(route)
 		
 # IF-MIB::ifNumber.0 13				will be one of these for each interface
 # IF-MIB::ifDescr[1] lo			
@@ -350,12 +386,12 @@ def get_values(contents, name):
 	
 	return values
 
-# Matches second bracketed expression:
-# IP-MIB::ipNetToMediaPhysAddress[5][10.104.0.254] 0:19:bb:5f:59:8a
-def get_values2(contents, name):
+# Returns a dict mapping the first ket to values.
+# IP-FORWARD-MIB::ipCidrRouteIfIndex[17.11.12.0][255.255.255.0][0][0.0.0.0] 24
+def get_values3(contents, name):
 	values = {}
 	
-	expr = re.compile(r'::%s \[ [^\]]+ \] \[ ([^\]]+) \] \  (.+)$' % name, re.MULTILINE | re.VERBOSE)
+	expr = re.compile(r'::%s \[([^\]]+)\] \[[^\]]+\] \[[^\]]+\] \[[^\]]+\] \  (.+)$' % name, re.MULTILINE | re.VERBOSE)
 	for match in re.finditer(expr, contents):
 		values[match.group(1)] = match.group(2)
 	
