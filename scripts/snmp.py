@@ -445,6 +445,38 @@ def process_nvram(data, contents, query):
 			if level:
 				add_gauge(data, target, 'nvram', value, level, style, sort_key = 'zz')
 
+# CISCO-ENHANCED-MEMPOOL-MIB::cempMemPoolType[1][1] processorMemory		one for each pool
+# CISCO-ENHANCED-MEMPOOL-MIB::cempMemPoolName[1][1] Processor
+# CISCO-ENHANCED-MEMPOOL-MIB::cempMemPoolPlatformMemory[1][1] SNMPv2-SMI::zeroDotZero
+# CISCO-ENHANCED-MEMPOOL-MIB::cempMemPoolAlternate[1][1] 0
+# CISCO-ENHANCED-MEMPOOL-MIB::cempMemPoolValid[1][1] true
+# CISCO-ENHANCED-MEMPOOL-MIB::cempMemPoolUsed[1][1] 40460516
+# CISCO-ENHANCED-MEMPOOL-MIB::cempMemPoolFree[1][1] 113402652
+# CISCO-ENHANCED-MEMPOOL-MIB::cempMemPoolLargestFree[1][1] 83889816
+# CISCO-ENHANCED-MEMPOOL-MIB::cempMemPoolLowestFree[1][1] 83741284
+def process_mempool(data, contents, query):
+	target = 'entities:%s' % query.device.admin_ip
+	names = get_values(contents, "cempMemPoolType")
+	useds = get_values(contents, "cempMemPoolUsed")
+	frees = get_values(contents, "cempMemPoolFree")
+	for (key, name) in names.items():
+		used = float(useds.get(key, '0'))
+		free = float(frees.get(key, '0'))
+		if used and free:
+			value = used/(used + free)
+			level = None
+			if value >= 0.80:
+				level = 1
+				style = 'gauge-bar-color:salmon'
+			elif value >= 0.75:
+				level = 2
+				style = 'gauge-bar-color:darkorange'
+			elif value >= 0.50:
+				level = 3
+				style = 'gauge-bar-color:skyblue'
+			if level:
+				add_gauge(data, target, name, value, level, style, sort_key = 'zz')
+
 # HOST-RESOURCES-MIB::hrDeviceIndex[768] 768																one of these for each processor, each network interface, disk, etc
 # HOST-RESOURCES-MIB::hrDeviceType[768] HOST-RESOURCES-TYPES::hrDeviceProcessor				or hrDeviceNetwork, hrDeviceDiskStorage
 # HOST-RESOURCES-MIB::hrDeviceDescr[768] GenuineIntel: Intel(R) Atom(TM) CPU  330   @ 1.60GHz		or eth2, SCSI disk, etc
@@ -596,6 +628,7 @@ class QueryDevice(object):
 				add_if_missing(self.__mibs, 'ciscoEnvMonFanStatusTable')
 				add_if_missing(self.__mibs, 'cpmCPUTotalTable')
 				add_if_missing(self.__mibs, 'ceExtPhysicalProcessorTable')
+				add_if_missing(self.__mibs, 'cempMemPoolTable')
 			elif mib == 'linux-router' or  mib == 'linux-host':
 				add_if_missing(self.__mibs, 'hrStorage')
 				add_if_missing(self.__mibs, 'hrDevice')
@@ -615,6 +648,7 @@ class QueryDevice(object):
 			'ciscoEnvMonFanStatusTable': process_fan,
 			'cpmCPUTotalTable': process_cpu,
 			'ceExtPhysicalProcessorTable': process_nvram,
+			'cempMemPoolTable': process_mempool,
 		}
 		self.device = device
 	
