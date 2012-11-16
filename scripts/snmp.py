@@ -420,6 +420,31 @@ def process_cpu(data, contents, query):
 		if level:
 			add_gauge(data, target, 'processor load', value, level, style, sort_key = 'y')
 
+# CISCO-ENTITY-EXT-MIB::ceExtProcessorRam[3] 268435456
+# CISCO-ENTITY-EXT-MIB::ceExtNVRAMSize[3] 245752
+# CISCO-ENTITY-EXT-MIB::ceExtNVRAMUsed[3] 42847
+def process_nvram(data, contents, query):
+	target = 'entities:%s' % query.device.admin_ip
+	sizes = get_values(contents, "ceExtNVRAMSize")
+	used = get_values(contents, "ceExtNVRAMUsed")
+	for (key, s) in sizes.items():
+		size = float(s)
+		using = float(used.get(key, '0'))
+		if size and using:
+			value = using/size
+			level = None
+			if value >= 0.80:
+				level = 1
+				style = 'gauge-bar-color:salmon'
+			elif value >= 0.75:
+				level = 2
+				style = 'gauge-bar-color:darkorange'
+			elif value >= 0.50:
+				level = 3
+				style = 'gauge-bar-color:skyblue'
+			if level:
+				add_gauge(data, target, 'nvram', value, level, style, sort_key = 'zz')
+
 # HOST-RESOURCES-MIB::hrDeviceIndex[768] 768																one of these for each processor, each network interface, disk, etc
 # HOST-RESOURCES-MIB::hrDeviceType[768] HOST-RESOURCES-TYPES::hrDeviceProcessor				or hrDeviceNetwork, hrDeviceDiskStorage
 # HOST-RESOURCES-MIB::hrDeviceDescr[768] GenuineIntel: Intel(R) Atom(TM) CPU  330   @ 1.60GHz		or eth2, SCSI disk, etc
@@ -570,6 +595,7 @@ class QueryDevice(object):
 				add_if_missing(self.__mibs, 'ciscoEnvMonTemperatureStatusTable')
 				add_if_missing(self.__mibs, 'ciscoEnvMonFanStatusTable')
 				add_if_missing(self.__mibs, 'cpmCPUTotalTable')
+				add_if_missing(self.__mibs, 'ceExtPhysicalProcessorTable')
 			elif mib == 'linux-router' or  mib == 'linux-host':
 				add_if_missing(self.__mibs, 'hrStorage')
 				add_if_missing(self.__mibs, 'hrDevice')
@@ -588,6 +614,7 @@ class QueryDevice(object):
 			'ciscoEnvMonTemperatureStatusTable': process_temp,
 			'ciscoEnvMonFanStatusTable': process_fan,
 			'cpmCPUTotalTable': process_cpu,
+			'ceExtPhysicalProcessorTable': process_nvram,
 		}
 		self.device = device
 	
