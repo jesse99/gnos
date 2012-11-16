@@ -17,9 +17,10 @@ Each device in the network should also be listed. Devices have the following req
 * ip - The administrative IP of the device, i.e. the IP the modeler uses to probe the device.
 * modeler - Full name of the script used to probe the device.
 
-Devices also have modeler specific entries. For snmp-modeler.py these are:
+Devices also have modeler specific entries. For snmp these are:
 * links - List of device names used to enumerate edges between them. Note that the edge only has to be specified in one direction.
 * authentication - pasted directly into the snmpbulkwalk command line. For snmp v2 this will be something like "-v2c -c public". For authenticated v3 it will be something like "-v3 -u net_user -l authPriv -a md5 -A authpass -x des -X privpass".
+* mibs - space separated list of MIBs to query. These must be MIBs that snmp.py knows how to process. TODO: mention which these are.
 
-For ssh-modeler.py these are:
+For linux_ssh these are:
 * ssh - The ssh command line used to access the device. If the client machine is able to ssh into the device without a password something like "ssh root@" can be used. Otherwise sshpass can be used: "sshpass -p root ssh -f root@".

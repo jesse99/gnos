@@ -11,6 +11,7 @@
 		{
 			"ip": "10.101.0.10",
 			"ssh": "sshpass -p root ssh -f root@",
+			"mibs": "linux-host",
 			"modeler": "net-modeler.py",
 			"type": "linux_ssh"
 		}

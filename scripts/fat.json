@@ -12,6 +12,7 @@
 			"ip": "10.101.0.2",
 			"links": ["GRS-2", "GRS-4", "App-1"],
 			"authentication": "-v2c -c public",
+			"mibs": "linux-router",
 			"modeler": "net-modeler.py",
 			"type": "snmp"
 		},
@@ -20,6 +21,7 @@
 			"ip": "10.102.0.2",
 			"links": ["GRS-3", "App-2"],
 			"authentication": "-v2c -c public",
+			"mibs": "linux-router",
 			"modeler": "net-modeler.py",
 			"type": "snmp"
 		},
@@ -28,6 +30,7 @@
 			"ip": "10.103.0.2",
 			"links": ["GRS-4", "App-3"],
 			"authentication": "-v2c -c public",
+			"mibs": "linux-router",
 			"modeler": "net-modeler.py",
 			"type": "snmp"
 		},
@@ -36,6 +39,7 @@
 			"ip": "10.104.0.2",
 			"links": ["App-4"],
 			"authentication": "-v2c -c public",
+			"mibs": "linux-router",
 			"modeler": "net-modeler.py",
 			"type": "snmp"
 		},
@@ -44,6 +48,7 @@
 			"ip": "10.101.0.10",
 			"ssh": "sshpass -p root ssh -f root@",
 			"modeler": "net-modeler.py",
+			"mibs": "linux-host",
 			"type": "linux_ssh"
 		},
 		"App-2":
@@ -51,12 +56,14 @@
 			"ip": "10.102.0.10",
 			"ssh": "sshpass -p root ssh -f root@",
 			"modeler": "net-modeler.py",
+			"mibs": "linux-host",
 			"type": "linux_ssh"
 		},
 		"App-3":
 		{
 			"ip": "10.103.0.10",
 			"ssh": "sshpass -p root ssh -f root@",
+			"mibs": "linux-host",
 			"modeler": "net-modeler.py",
 			"type": "linux_ssh"
 		},
@@ -64,6 +71,7 @@
 		{
 			"ip": "10.104.0.10",
 			"ssh": "sshpass -p root ssh -f root@",
+			"mibs": "linux-host",
 			"modeler": "net-modeler.py",
 			"type": "linux_ssh"
 		}

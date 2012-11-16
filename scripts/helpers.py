@@ -17,6 +17,10 @@ def ip_to_int(ip):
 
 def int_to_ip(value):
 	return '%s.%s.%s.%s' % ((value >> 24) & 0xFF, (value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF)
+	
+def add_if_missing(sequence, value):
+	if value not in sequence:
+		sequence.append(value)
 
 def add_label(data, target, label, key, level = 0, style = ''):
 	if label:

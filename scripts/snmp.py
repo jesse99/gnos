@@ -297,6 +297,51 @@ def process_storage(data, contents, query):
 			if level:
 				add_gauge(data, target, 'disk usage', value, level, style, sort_key = 'zzz')
 
+# CISCO-FLASH-MIB::ciscoFlashPartitionName[1][1] flash:1    one for each flash partition
+# CISCO-FLASH-MIB::ciscoFlashPartitionSize[1][1] 64016384
+# CISCO-FLASH-MIB::ciscoFlashPartitionFreeSpace[1][1] 802816
+# CISCO-FLASH-MIB::ciscoFlashPartitionFileCount[1][1] 29
+# CISCO-FLASH-MIB::ciscoFlashPartitionChecksumAlgorithm[1][1] undefined
+# CISCO-FLASH-MIB::ciscoFlashPartitionStatus[1][1] readWrite
+# CISCO-FLASH-MIB::ciscoFlashPartitionUpgradeMethod[1][1] direct
+# CISCO-FLASH-MIB::ciscoFlashPartitionNeedErasure[1][1] false
+# CISCO-FLASH-MIB::ciscoFlashPartitionFileNameLength[1][1] 63
+# CISCO-FLASH-MIB::ciscoFlashPartitionStartChip[1][1] 1
+# CISCO-FLASH-MIB::ciscoFlashPartitionEndChip[1][1] 1
+# 
+# CISCO-FLASH-MIB::ciscoFlashFileSize[1][1][1] 2026     one for each flash file
+# CISCO-FLASH-MIB::ciscoFlashFileChecksum[1][1][1] "0x0"
+# CISCO-FLASH-MIB::ciscoFlashFileStatus[1][1][1] valid
+# CISCO-FLASH-MIB::ciscoFlashFileName[1][1][1] run-preupgrade-r2
+# CISCO-FLASH-MIB::ciscoFlashFileType[1][1][1] unknown
+def process_flash(data, contents, query):
+	target = 'entities:%s' % query.device.admin_ip
+	names = get_values2(contents, "ciscoFlashPartitionName")
+	size = get_values2(contents, "ciscoFlashPartitionSize")
+	frees = get_values2(contents, "ciscoFlashPartitionFreeSpace")
+	for (key, name) in names.items():
+		actual = float(size.get(key, 0))/(1024*1024)
+		free = float(frees.get(key, 0))/(1024*1024)
+		if actual and free:
+			# update system details with info about storage
+			used = actual - free
+			use = used/actual
+			query.device.system_info += '* %s has %.1f MiB with %.0f%% in use\n' % (name, actual, 100*use)
+			
+			# add a gauge if a partition is full
+			level = None
+			if use >= 0.90:
+				level = 1
+				style = 'gauge-bar-color:salmon'
+			elif use >= 0.80:
+				level = 2
+				style = 'gauge-bar-color:darkorange'
+			elif use >= 0.75:
+				level = 3
+				style = 'gauge-bar-color:skyblue'
+			if level:
+				add_gauge(data, target, name, use, level, style, sort_key = 'zz')
+
 # HOST-RESOURCES-MIB::hrDeviceIndex[768] 768																one of these for each processor, each network interface, disk, etc
 # HOST-RESOURCES-MIB::hrDeviceType[768] HOST-RESOURCES-TYPES::hrDeviceProcessor				or hrDeviceNetwork, hrDeviceDiskStorage
 # HOST-RESOURCES-MIB::hrDeviceDescr[768] GenuineIntel: Intel(R) Atom(TM) CPU  330   @ 1.60GHz		or eth2, SCSI disk, etc
@@ -352,7 +397,7 @@ def process_device(data, contents, query):
 			style = 'gauge-bar-color:skyblue'
 		if level:
 			add_gauge(data, target, 'processor load', value, level, style, sort_key = 'y')
-
+			
 # In general lines look like:
 #    IP-MIB::icmpOutErrors.0 0
 #    TCP-MIB::tcpConnLocalAddress[127.0.0.1][2601][0.0.0.0][0] 127.0.0.1
@@ -386,7 +431,18 @@ def get_values(contents, name):
 	
 	return values
 
-# Returns a dict mapping the first ket to values.
+# Returns a dict mapping the two keys to values.
+# CISCO-FLASH-MIB::ciscoFlashPartitionFileCount[1][1] 29
+def get_values2(contents, name):
+	values = {}
+	
+	expr = re.compile(r'::%s (\[[^\]]+\] \[[^\]]+\]) \  (.+)$' % name, re.MULTILINE | re.VERBOSE)
+	for match in re.finditer(expr, contents):
+		values[match.group(1)] = match.group(2)
+	
+	return values
+
+# Returns a dict mapping the first key to values.
 # IP-FORWARD-MIB::ipCidrRouteIfIndex[17.11.12.0][255.255.255.0][0][0.0.0.0] 24
 def get_values3(contents, name):
 	values = {}
@@ -429,7 +485,26 @@ class QueryDevice(object):
 		# TODO: 
 		# alert if hrSystemDate is too far from admin machine's datetime (5min maybe)
 		# might be nice to do something with tcp and udp stats
-		self.__handlers = {'system': process_system, 'ip': process_ip, 'interfaces': process_interfaces, 'hrStorage': process_storage, 'hrDevice': process_device}
+		self.__mibs = ['system', 'ip', 'interfaces']
+		for mib in device.config.get('mibs', '').split(' '):
+			if mib == 'cisco-router':
+				add_if_missing(self.__mibs, 'ciscoFlashPartitions')
+			elif mib == 'linux-router' or  mib == 'linux-host':
+				add_if_missing(self.__mibs, 'hrStorage')
+				add_if_missing(self.__mibs, 'hrDevice')
+			else:
+				if mib in self.__handlers:
+					add_if_missing(self.__mibs, mib)
+				else:
+					env.logger.error("Don't know how to parse %s mib" % mib)
+		self.__handlers = {
+			'system': process_system,
+			'ip': process_ip,
+			'interfaces': process_interfaces,
+			'hrStorage': process_storage,
+			'hrDevice': process_device,
+			'ciscoFlashPartitions': process_flash,
+		}
 		self.device = device
 	
 	def run(self):
@@ -437,7 +512,7 @@ class QueryDevice(object):
 		try:
 			# When only a few items are used it would be faster to use something like:
 			# snmpbulkget -v2c -c public 10.101.0.2 -Oq -Ot -OU -OX ipRouteMask ipFragFails ipDefaultTTL
-			for name in self.__handlers.keys():
+			for name in self.__mibs:
 				command = 'snmpbulkwalk %s %s -Oq -Ot -OU -OX %s' % (self.device.config['authentication'], self.device.admin_ip, name)
 				result = run_process(command)
 				if result:
