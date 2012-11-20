@@ -71,10 +71,16 @@ def secs_to_str(secs):
 		return '%.3f msecs' % (1000*secs)
 
 def run_process(command):
+	if env.options.verbose >= 4:
+		env.logger.debug("running '%s'" % command)
 	process = subprocess.Popen(command, bufsize = 8*1024, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 	(outData, errData) = process.communicate()
 	if process.returncode != 0:
 		env.logger.error(errData)
 		raise ValueError('return code was %s:' % process.returncode)
+	elif env.options.verbose >= 4:
+		env.logger.debug("stdout: '%s'" % outData)
+		if errData:
+			env.logger.debug("stderr: '%s'" % errData)
 	return outData
 
