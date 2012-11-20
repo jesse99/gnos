@@ -24,7 +24,7 @@ run-db: bin/gnos lint-js
 	export RUST_LOG=gnos=2,rwebserve=1,socket=1,rrdf=0,::rt::backtrace=3 && export GNOS_USER && ./bin/gnos --admin --root=html --db scripts/fat.json --browse='http://localhost:8080'
 
 run-net:
-	$(SCP) scripts/*.json scripts/*.py jjones@10.4.0.3: && ssh jjones@10.4.0.3 "python net-modeler.py -vvv --stdout  --dont-put --duration=0 mini-c2.json"
+	$(SCP) scripts/*.json scripts/*.py jjones@10.4.0.3: && ssh jjones@10.4.0.3 "python net-modeler.py -vvvv --stdout  --dont-put --duration=0 mini-c2.json"
 
 lint-js: html/javascript/*.js html/javascript/scene/*.js
 	$(JSL) -nologo -nofilelisting -nocontext -conf jsl.conf -process 'html/javascript/*.js' -process 'html/javascript/scene/*.js'

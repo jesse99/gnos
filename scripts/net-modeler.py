@@ -199,6 +199,7 @@ class Poll(object):
 				self.__add_next_hop_relations(data, devices)
 				self.__add_selection_route_relations(data, devices)
 				self.__add_ips(data, devices)
+				self.__add_link_relations(data, devices)
 				if self.__num_updates >= 2:
 					self.__add_bandwidth_details(data, 'out')
 					self.__add_bandwidth_details(data, 'in')
@@ -273,27 +274,6 @@ class Poll(object):
 						return interface
 			return None
 			
-		def admin_ip_by_subnet(devices, src_device, network_ip, netmask):
-			# First try the devices we don't know about (these are the devices we want to use when 
-			# forwarding to a device on an attached subnet).
-			subnet = ip_to_int(network_ip) & netmask
-			for (name, device) in env.config["devices"].items():
-				if device['type'] != 'snmp':		# TODO: add linux_ssh if it ever collects Interface info
-					candidate = ip_to_int(device['ip']) & netmask
-					if candidate == subnet:
-						return device['ip']
-			
-			# Then try to find a device we do know about that isn't src_admin.
-			# This will tend to be the direct link to a peer machine case.
-			for device in devices:
-				for interface in device.interfaces:
-					if interface.ip:
-						candidate = ip_to_int(interface.ip) & netmask
-						if candidate == subnet and device.admin_ip != src_device.admin_ip:
-							return device.admin_ip
-			
-			return None
-			
 		for device in devices:
 			for route in device.routes:
 				route.src_interface = interface_by_index(device, route.ifindex)
@@ -302,7 +282,28 @@ class Poll(object):
 				if route.via_ip != None and route.via_ip != '0.0.0.0':
 					route.via_interface = interface_by_device_ip(devices, route.via_ip)
 				if route.dst_subnet:
-					route.dst_admin_ip = admin_ip_by_subnet(devices, device, route.dst_subnet, ip_to_int(route.dst_mask))
+					route.dst_admin_ip = self.admin_ip_by_subnet(devices, device, route.dst_subnet, ip_to_int(route.dst_mask))
+		
+	def admin_ip_by_subnet(self, devices, src_device, network_ip, netmask):
+		# First try the devices we don't know about (these are the devices we want to use when 
+		# forwarding to a device on an attached subnet).
+		subnet = ip_to_int(network_ip) & netmask
+		for (name, device) in env.config["devices"].items():
+			if device['type'] != 'snmp' and device['type'] != 'linux_ssh':
+				candidate = ip_to_int(device['ip']) & netmask
+				if candidate == subnet:
+					return device['ip']
+		
+		# Then try to find a device we do know about that isn't src_admin.
+		# This will tend to be the direct link to a peer machine case.
+		for device in devices:
+			for interface in device.interfaces:
+				if interface.ip:
+					candidate = ip_to_int(interface.ip) & netmask
+					if candidate == subnet and device.admin_ip != src_device.admin_ip:
+						return device.admin_ip
+		
+		return None
 		
 	def __process_device(self, data, device):
 		# admin ip label
@@ -440,8 +441,34 @@ class Poll(object):
 			if route.via_interface and route.via_interface.mac_addr:
 				right_labels.append({'label': route.via_interface.mac_addr, 'level': 4, 'style': 'font-size:xxx-small'})
 			
-			predicate = "options.routes selection.name '%s' ends_with and" % dst_admin
+			predicate = "options.ospf options.routes or selection.name '%s' ends_with and" % dst_admin
 			add_relation(data, left, right, 'line-type:directed line-color:blue line-width:3', left_labels = left_labels, middle_labels = middle_labels, right_labels = right_labels, predicate = predicate)
+		
+	def __add_link_relations(self, data, devices):
+		links = {}			# (src admin ip, peer admin ip) => Link
+		for device in devices:
+			for link in device.links:
+				print "link: %s" % link
+				if link.peer_ip:
+					peer_admin_ip = self.admin_ip_by_subnet(devices, device, link.peer_ip, 0xFFFFFFFF)
+					if peer_admin_ip:
+						links[(link.admin_ip, peer_admin_ip)] = link
+					else:
+						env.logger.error("Couldn't find %s link to %s on %s" % (link.kind, link.peer_ip, link.admin_ip))
+		
+		for (key, link) in links.items():
+			(src_admin, peer_admin) = key
+			style = None
+			if (peer_admin, src_admin) in links:
+				if src_admin < peer_admin:
+					style = 'line-type:bidirectional'
+			else:
+				style = 'line-type:directed'
+			if style:
+				left = 'entities:%s' % src_admin
+				right = 'entities:%s' % peer_admin
+				predicate = "options.ospf selection.name 'map' == and"
+				add_relation(data, left, right, style, middle_labels = [{'label': link.label, 'level': 1, 'style': 'font-size:x-small'}], predicate = predicate)
 		
 	def __add_next_hop_relations(self, data, devices):
 		routes = {}			# (src admin ip, via admin ip) => Route

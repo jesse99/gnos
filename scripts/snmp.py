@@ -70,8 +70,8 @@ def process_system(data, contents, query):
 # IP-MIB::ipNetToMediaNetAddress[5][10.104.0.254] 10.104.0.254
 # IP-MIB::ipNetToMediaType[5][10.104.0.254] dynamic
 def process_ip_addr(data, contents, query):
-	indexes = get_values(contents, "ipAdEntIfIndex")
-	masks = get_values(contents, "ipAdEntNetMask")
+	indexes = get_values1(contents, "ipAdEntIfIndex")
+	masks = get_values1(contents, "ipAdEntNetMask")
 	for ip in indexes.keys():
 		index = indexes.get(ip, '?')
 		interface = find_interface(query.device, index)
@@ -87,11 +87,11 @@ def process_ip_addr(data, contents, query):
 # RFC1213-MIB::ipRouteMask[10.0.4.0] 255.255.255.0
 # RFC1213-MIB::ipRouteInfo[10.0.4.0] SNMPv2-SMI::zeroDotZero
 def process_ip_route(data, contents, query):
-	nexts = get_values(contents, "ipRouteNextHop")
-	metrics = get_values(contents, "ipRouteMetric1")
-	protocols = get_values(contents, "ipRouteProto")	
-	masks = get_values(contents, "ipRouteMask")
-	indexes = get_values(contents, "ipRouteIfIndex")
+	nexts = get_values1(contents, "ipRouteNextHop")
+	metrics = get_values1(contents, "ipRouteMetric1")
+	protocols = get_values1(contents, "ipRouteProto")	
+	masks = get_values1(contents, "ipRouteMask")
+	indexes = get_values1(contents, "ipRouteIfIndex")
 	for dest_ip in nexts.keys():
 		route = Route()
 		route.via_ip = nexts.get(dest_ip, '')
@@ -120,21 +120,21 @@ def process_ip_route(data, contents, query):
 # IP-FORWARD-MIB::ipCidrRouteMetric5[17.11.12.0][255.255.255.0][0][0.0.0.0] -1
 # IP-FORWARD-MIB::ipCidrRouteStatus[17.11.12.0][255.255.255.0][0][0.0.0.0] active
 def process_ip_cidr(data, contents, query):
-	nexts = get_values3(contents, "ipCidrRouteNextHop")
-	metrics = get_values3(contents, "ipCidrRouteMetric1")
-	protocols = get_values3(contents, "ipCidrRouteProto")
-	masks = get_values3(contents, "ipCidrRouteMask")
-	indexes = get_values3(contents, "ipCidrRouteIfIndex")
-	status = get_values3(contents, "ipCidrRouteStatus")
-	for dest_ip in nexts.keys():
-		if status.get(dest_ip, '') == 'active':
+	nexts = get_values4(contents, "ipCidrRouteNextHop")
+	metrics = get_values4(contents, "ipCidrRouteMetric1")
+	protocols = get_values4(contents, "ipCidrRouteProto")
+	masks = get_values4(contents, "ipCidrRouteMask")
+	indexes = get_values4(contents, "ipCidrRouteIfIndex")
+	status = get_values4(contents, "ipCidrRouteStatus")
+	for key in nexts.keys():
+		if status.get(key, '') == 'active':
 			route = Route()
-			route.via_ip = nexts.get(dest_ip, '')
-			route.dst_subnet = dest_ip
-			route.dst_mask = masks.get(dest_ip, '')
-			route.protocol = protocols.get(dest_ip, '')
-			route.metric = metrics.get(dest_ip, '')
-			route.ifindex = indexes.get(dest_ip, '')
+			route.via_ip = nexts.get(key, '')
+			route.dst_subnet = key[0]
+			route.dst_mask = masks.get(key, '')
+			route.protocol = protocols.get(key, '')
+			route.metric = metrics.get(key, '')
+			route.ifindex = indexes.get(key, '')
 			
 			query.device.routes.append(route)
 		
@@ -162,14 +162,14 @@ def process_ip_cidr(data, contents, query):
 # IF-MIB::ifSpecific[1] SNMPv2-SMI::zeroDotZero
 def process_interfaces(data, contents, query):
 	# update interfaces
-	descs = get_values(contents, "ifDescr")
-	macs = get_values(contents, "ifPhysAddress")
-	speeds = get_values(contents, "ifSpeed")
-	mtus = get_values(contents, "ifMtu")
-	in_octets = get_values(contents, "ifInOctets")
-	out_octets = get_values(contents, "ifOutOctets")
-	status = get_values(contents, "ifOperStatus")
-	last_changes = get_values(contents, "ifLastChange")
+	descs = get_values1(contents, "ifDescr")
+	macs = get_values1(contents, "ifPhysAddress")
+	speeds = get_values1(contents, "ifSpeed")
+	mtus = get_values1(contents, "ifMtu")
+	in_octets = get_values1(contents, "ifInOctets")
+	out_octets = get_values1(contents, "ifOutOctets")
+	status = get_values1(contents, "ifOperStatus")
+	last_changes = get_values1(contents, "ifLastChange")
 	found = set()
 	for index in descs.keys():
 		# This is all kinds of screwed up but when devices are brought up and down multiple
@@ -206,8 +206,8 @@ def process_interfaces(data, contents, query):
 	
 	# alert if operational status doesn't match admin status
 	target = 'entities:%s' % query.device.admin_ip
-	admin_status = get_values(contents, "ifAdminStatus")
-	oper_status = get_values(contents, "ifOperStatus")
+	admin_status = get_values1(contents, "ifAdminStatus")
+	oper_status = get_values1(contents, "ifOperStatus")
 	for (index, admin) in admin_status.items():
 		name = descs.get(index, '?')
 		key = '%s-oper-status' % name
@@ -226,10 +226,10 @@ def process_interfaces(data, contents, query):
 # HOST-RESOURCES-MIB::hrStorageUsed[1] 177396
 def process_storage(data, contents, query):
 	target = 'entities:%s' % query.device.admin_ip
-	storage = get_values(contents, "hrStorageDescr")
-	used = get_values(contents, "hrStorageUsed")
-	size = get_values(contents, "hrStorageSize")
-	units = get_values(contents, "hrStorageAllocationUnits")
+	storage = get_values1(contents, "hrStorageDescr")
+	used = get_values1(contents, "hrStorageUsed")
+	size = get_values1(contents, "hrStorageSize")
+	units = get_values1(contents, "hrStorageAllocationUnits")
 	for (index, kind) in storage.items():
 		# update system details with info about storage
 		unit = float(units.get(index, 0))
@@ -313,10 +313,10 @@ def process_flash(data, contents, query):
 def process_temp(data, contents, query):
 	#dump_snmp(query.device.admin_ip, 'temp', contents)
 	target = 'entities:%s' % query.device.admin_ip
-	names = get_values(contents, "ciscoEnvMonTemperatureStatusDescr")
-	status = get_values(contents, "ciscoEnvMonTemperatureStatusValue")
-	threshold = get_values(contents, "ciscoEnvMonTemperatureThreshold")
-	states = get_values(contents, "ciscoEnvMonTemperatureState")
+	names = get_values1(contents, "ciscoEnvMonTemperatureStatusDescr")
+	status = get_values1(contents, "ciscoEnvMonTemperatureStatusValue")
+	threshold = get_values1(contents, "ciscoEnvMonTemperatureThreshold")
+	states = get_values1(contents, "ciscoEnvMonTemperatureState")
 	for (key, name) in names.items():
 		current = int(status.get(key, 0))*9/5 + 32
 		maximum = int(threshold.get(key, 0))*9/5 + 32
@@ -340,8 +340,8 @@ def process_temp(data, contents, query):
 # CISCO-ENVMON-MIB::ciscoEnvMonFanState[1] normal			or warning, critical, shutdown, notPresent, notFunctioning
 def process_fan(data, contents, query):
 	target = 'entities:%s' % query.device.admin_ip
-	names = get_values(contents, "ciscoEnvMonFanStatusDescr")
-	states = get_values(contents, "ciscoEnvMonFanState")
+	names = get_values1(contents, "ciscoEnvMonFanStatusDescr")
+	states = get_values1(contents, "ciscoEnvMonFanState")
 	for (key, name) in names.items():
 		state = states.get(key, '')
 		if state:
@@ -367,7 +367,7 @@ def process_fan(data, contents, query):
 # CISCO-PROCESS-MIB::cpmCPUInterruptMonIntervalValue[1] 0
 def process_cpu(data, contents, query):
 	target = 'entities:%s' % query.device.admin_ip
-	cpu = get_values(contents, "cpmCPUTotal1minRev")
+	cpu = get_values1(contents, "cpmCPUTotal1minRev")
 	for (key, v) in cpu.items():
 		value = float(v)/100.0
 		level = None
@@ -388,8 +388,8 @@ def process_cpu(data, contents, query):
 # CISCO-ENTITY-EXT-MIB::ceExtNVRAMUsed[3] 42847
 def process_nvram(data, contents, query):
 	target = 'entities:%s' % query.device.admin_ip
-	sizes = get_values(contents, "ceExtNVRAMSize")
-	used = get_values(contents, "ceExtNVRAMUsed")
+	sizes = get_values1(contents, "ceExtNVRAMSize")
+	used = get_values1(contents, "ceExtNVRAMUsed")
 	for (key, s) in sizes.items():
 		size = float(s)
 		using = float(used.get(key, '0'))
@@ -419,9 +419,9 @@ def process_nvram(data, contents, query):
 # CISCO-ENHANCED-MEMPOOL-MIB::cempMemPoolLowestFree[1][1] 83741284
 def process_mempool(data, contents, query):
 	target = 'entities:%s' % query.device.admin_ip
-	names = get_values(contents, "cempMemPoolType")
-	useds = get_values(contents, "cempMemPoolUsed")
-	frees = get_values(contents, "cempMemPoolFree")
+	names = get_values2(contents, "cempMemPoolType")
+	useds = get_values2(contents, "cempMemPoolUsed")
+	frees = get_values2(contents, "cempMemPoolFree")
 	for (key, name) in names.items():
 		used = float(useds.get(key, '0'))
 		free = float(frees.get(key, '0'))
@@ -450,7 +450,20 @@ def process_mempool(data, contents, query):
 # OSPF-MIB::ospfLsdbAdvertisement[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] "00 00..."
 def process_ospf_lsdb(data, contents, query):
 	#dump_snmp(query.device.admin_ip, 'ospf', contents)
-	pass
+	ips = get_values4(contents, "ospfLsdbLsid")
+	ages = get_values4(contents, "ospfLsdbAge")
+	types = get_values4(contents, "ospfLsdbType")
+	for (key, peer_ip) in ips.items():
+		link = Link()
+		link.admin_ip = query.device.admin_ip
+		link.kind = types.get(key)
+		link.peer_ip = peer_ip
+		link.label = types.get(key, '')
+		link.label = "%ss old" % ages.get(key, '?')
+		
+		# Lots of other types are possible but we really only want to show links to routers.
+		if link.kind == 'routerLink':
+			query.device.links.append(link)
 
 # HOST-RESOURCES-MIB::hrDeviceIndex[768] 768																one of these for each processor, each network interface, disk, etc
 # HOST-RESOURCES-MIB::hrDeviceType[768] HOST-RESOURCES-TYPES::hrDeviceProcessor				or hrDeviceNetwork, hrDeviceDiskStorage
@@ -480,9 +493,9 @@ def process_ospf_lsdb(data, contents, query):
 # HOST-RESOURCES-MIB::hrFSLastFullBackupDate[1] 0-1-1,0:0:0.0
 # HOST-RESOURCES-MIB::hrFSLastPartialBackupDate[1] 0-1-1,0:0:0.0
 def process_device(data, contents, query):
-	descrs = get_values(contents, "hrDeviceDescr")
-	status = get_values(contents, "hrDeviceStatus")
-	errors = get_values(contents, "hrDeviceErrors")
+	descrs = get_values1(contents, "hrDeviceDescr")
+	status = get_values1(contents, "hrDeviceStatus")
+	errors = get_values1(contents, "hrDeviceErrors")
 	for (index, desc) in descrs.items():
 		# update system details with info about devices
 		stat = status.get(index, '')
@@ -491,8 +504,8 @@ def process_device(data, contents, query):
 			query.device.system_info += '* %s is %s with %s errors\n' % (desc, stat, errs)
 		
 	# add a gauge if processor load is high
-	load = get_value(contents, '%s', 'hrProcessorLoad')
-	if load:
+	loads = get_value1(contents, '%s', 'hrProcessorLoad')
+	for (num, load) in loads.items():
 		target = 'entities:%s' % query.device.admin_ip
 		level = None
 		value = int(load)/100.0
@@ -506,7 +519,7 @@ def process_device(data, contents, query):
 			level = 3
 			style = 'gauge-bar-color:skyblue'
 		if level:
-			add_gauge(data, target, 'processor load', value, level, style, sort_key = 'y')
+			add_gauge(data, target, 'processor %s load' % num, value, level, style, sort_key = 'y')
 			
 # In general lines look like:
 #    IP-MIB::icmpOutErrors.0 0
@@ -527,9 +540,9 @@ def get_value(contents, fmt, name):
 		return fmt % value
 	return None
 
-# Matches "MIB::<name>[<key>] <value>" and returns a dict
-# mapping keys to values.
-def get_values(contents, name):
+# Returns a dict mapping the key to values.
+# HOST-RESOURCES-MIB::hrFSIndex[1] 1
+def get_values1(contents, name):
 	values = {}
 	
 	expr = re.compile(r'::%s \[ ([^\]]+) \] \  (.+)$' % name, re.MULTILINE | re.VERBOSE)
@@ -541,25 +554,25 @@ def get_values(contents, name):
 	
 	return values
 
-# Returns a dict mapping the two keys to values.
+# Returns a dict mapping [key1, key2] to values.
 # CISCO-FLASH-MIB::ciscoFlashPartitionFileCount[1][1] 29
 def get_values2(contents, name):
 	values = {}
 	
-	expr = re.compile(r'::%s (\[[^\]]+\] \[[^\]]+\]) \  (.+)$' % name, re.MULTILINE | re.VERBOSE)
+	expr = re.compile(r'::%s \[ ([^\]]+) \] \[ ([^\]]+) \] \  (.+)$' % name, re.MULTILINE | re.VERBOSE)
 	for match in re.finditer(expr, contents):
-		values[match.group(1)] = match.group(2)
+		values[(match.group(1), match.group(2))] = match.group(3)
 	
 	return values
 
-# Returns a dict mapping the first key to values.
+# Returns a dict mapping [key1, key2, key3, key4] to values.
 # IP-FORWARD-MIB::ipCidrRouteIfIndex[17.11.12.0][255.255.255.0][0][0.0.0.0] 24
-def get_values3(contents, name):
+def get_values4(contents, name):
 	values = {}
 	
-	expr = re.compile(r'::%s \[([^\]]+)\] \[[^\]]+\] \[[^\]]+\] \[[^\]]+\] \  (.+)$' % name, re.MULTILINE | re.VERBOSE)
+	expr = re.compile(r'::%s \[ ([^\]]+) \] \[ ([^\]]+) \] \[ ([^\]]+) \] \[ ([^\]]+) \] \  (.+)$' % name, re.MULTILINE | re.VERBOSE)
 	for match in re.finditer(expr, contents):
-		values[match.group(1)] = match.group(2)
+		values[(match.group(1), match.group(2), match.group(3), match.group(4))] = match.group(5)
 	
 	return values
 

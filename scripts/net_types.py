@@ -1,12 +1,11 @@
 # Types used by snmp and linux_ssh to communicate with net-modeler.
-
 class Interface(object):
 	def __init__(self):
-		self.admin_ip = None		# "10.143.0.2"
+		self.admin_ip = None		# "10.14.0.2"
 		self.index = None			# "2"
 		self.name = None			# "eth1"
 		self.status = None			# "up", "down", "dormant", etc
-		self.ip = None				# "10.143.0.254"			may not be set if the device is inactive
+		self.ip = None				# "10.14.0.254"			may not be set if the device is inactive
 		self.net_mask = None		# "255.255.255.0"			may not be set if the device is inactive
 		self.mac_addr = None		# "00:19:bb:5f:59:8a"		may not be set if the device is inactive
 		self.speed = None			# 10000000.0 bps
@@ -22,6 +21,16 @@ class Interface(object):
 	
 	def __repr__(self):
 		return self.ip or '?'
+
+class Link(object):
+	def __init__(self):
+		self.admin_ip = None
+		self.kind = None			# 'ospf', 'pim-dm', etc
+		self.peer_ip = None
+		self.label = None			# may include stuff like age or cost
+	
+	def __repr__(self):
+		return self.peer_ip or '?'
 
 class Route(object):
 	def __init__(self):
@@ -47,6 +56,7 @@ class Device(object):
 		self.uptime = None		# 60.0 seconds
 		self.system_info = ''		# "markdown"
 		self.interfaces = []			# [Interface]
+		self.links = []				# [Link]
 		self.routes = []				# [Route]
 	
 	@property
