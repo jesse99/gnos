@@ -459,7 +459,9 @@ def process_ospf_lsdb(data, contents, query):
 		link.kind = types.get(key)
 		link.peer_ip = peer_ip
 		link.label = types.get(key, '')
-		link.label = "%ss old" % ages.get(key, '?')
+		age = ages.get(key, '')
+		if age:
+			link.label = "%s old" % secs_to_str(int(age))
 		
 		# Lots of other types are possible but we really only want to show links to routers.
 		if link.kind == 'routerLink':

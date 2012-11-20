@@ -459,16 +459,20 @@ class Poll(object):
 		for (key, link) in links.items():
 			(src_admin, peer_admin) = key
 			style = None
+			left_labels = []
 			if (peer_admin, src_admin) in links:
 				if src_admin < peer_admin:
 					style = 'line-type:bidirectional'
+					left_labels.append({'label': links[(peer_admin, src_admin)].peer_ip, 'level': 2, 'style': 'font-size:xxx-small'})
 			else:
-				style = 'line-type:directed'
+				style = 'line-type:directed line-color:red'
+			right_labels = [{'label': link.peer_ip, 'level': 2, 'style': 'font-size:xxx-small'}]
 			if style:
 				left = 'entities:%s' % src_admin
 				right = 'entities:%s' % peer_admin
 				predicate = "options.ospf selection.name 'map' == and"
-				add_relation(data, left, right, style, middle_labels = [{'label': link.label, 'level': 1, 'style': 'font-size:x-small'}], predicate = predicate)
+				middle_labels = [{'label': link.label, 'level': 1, 'style': 'font-size:x-small'}]
+				add_relation(data, left, right, style, left_labels = left_labels, middle_labels = middle_labels, right_labels = right_labels, predicate = predicate)
 		
 	def __add_next_hop_relations(self, data, devices):
 		routes = {}			# (src admin ip, via admin ip) => Route
