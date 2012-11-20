@@ -17,8 +17,8 @@ all: bin/gnos lint-js
 
 # gnos doesn't return so we start the client before the browser.
 run: bin/gnos lint-js
-	export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace && export GNOS_USER && ./bin/gnos --admin --root=html --browse='http://localhost:8080' scripts/fat.json
-	#export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace=3 && export GNOS_USER && ./bin/gnos --admin --root=html --browse='http://localhost:8080' scripts/blos-c2.json
+	#export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace && export GNOS_USER && ./bin/gnos --admin --root=html --browse='http://localhost:8080' scripts/fat.json
+	export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace=3 && export GNOS_USER && ./bin/gnos --admin --root=html --browse='http://localhost:8080' scripts/blos-c2.json
 
 run-db: bin/gnos lint-js
 	export RUST_LOG=gnos=2,rwebserve=1,socket=1,rrdf=0,::rt::backtrace=3 && export GNOS_USER && ./bin/gnos --admin --root=html --db scripts/fat.json --browse='http://localhost:8080'

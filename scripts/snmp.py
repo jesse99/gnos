@@ -61,28 +61,6 @@ def process_system(data, contents, query):
 	if loc:
 		query.device.system_info += '* location is %s\n' % loc
 	
-# A lot of these stats are deprecated in favor of entries in ipSystemStatsTable. But that isn't always available.
-# IP-MIB::ipForwarding.0 forwarding
-# IP-MIB::ipDefaultTTL.0 64
-# IP-MIB::ipInReceives.0 26551558
-# IP-MIB::ipInHdrErrors.0 0
-# IP-MIB::ipInAddrErrors.0 0
-# IP-MIB::ipForwDatagrams.0 0
-# IP-MIB::ipInUnknownProtos.0 0
-# IP-MIB::ipInDiscards.0 0
-# IP-MIB::ipInDelivers.0 26550457
-# IP-MIB::ipOutRequests.0 25867018
-# IP-MIB::ipOutDiscards.0 0
-# IP-MIB::ipOutNoRoutes.0 0
-# IP-MIB::ipReasmTimeout.0 0
-# IP-MIB::ipReasmReqds.0 0
-# IP-MIB::ipReasmOKs.0 0
-# IP-MIB::ipReasmFails.0 0
-# IP-MIB::ipFragOKs.0 0
-# IP-MIB::ipFragFails.0 0
-# IP-MIB::ipFragCreates.0 0
-# IP-MIB::ipRoutingDiscards.0 0
-#
 # IP-MIB::ipAdEntAddr[10.0.4.2] 10.0.4.2			will be one of these for each interface
 # IP-MIB::ipAdEntIfIndex[10.0.4.2] 7
 # IP-MIB::ipAdEntNetMask[10.0.4.2] 255.255.255.0
@@ -91,7 +69,15 @@ def process_system(data, contents, query):
 # IP-MIB::ipNetToMediaPhysAddress[5][10.104.0.254] 0:19:bb:5f:59:8a
 # IP-MIB::ipNetToMediaNetAddress[5][10.104.0.254] 10.104.0.254
 # IP-MIB::ipNetToMediaType[5][10.104.0.254] dynamic
-#
+def process_ip_addr(data, contents, query):
+	indexes = get_values(contents, "ipAdEntIfIndex")
+	masks = get_values(contents, "ipAdEntNetMask")
+	for ip in indexes.keys():
+		index = indexes.get(ip, '?')
+		interface = find_interface(query.device, index)
+		interface.ip = ip
+		interface.mask = masks.get(ip, '?')
+		
 # RFC1213-MIB::ipRouteDest[10.0.4.0] 10.0.4.0	one for each route (linux)
 # RFC1213-MIB::ipRouteIfIndex[10.0.4.0] 7
 # RFC1213-MIB::ipRouteMetric1[10.0.4.0] 0
@@ -100,40 +86,7 @@ def process_system(data, contents, query):
 # RFC1213-MIB::ipRouteProto[10.0.4.0] local
 # RFC1213-MIB::ipRouteMask[10.0.4.0] 255.255.255.0
 # RFC1213-MIB::ipRouteInfo[10.0.4.0] SNMPv2-SMI::zeroDotZero
-#
-# IP-FORWARD-MIB::ipCidrRouteDest[17.11.12.0][255.255.255.0][0][0.0.0.0] 17.11.12.0		one for each route (cisco)
-# IP-FORWARD-MIB::ipCidrRouteMask[17.11.12.0][255.255.255.0][0][0.0.0.0] 255.255.255.0
-# IP-FORWARD-MIB::ipCidrRouteTos[17.11.12.0][255.255.255.0][0][0.0.0.0] 0
-# IP-FORWARD-MIB::ipCidrRouteNextHop[17.11.12.0][255.255.255.0][0][0.0.0.0] 0.0.0.0
-# IP-FORWARD-MIB::ipCidrRouteIfIndex[17.11.12.0][255.255.255.0][0][0.0.0.0] 24
-# IP-FORWARD-MIB::ipCidrRouteType[17.11.12.0][255.255.255.0][0][0.0.0.0] local
-# IP-FORWARD-MIB::ipCidrRouteProto[17.11.12.0][255.255.255.0][0][0.0.0.0] local
-# IP-FORWARD-MIB::ipCidrRouteAge[17.11.12.0][255.255.255.0][0][0.0.0.0] 366040
-# IP-FORWARD-MIB::ipCidrRouteInfo[17.11.12.0][255.255.255.0][0][0.0.0.0] SNMPv2-SMI::zeroDotZero
-# IP-FORWARD-MIB::ipCidrRouteNextHopAS[17.11.12.0][255.255.255.0][0][0.0.0.0] 0
-# IP-FORWARD-MIB::ipCidrRouteMetric1[17.11.12.0][255.255.255.0][0][0.0.0.0] 0
-# IP-FORWARD-MIB::ipCidrRouteMetric2[17.11.12.0][255.255.255.0][0][0.0.0.0] -1
-# IP-FORWARD-MIB::ipCidrRouteMetric3[17.11.12.0][255.255.255.0][0][0.0.0.0] -1
-# IP-FORWARD-MIB::ipCidrRouteMetric4[17.11.12.0][255.255.255.0][0][0.0.0.0] -1
-# IP-FORWARD-MIB::ipCidrRouteMetric5[17.11.12.0][255.255.255.0][0][0.0.0.0] -1
-# IP-FORWARD-MIB::ipCidrRouteStatus[17.11.12.0][255.255.255.0][0][0.0.0.0] active
-def process_ip(data, contents, query):
-	# update system info
-	if get_value(contents, '%s', 'ipForwarding') == 'forwarding':
-		query.device.system_info += '* ip forwarding is on\n'
-	else:
-		query.device.system_info += '* ip forwarding is off\n'
-		
-	# update interfaces
-	indexes = get_values(contents, "ipAdEntIfIndex")
-	masks = get_values(contents, "ipAdEntNetMask")
-	for ip in indexes.keys():
-		index = indexes.get(ip, '?')
-		interface = find_interface(query.device, index)
-		interface.ip = ip
-		interface.mask = masks.get(ip, '?')
-	
-	# update routes
+def process_ip_route(data, contents, query):
 	nexts = get_values(contents, "ipRouteNextHop")
 	metrics = get_values(contents, "ipRouteMetric1")
 	protocols = get_values(contents, "ipRouteProto")	
@@ -150,24 +103,40 @@ def process_ip(data, contents, query):
 		
 		query.device.routes.append(route)
 		
-	if not nexts:
-		nexts = get_values3(contents, "ipCidrRouteNextHop")
-		metrics = get_values3(contents, "ipCidrRouteMetric1")
-		protocols = get_values3(contents, "ipCidrRouteProto")
-		masks = get_values3(contents, "ipCidrRouteMask")
-		indexes = get_values3(contents, "ipCidrRouteIfIndex")
-		status = get_values3(contents, "ipCidrRouteStatus")
-		for dest_ip in nexts.keys():
-			if status.get(dest_ip, '') == 'active':
-				route = Route()
-				route.via_ip = nexts.get(dest_ip, '')
-				route.dst_subnet = dest_ip
-				route.dst_mask = masks.get(dest_ip, '')
-				route.protocol = protocols.get(dest_ip, '')
-				route.metric = metrics.get(dest_ip, '')
-				route.ifindex = indexes.get(dest_ip, '')
-				
-				query.device.routes.append(route)
+# IP-FORWARD-MIB::ipCidrRouteDest[17.11.12.0][255.255.255.0][0][0.0.0.0] 17.11.12.0		one for each route (cisco)
+# IP-FORWARD-MIB::ipCidrRouteMask[17.11.12.0][255.255.255.0][0][0.0.0.0] 255.255.255.0
+# IP-FORWARD-MIB::ipCidrRouteTos[17.11.12.0][255.255.255.0][0][0.0.0.0] 0
+# IP-FORWARD-MIB::ipCidrRouteNextHop[17.11.12.0][255.255.255.0][0][0.0.0.0] 0.0.0.0
+# IP-FORWARD-MIB::ipCidrRouteIfIndex[17.11.12.0][255.255.255.0][0][0.0.0.0] 24
+# IP-FORWARD-MIB::ipCidrRouteType[17.11.12.0][255.255.255.0][0][0.0.0.0] local
+# IP-FORWARD-MIB::ipCidrRouteProto[17.11.12.0][255.255.255.0][0][0.0.0.0] local
+# IP-FORWARD-MIB::ipCidrRouteAge[17.11.12.0][255.255.255.0][0][0.0.0.0] 366040
+# IP-FORWARD-MIB::ipCidrRouteInfo[17.11.12.0][255.255.255.0][0][0.0.0.0] SNMPv2-SMI::zeroDotZero
+# IP-FORWARD-MIB::ipCidrRouteNextHopAS[17.11.12.0][255.255.255.0][0][0.0.0.0] 0
+# IP-FORWARD-MIB::ipCidrRouteMetric1[17.11.12.0][255.255.255.0][0][0.0.0.0] 0
+# IP-FORWARD-MIB::ipCidrRouteMetric2[17.11.12.0][255.255.255.0][0][0.0.0.0] -1
+# IP-FORWARD-MIB::ipCidrRouteMetric3[17.11.12.0][255.255.255.0][0][0.0.0.0] -1
+# IP-FORWARD-MIB::ipCidrRouteMetric4[17.11.12.0][255.255.255.0][0][0.0.0.0] -1
+# IP-FORWARD-MIB::ipCidrRouteMetric5[17.11.12.0][255.255.255.0][0][0.0.0.0] -1
+# IP-FORWARD-MIB::ipCidrRouteStatus[17.11.12.0][255.255.255.0][0][0.0.0.0] active
+def process_ip_cidr(data, contents, query):
+	nexts = get_values3(contents, "ipCidrRouteNextHop")
+	metrics = get_values3(contents, "ipCidrRouteMetric1")
+	protocols = get_values3(contents, "ipCidrRouteProto")
+	masks = get_values3(contents, "ipCidrRouteMask")
+	indexes = get_values3(contents, "ipCidrRouteIfIndex")
+	status = get_values3(contents, "ipCidrRouteStatus")
+	for dest_ip in nexts.keys():
+		if status.get(dest_ip, '') == 'active':
+			route = Route()
+			route.via_ip = nexts.get(dest_ip, '')
+			route.dst_subnet = dest_ip
+			route.dst_mask = masks.get(dest_ip, '')
+			route.protocol = protocols.get(dest_ip, '')
+			route.metric = metrics.get(dest_ip, '')
+			route.ifindex = indexes.get(dest_ip, '')
+			
+			query.device.routes.append(route)
 		
 # IF-MIB::ifNumber.0 13				will be one of these for each interface
 # IF-MIB::ifDescr[1] lo			
@@ -477,6 +446,17 @@ def process_mempool(data, contents, query):
 			if level:
 				add_gauge(data, target, name, value, level, style, sort_key = 'zz')
 
+# OSPF-MIB::ospfLsdbAreaId[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] 0.0.0.0     one for each link type/advert ip/router id
+# OSPF-MIB::ospfLsdbType[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] routerLink   or asExternalLink
+# OSPF-MIB::ospfLsdbLsid[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] 172.20.254.10
+# OSPF-MIB::ospfLsdbRouterId[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] 172.20.254.10
+# OSPF-MIB::ospfLsdbSequence[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] -2147481898
+# OSPF-MIB::ospfLsdbAge[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] 1398
+# OSPF-MIB::ospfLsdbChecksum[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] 11713
+# OSPF-MIB::ospfLsdbAdvertisement[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] "00 00..."
+def process_ospf_lsdb(data, contents, query):
+	dump_snmp(query.device.admin_ip, 'ospf', contents)
+
 # HOST-RESOURCES-MIB::hrDeviceIndex[768] 768																one of these for each processor, each network interface, disk, etc
 # HOST-RESOURCES-MIB::hrDeviceType[768] HOST-RESOURCES-TYPES::hrDeviceProcessor				or hrDeviceNetwork, hrDeviceDiskStorage
 # HOST-RESOURCES-MIB::hrDeviceDescr[768] GenuineIntel: Intel(R) Atom(TM) CPU  330   @ 1.60GHz		or eth2, SCSI disk, etc
@@ -620,7 +600,7 @@ class QueryDevice(object):
 		# TODO: 
 		# alert if hrSystemDate is too far from admin machine's datetime (5min maybe)
 		# might be nice to do something with tcp and udp stats
-		self.__mibs = ['system', 'ip', 'interfaces']
+		self.__mibs = ['system', 'ipAddrTable', 'interfaces']
 		for mib in device.config.get('mibs', '').split(' '):
 			if mib == 'cisco-router':
 				add_if_missing(self.__mibs, 'ciscoFlashPartitions')
@@ -629,7 +609,10 @@ class QueryDevice(object):
 				add_if_missing(self.__mibs, 'cpmCPUTotalTable')
 				add_if_missing(self.__mibs, 'ceExtPhysicalProcessorTable')
 				add_if_missing(self.__mibs, 'cempMemPoolTable')
+				add_if_missing(self.__mibs, 'ipCidrRouteTable')
+				add_if_missing(self.__mibs, 'ospfLsdbTable')
 			elif mib == 'linux-router' or  mib == 'linux-host':
+				add_if_missing(self.__mibs, 'ipRouteTable')
 				add_if_missing(self.__mibs, 'hrStorage')
 				add_if_missing(self.__mibs, 'hrDevice')
 			else:
@@ -639,7 +622,9 @@ class QueryDevice(object):
 					env.logger.error("Don't know how to parse %s mib" % mib)
 		self.__handlers = {
 			'system': process_system,
-			'ip': process_ip,
+			'ipAddrTable': process_ip_addr,
+			'ipRouteTable': process_ip_route,
+			'ipCidrRouteTable': process_ip_cidr,
 			'interfaces': process_interfaces,
 			'hrStorage': process_storage,
 			'hrDevice': process_device,
@@ -649,6 +634,7 @@ class QueryDevice(object):
 			'cpmCPUTotalTable': process_cpu,
 			'ceExtPhysicalProcessorTable': process_nvram,
 			'cempMemPoolTable': process_mempool,
+			'ospfLsdbTable': process_ospf_lsdb,
 		}
 		self.device = device
 	
