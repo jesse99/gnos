@@ -277,12 +277,6 @@ def process_storage(data, contents, query):
 # CISCO-FLASH-MIB::ciscoFlashPartitionFileNameLength[1][1] 63
 # CISCO-FLASH-MIB::ciscoFlashPartitionStartChip[1][1] 1
 # CISCO-FLASH-MIB::ciscoFlashPartitionEndChip[1][1] 1
-# 
-# CISCO-FLASH-MIB::ciscoFlashFileSize[1][1][1] 2026     one for each flash file
-# CISCO-FLASH-MIB::ciscoFlashFileChecksum[1][1][1] "0x0"
-# CISCO-FLASH-MIB::ciscoFlashFileStatus[1][1][1] valid
-# CISCO-FLASH-MIB::ciscoFlashFileName[1][1][1] run-preupgrade-r2
-# CISCO-FLASH-MIB::ciscoFlashFileType[1][1][1] unknown
 def process_flash(data, contents, query):
 	target = 'entities:%s' % query.device.admin_ip
 	names = get_values2(contents, "ciscoFlashPartitionName")
@@ -455,7 +449,8 @@ def process_mempool(data, contents, query):
 # OSPF-MIB::ospfLsdbChecksum[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] 11713
 # OSPF-MIB::ospfLsdbAdvertisement[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] "00 00..."
 def process_ospf_lsdb(data, contents, query):
-	dump_snmp(query.device.admin_ip, 'ospf', contents)
+	#dump_snmp(query.device.admin_ip, 'ospf', contents)
+	pass
 
 # HOST-RESOURCES-MIB::hrDeviceIndex[768] 768																one of these for each processor, each network interface, disk, etc
 # HOST-RESOURCES-MIB::hrDeviceType[768] HOST-RESOURCES-TYPES::hrDeviceProcessor				or hrDeviceNetwork, hrDeviceDiskStorage
@@ -603,7 +598,7 @@ class QueryDevice(object):
 		self.__mibs = ['system', 'ipAddrTable', 'interfaces']
 		for mib in device.config.get('mibs', '').split(' '):
 			if mib == 'cisco-router':
-				add_if_missing(self.__mibs, 'ciscoFlashPartitions')
+				add_if_missing(self.__mibs, 'ciscoFlashPartitionTable')
 				add_if_missing(self.__mibs, 'ciscoEnvMonTemperatureStatusTable')
 				add_if_missing(self.__mibs, 'ciscoEnvMonFanStatusTable')
 				add_if_missing(self.__mibs, 'cpmCPUTotalTable')
@@ -613,7 +608,7 @@ class QueryDevice(object):
 				add_if_missing(self.__mibs, 'ospfLsdbTable')
 			elif mib == 'linux-router' or  mib == 'linux-host':
 				add_if_missing(self.__mibs, 'ipRouteTable')
-				add_if_missing(self.__mibs, 'hrStorage')
+				add_if_missing(self.__mibs, 'hrStorageTable')
 				add_if_missing(self.__mibs, 'hrDevice')
 			else:
 				if mib in self.__handlers:
@@ -626,9 +621,9 @@ class QueryDevice(object):
 			'ipRouteTable': process_ip_route,
 			'ipCidrRouteTable': process_ip_cidr,
 			'interfaces': process_interfaces,
-			'hrStorage': process_storage,
+			'hrStorageTable': process_storage,
 			'hrDevice': process_device,
-			'ciscoFlashPartitions': process_flash,
+			'ciscoFlashPartitionTable': process_flash,
 			'ciscoEnvMonTemperatureStatusTable': process_temp,
 			'ciscoEnvMonFanStatusTable': process_fan,
 			'cpmCPUTotalTable': process_cpu,
