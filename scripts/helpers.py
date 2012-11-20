@@ -78,7 +78,9 @@ def run_process(command):
 	if process.returncode != 0:
 		env.logger.error(errData)
 		raise ValueError('return code was %s:' % process.returncode)
-	elif env.options.verbose >= 4:
+	elif env.options.verbose == 4:
+		env.logger.debug("   %s lines in result" % outData.count('\n'))
+	elif env.options.verbose >= 5:
 		env.logger.debug("stdout: '%s'" % outData)
 		if errData:
 			env.logger.debug("stderr: '%s'" % errData)
