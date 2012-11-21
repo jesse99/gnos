@@ -30,8 +30,8 @@ $(document).ready(function()
 	GNOS.relation_detail = document.getElementById('relation_detail');
 	
 	var model_names = ["globals", "entities", "labels", "gauges", "alerts", "relations"];
-	GNOS.entity_detail.onchange = function () {do_model_changed(model_names, false);};
-	GNOS.relation_detail.onchange = function () {do_model_changed(model_names, false);};
+	GNOS.entity_detail.onchange = function () {GNOS.old_selection = GNOS.selection; do_model_changed(model_names, false);};
+	GNOS.relation_detail.onchange = function () {GNOS.old_selection = GNOS.selection; do_model_changed(model_names, false);};
 	register_renderer("map renderer", model_names, "map", map_renderer);
 	
 	register_primary_map_query();
@@ -82,7 +82,6 @@ function options_changed(e)
 	{
 		GNOS.options[option.value] = option.selected;
 	});
-	console.log("selected: {0:j}".format(GNOS.options));
 }
 
 function handle_dblclick(e)
