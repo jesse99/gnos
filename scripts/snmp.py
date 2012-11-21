@@ -46,7 +46,7 @@ def find_interface(device, ifindex):
 # SNMPv2-MIB::sysORID[1] IP-MIB::ip		will be one of these for each MIB supported by the device
 # SNMPv2-MIB::sysORDescr[1] The MIB module for managing IP and ICMP implementations
 # SNMPv2-MIB::sysORUpTime[1] 0
-def process_system(data, contents, query):
+def process_misc(data, contents, query):
 	#dump_snmp(query.device.admin_ip, 'system', contents)
 	up_time = get_value(contents, "%s", 'sysUpTime')
 	if not up_time:
@@ -60,6 +60,12 @@ def process_system(data, contents, query):
 	loc = get_value(contents, '%s', 'sysLocation')
 	if loc:
 		query.device.system_info += '* location is %s\n' % loc
+	
+	if get_value(contents, '%s', 'ipForwarding') == 'forwarding':
+		query.device.system_info += '* ip forwarding is on\n'
+	else:
+		query.device.system_info += '* ip forwarding is off\n'
+		
 	
 # IP-MIB::ipAdEntAddr[10.0.4.2] 10.0.4.2			will be one of these for each interface
 # IP-MIB::ipAdEntIfIndex[10.0.4.2] 7
@@ -610,7 +616,7 @@ class QueryDevice(object):
 		# TODO: 
 		# alert if hrSystemDate is too far from admin machine's datetime (5min maybe)
 		# might be nice to do something with tcp and udp stats
-		self.__mibs = ['system', 'ipAddrTable', 'interfaces']
+		self.__mibs = ['sysUpTime sysUpTimeInstance sysDescr sysContact ipForwarding', 'ipAddrTable', 'interfaces']
 		for mib in device.config.get('mibs', '').split(' '):
 			if mib == 'cisco-router':
 				add_if_missing(self.__mibs, 'ciscoFlashPartitionTable')
@@ -631,7 +637,7 @@ class QueryDevice(object):
 				else:
 					env.logger.error("Don't know how to parse %s mib" % mib)
 		self.__handlers = {
-			'system': process_system,
+			'sysUpTime sysUpTimeInstance sysDescr sysContact ipForwarding': process_misc,
 			'ipAddrTable': process_ip_addr,
 			'ipRouteTable': process_ip_route,
 			'ipCidrRouteTable': process_ip_cidr,
@@ -654,7 +660,10 @@ class QueryDevice(object):
 			# When only a few items are used it would be faster to use something like:
 			# snmpbulkget -v2c -c public 10.101.0.2 -Oq -Ot -OU -OX ipRouteMask ipFragFails ipDefaultTTL
 			for name in self.__mibs:
-				command = 'snmpbulkwalk %s %s -Oq -Ot -OU -OX %s' % (self.device.config['authentication'], self.device.admin_ip, name)
+				if ' ' in name:
+					command = 'snmpbulkget %s %s -Oq -Ot -OU -OX %s' % (self.device.config['authentication'], self.device.admin_ip, name)
+				else:
+					command = 'snmpbulkwalk %s %s -Oq -Ot -OU -OX %s' % (self.device.config['authentication'], self.device.admin_ip, name)
 				result = run_process(command)
 				if result:
 					self.__results[name] = result

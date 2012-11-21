@@ -8,7 +8,7 @@
 	"devices":
 	{
 		"CAP2-RTR":
-		{
+		{ 
 			"ip": "192.168.0.30",
 			"links": ["CAP1-RTR"],
 			"authentication": "-v3 -m all -u net_user -l authPriv -a md5 -A authpass -x des -X privpass",
