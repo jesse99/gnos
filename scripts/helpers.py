@@ -56,19 +56,30 @@ def close_alert(data, target, key):
 
 def secs_to_str(secs):
 	if secs >= 365.25*86400:
-		return '%.2f years' % (secs/(365.25*86400))		# http://en.wikipedia.org/wiki/Month#Month_lengths
+		value = '%.2f' % (secs/(365.25*86400))		# http://en.wikipedia.org/wiki/Month#Month_lengths
+		units = 'year'
 	elif secs >= 365.25*86400/12:
-		return '%.2f months' % (secs/(365.25*86400/12))
+		value = '%.2f' % (secs/(365.25*86400/12))
+		units = 'month'
 	elif secs >= 86400:
-		return '%.1f days' % (secs/(86400))
+		value = '%.1f' % (secs/(86400))
+		units = 'day'
 	elif secs >= 60*60:
-		return '%.1f hours' % (secs/(60*60))
+		value = '%.1f' % (secs/(60*60))
+		units = 'hour'
 	elif secs >= 60:
-		return '%.0f minutes' % (secs/(60))
+		value = '%.0f' % (secs/(60))
+		units = 'minute'
 	elif secs >= 1:
-		return '%.0f seconds' % secs
+		value = '%.0f' % secs
+		units = 'seconds'
 	else:
-		return '%.3f msecs' % (1000*secs)
+		value = '%.3f' % (1000*secs)
+		units = 'msec'
+	if value == '1':
+		return '%s %s' % (value, units)
+	else:
+		return '%s %ss' % (value, units)
 
 def run_process(command):
 	if env.options.verbose >= 4:
