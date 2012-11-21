@@ -281,7 +281,7 @@ class Poll(object):
 					env.logger.	warning("Couldn't find an interface for route %s on %s" % (route, device.admin_ip))
 				if route.via_ip != None and route.via_ip != '0.0.0.0':
 					route.via_interface = interface_by_device_ip(devices, route.via_ip)
-				if route.dst_subnet:
+				if route.dst_subnet and route.dst_mask:
 					route.dst_admin_ip = self.admin_ip_by_subnet(devices, device, route.dst_subnet, ip_to_int(route.dst_mask))
 		
 	def admin_ip_by_subnet(self, devices, src_device, network_ip, netmask):
