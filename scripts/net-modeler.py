@@ -199,6 +199,7 @@ class Poll(object):
 				self.__add_next_hop_relations(data, devices)
 				self.__add_selection_route_relations(data, devices)
 				self.__add_ips(data, devices)
+				self.__add_mroutes(data, devices)
 				self.__add_link_relations(data, devices)
 				if self.__num_updates >= 2:
 					self.__add_bandwidth_details(data, 'out')
@@ -448,7 +449,6 @@ class Poll(object):
 		links = {}			# (src admin ip, peer admin ip) => Link
 		for device in devices:
 			for link in device.links:
-				print "link: %s" % link
 				if link.peer_ip:
 					peer_admin_ip = self.admin_ip_by_subnet(devices, device, link.peer_ip, 0xFFFFFFFF)
 					if peer_admin_ip:
@@ -500,6 +500,27 @@ class Poll(object):
 				right = 'entities:%s' % via_admin
 				predicate = "options.routes selection.name 'map' == and"
 				add_relation(data, left, right, style, middle_labels = [{'label': 'next hop', 'level': 1, 'style': 'font-size:x-small'}], predicate = predicate)
+		
+	def __add_mroutes(self, data, devices):
+		for device in devices:
+			for route in device.mroutes:
+				if route.source != '0.0.0.0':		# TODO: need to special case this for the origin router
+					up_admin_ip = self.admin_ip_by_subnet(devices, device, route.upstream, 0xFFFFFFFF)
+					if up_admin_ip:
+						name = '%s_from_%s' % (route.group, route.source)
+						style = 'line-type:directed'
+						left = 'entities:%s' % up_admin_ip
+						right = 'entities:%s' % route.admin_ip
+						predicate = "options.%s" % name
+						
+						middle_labels = []
+						if route.label1:
+							middle_labels.append({'label': route.label1, 'level': 1, 'style': 'font-size:x-small'})
+						if route.label2:
+							middle_labels.append({'label': route.label2, 'level': 2, 'style': 'font-size:x-small'})
+						if route.label3:
+							middle_labels.append({'label': route.label3, 'level': 3, 'style': 'font-size:x-small'})
+						add_relation(data, left, right, style, middle_labels = middle_labels, predicate = predicate)
 		
 	def __add_ips(self, data, devices):
 		rows = []

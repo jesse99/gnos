@@ -48,6 +48,19 @@ class Route(object):
 	def __repr__(self):
 		return '%s via %s' % (self.dst_subnet or '?', self.via_ip or '?')
 
+class MRoute(object):
+	def __init__(self):
+		self.admin_ip = None
+		self.group = None			# ip
+		self.source = None		# device ip
+		self.upstream = None		# device ip
+		self.label1 = None			# relation detail 1
+		self.label2 = None			# relation detail 2
+		self.label3 = None			# relation detail 3
+	
+	def __repr__(self):
+		return '%s/%s from %s' % (self.group or '?', self.source or '?', self.upstream or '?')
+
 class Device(object):
 	def __init__(self, name, config):
 		self.__name = name		# from network json
@@ -58,6 +71,7 @@ class Device(object):
 		self.interfaces = []			# [Interface]
 		self.links = []				# [Link]
 		self.routes = []				# [Route]
+		self.mroutes = []			# [MRoute]
 	
 	@property
 	def name(self):

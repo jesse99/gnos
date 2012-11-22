@@ -473,6 +473,46 @@ def process_ospf_lsdb(data, contents, query):
 		if link.kind == 'routerLink':
 			query.device.links.append(link)
 
+# key = [group][source (sometimes all zeros, for inactive?)][source mask]
+# IPMROUTE-STD-MIB::ipMRouteUpstreamNeighbor[226.3.1.0][172.20.18.10][255.255.255.255] 0.0.0.0  none (use source)
+# IPMROUTE-STD-MIB::ipMRouteInIfIndex[226.3.1.0][172.20.18.10][255.255.255.255] 5
+# IPMROUTE-STD-MIB::ipMRouteUpTime[226.3.1.0][172.20.18.10][255.255.255.255] 209292
+# IPMROUTE-STD-MIB::ipMRouteExpiryTime[226.3.1.0][172.20.18.10][255.255.255.255] 12130
+# IPMROUTE-STD-MIB::ipMRoutePkts[226.3.1.0][172.20.18.10][255.255.255.255] 4186
+# IPMROUTE-STD-MIB::ipMRouteDifferentInIfPackets[226.3.1.0][172.20.18.10][255.255.255.255] 0
+# IPMROUTE-STD-MIB::ipMRouteOctets[226.3.1.0][172.20.18.10][255.255.255.255] 452088
+# IPMROUTE-STD-MIB::ipMRouteProtocol[226.3.1.0][172.20.18.10][255.255.255.255] pimSparseMode
+# IPMROUTE-STD-MIB::ipMRouteRtProto[226.3.1.0][172.20.18.10][255.255.255.255] local
+# IPMROUTE-STD-MIB::ipMRouteRtAddress[226.3.1.0][172.20.18.10][255.255.255.255] 172.20.18.0
+# IPMROUTE-STD-MIB::ipMRouteRtMask[226.3.1.0][172.20.18.10][255.255.255.255] 255.255.255.224
+# IPMROUTE-STD-MIB::ipMRouteRtType[226.3.1.0][172.20.18.10][255.255.255.255] multicast
+# IPMROUTE-STD-MIB::ipMRouteHCOctets[226.3.1.0][172.20.18.10][255.255.255.255] 452088
+def process_mroute(data, contents, query):
+	#dump_snmp(query.device.admin_ip, 'mroute', contents)
+	upstreams = get_values3(contents, "ipMRouteUpstreamNeighbor")
+	uptimes = get_values3(contents, "ipMRouteUpTime")
+	num_packets = get_values3(contents, "ipMRoutePkts")
+	protocols = get_values3(contents, "ipMRouteProtocol")
+	for (key, upstream_ip) in upstreams.items():
+		(group, source, source_netmask) = key
+		route = MRoute()
+		route.admin_ip = query.device.admin_ip
+		route.group = group
+		route.source = source
+		route.upstream = upstream_ip
+		age = uptimes.get(key, '')
+		if age:
+			route.label1 = "%s old" % secs_to_str(float(age)/100)
+		route.label2 = protocols.get(key, '')
+		if route.label2.endswith('Mode'):
+			route.label2 = route.label2[:-len('Mode')]
+		route.label3 = num_packets.get(key, '')
+		if route.label3:
+			route.label3 += " packets"
+		
+		env.logger.error("added %s" % route)
+		query.device.mroutes.append(route)
+
 # HOST-RESOURCES-MIB::hrDeviceIndex[768] 768																one of these for each processor, each network interface, disk, etc
 # HOST-RESOURCES-MIB::hrDeviceType[768] HOST-RESOURCES-TYPES::hrDeviceProcessor				or hrDeviceNetwork, hrDeviceDiskStorage
 # HOST-RESOURCES-MIB::hrDeviceDescr[768] GenuineIntel: Intel(R) Atom(TM) CPU  330   @ 1.60GHz		or eth2, SCSI disk, etc
@@ -573,6 +613,17 @@ def get_values2(contents, name):
 	
 	return values
 
+# Returns a dict mapping [key1, key2, key3] to values.
+# IPMROUTE-STD-MIB::ipMRouteInIfIndex[226.3.1.0][172.20.18.10][255.255.255.255] 16
+def get_values3(contents, name):
+	values = {}
+	
+	expr = re.compile(r'::%s \[ ([^\]]+) \] \[ ([^\]]+) \] \[ ([^\]]+) \] \  (.+)$' % name, re.MULTILINE | re.VERBOSE)
+	for match in re.finditer(expr, contents):
+		values[(match.group(1), match.group(2), match.group(3))] = match.group(4)
+	
+	return values
+
 # Returns a dict mapping [key1, key2, key3, key4] to values.
 # IP-FORWARD-MIB::ipCidrRouteIfIndex[17.11.12.0][255.255.255.0][0][0.0.0.0] 24
 def get_values4(contents, name):
@@ -627,6 +678,7 @@ class QueryDevice(object):
 				add_if_missing(self.__mibs, 'cempMemPoolTable')
 				add_if_missing(self.__mibs, 'ipCidrRouteTable')
 				add_if_missing(self.__mibs, 'ospfLsdbTable')
+				add_if_missing(self.__mibs, 'ipMRouteTable')
 			elif mib == 'linux-router' or  mib == 'linux-host':
 				add_if_missing(self.__mibs, 'ipRouteTable')
 				add_if_missing(self.__mibs, 'hrStorageTable')
@@ -651,16 +703,18 @@ class QueryDevice(object):
 			'ceExtPhysicalProcessorTable': process_nvram,
 			'cempMemPoolTable': process_mempool,
 			'ospfLsdbTable': process_ospf_lsdb,
+			'ipMRouteTable': process_mroute,
 		}
 		self.device = device
 	
 	def run(self):
 		self.__results = {}
 		try:
-			# When only a few items are used it would be faster to use something like:
-			# snmpbulkget -v2c -c public 10.101.0.2 -Oq -Ot -OU -OX ipRouteMask ipFragFails ipDefaultTTL
 			for name in self.__mibs:
 				if ' ' in name:
+					# Note that snmpbulkget does not return all the results for ipAddrTable or (I think) ipCidrRouteTable.
+					# As far as I can tell there is a fairly small max size for the amount of data a GET will return (no
+					# more than a single packet). Could do individual GETs for each value...
 					command = 'snmpbulkget %s %s -Oq -Ot -OU -OX %s' % (self.device.config['authentication'], self.device.admin_ip, name)
 				else:
 					command = 'snmpbulkwalk %s %s -Oq -Ot -OU -OX %s' % (self.device.config['authentication'], self.device.admin_ip, name)
