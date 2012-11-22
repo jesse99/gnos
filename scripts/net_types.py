@@ -4,6 +4,7 @@ class Interface(object):
 		self.admin_ip = None		# "10.14.0.2"
 		self.index = None			# "2"
 		self.name = None			# "eth1"
+		self.alias = None			# "control interface"
 		self.status = None			# "up", "down", "dormant", etc
 		self.ip = None				# "10.14.0.254"			may not be set if the device is inactive
 		self.net_mask = None		# "255.255.255.0"			may not be set if the device is inactive

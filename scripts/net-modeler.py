@@ -533,18 +533,32 @@ class Poll(object):
 		rows = []
 		for device in devices:
 			for interface in device.interfaces:
-				if interface.name and interface.ip != '127.0.0.1':
-					ifname = cgi.escape(interface.name)
+				if interface.active and interface.name and interface.ip != '127.0.0.1':
+					row = []
 					
+					# Device
+					row.append(cgi.escape(device.name))
+					
+					# Name
+					row.append(cgi.escape(interface.name))
+					
+					# IP Address
 					ip = interface.ip
 					if interface.net_mask:
 						subnet = mask_to_subnet(interface.net_mask)
-						ip = '%s/%s' % (ip, subnet)
+						ip = '%s/%s' % (interface.ip, subnet)
+						
 					if interface.ip == device.admin_ip:
-						ip = '<strong>%s</strong>' % ip
+						row.append('<strong>%s</strong>' % ip)
 					elif interface.ip == None:
-						ip = ' '
+						row.append(' ')
+					else:
+						row.append(ip)
 					
+					# Mac Address
+					row.append(interface.mac_addr)
+					
+					# Speed
 					if interface.active and interface.speed:
 						speed = interface.speed
 						if speed:
@@ -552,15 +566,20 @@ class Poll(object):
 							speed = '%.1f Mbps' % speed
 					else:
 						speed = ''
+					row.append(speed)
 					
-					if interface.active:
-						name = cgi.escape(device.name)
-						rows.append([name, ifname, ip, interface.mac_addr, speed, add_units(interface.mtu, 'B')])
+					# MTU
+					row.append(add_units(interface.mtu, 'B'))
+					
+					# Alias
+					row.append(interface.alias or ' ')
+					
+					rows.append(row)
 			
 		if rows:
 			detail = {}
 			detail['style'] = 'html'
-			detail['header'] = ['Device', 'Name', 'IP Address', 'Mac Address', 'Speed', 'MTU']
+			detail['header'] = ['Device', 'Name', 'IP Address', 'Mac Address', 'Speed', 'MTU', 'Alias']
 			
 			rows = sorted(rows, key = lambda row: row[0])
 			rows = sorted(rows, key = lambda row: row[1])

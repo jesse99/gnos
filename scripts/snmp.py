@@ -168,7 +168,6 @@ def process_ip_cidr(data, contents, query):
 # IF-MIB::ifOutQLen[1] 0	
 # IF-MIB::ifSpecific[1] SNMPv2-SMI::zeroDotZero
 def process_interfaces(data, contents, query):
-	# update interfaces
 	descs = get_values1(contents, "ifDescr")
 	macs = get_values1(contents, "ifPhysAddress")
 	speeds = get_values1(contents, "ifSpeed")
@@ -223,6 +222,33 @@ def process_interfaces(data, contents, query):
 			open_alert(data, target, key, mesg = mesg, resolution = '', kind = 'error')	# TODO: what about resolution?
 		else:
 			close_alert(data, target, key)
+
+# key = [ifindex?]
+# IF-MIB::ifName[1] Fa0/0
+# IF-MIB::ifInMulticastPkts[1] 96541
+# IF-MIB::ifInBroadcastPkts[1] 51288
+# IF-MIB::ifOutMulticastPkts[1] 3316182
+# IF-MIB::ifOutBroadcastPkts[1] 980172
+# IF-MIB::ifHCInOctets[1] 936496540
+# IF-MIB::ifHCInUcastPkts[1] 3314972
+# IF-MIB::ifHCInMulticastPkts[1] 96541
+# IF-MIB::ifHCInBroadcastPkts[1] 51288
+# IF-MIB::ifHCOutOctets[1] 1104561174
+# IF-MIB::ifHCOutUcastPkts[1] 2626537
+# IF-MIB::ifHCOutUcastPkts[20] 167792
+# IF-MIB::ifHCOutMulticastPkts[1] 3316182
+# IF-MIB::ifHCOutBroadcastPkts[1] 980172
+# IF-MIB::ifLinkUpDownTrapEnable[1] enabled
+# IF-MIB::ifHighSpeed[1] 100
+# IF-MIB::ifPromiscuousMode[1] false
+# IF-MIB::ifConnectorPresent[1] true
+# IF-MIB::ifAlias[1] control interface
+# IF-MIB::ifCounterDiscontinuityTime[1] 0
+def process_ifX(data, contents, query):
+	aliaii = get_values1(contents, "ifAlias")
+	for (ifindex, alias) in aliaii.items():
+		interface = find_interface(query.device, ifindex)
+		interface.alias = alias
 
 # HOST-RESOURCES-MIB::hrMemorySize.0 246004
 #
@@ -787,6 +813,7 @@ class QueryDevice(object):
 				add_if_missing(self.__mibs, 'ospfIfTable')
 				add_if_missing(self.__mibs, 'ipMRouteTable')
 				add_if_missing(self.__mibs, 'pim')
+				add_if_missing(self.__mibs, 'ifXTable')
 			elif mib == 'linux-router' or  mib == 'linux-host':
 				add_if_missing(self.__mibs, 'ipRouteTable')
 				add_if_missing(self.__mibs, 'hrStorageTable')
@@ -814,6 +841,7 @@ class QueryDevice(object):
 			'ospfIfTable': process_ospf_interfaces,
 			'ipMRouteTable': process_mroute,
 			'pim': process_pim,
+			'ifXTable': process_ifX,
 		}
 		self.device = device
 	
