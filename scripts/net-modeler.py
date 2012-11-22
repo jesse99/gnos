@@ -195,7 +195,7 @@ class Poll(object):
 				self.__update_routes(devices)
 				
 				for device in devices:
-					self.__process_device(data, device)
+					self.__process_device(data, devices, device)
 				self.__add_next_hop_relations(data, devices)
 				self.__add_selection_route_relations(data, devices)
 				self.__add_network_ips(data, devices)
@@ -307,7 +307,29 @@ class Poll(object):
 		
 		return None
 		
-	def __process_device(self, data, device):
+	def device_name(self, devices, device, ip, flags = ''):
+		# First try to get the actual name.
+		for (name, device) in env.config["devices"].items():
+			if device['ip'] == ip:
+				return name
+		
+		for device in devices:
+			for interface in device.interfaces:
+				if interface.ip == ip:
+					return device.name
+					
+		if flags == 'name-only':
+			return None
+		
+		# Then try to get the admin ip
+		admin_ip = self.admin_ip_by_subnet(devices, device, ip, 0xFFFFFFFF)
+		if admin_ip:
+			return admin_ip
+		
+		# As a last result just return the ip.
+		return ip
+		
+	def __process_device(self, data, devices, device):
 		# admin ip label
 		target = 'entities:%s' % device.admin_ip
 		add_label(data, target, device.admin_ip, 'a', level = 1, style = 'font-size:x-small')
@@ -332,7 +354,7 @@ class Poll(object):
 		if device.interfaces:
 			self.__add_interfaces_table(data, device)
 		if device.routes:
-			self.__add_routing_table(data, device)
+			self.__add_routing_table(data, devices, device)
 		if self.__num_updates >= 2:
 			self.__add_bandwidth_chart(data, 'out', device)
 			self.__add_bandwidth_chart(data, 'in', device)
@@ -373,24 +395,36 @@ class Poll(object):
 				markdown = '![bandwidth](/generated/%s.png#%s)' % (name, self.__num_updates)
 				add_details(data, target, '%s Bandwidth' % direction.title(), [markdown], opened = 'no', sort_key = 'alpha-' + direction, key = '%s bandwidth' % name)
 			
-	def __add_routing_table(self, data, device):
+	def __add_routing_table(self, data, devices, device):
 		rows = []
 		for route in device.routes:
 			dest = route.dst_subnet
 			subnet = mask_to_subnet(route.dst_mask)
 			dest = '%s/%s' % (dest, subnet)
 			
+			dst_admin_ip = self.admin_ip_by_subnet(devices, device, route.dst_subnet, ip_to_int(route.dst_mask))
+			if dst_admin_ip:
+				name = self.device_name(devices, device, dst_admin_ip, 'name-only')
+				if name:
+					dest = name + ' ' + dest
+			
 			if route.src_interface:
 				out = route.src_interface.name
 			else:
 				out = ''
 			
-			if route.via_interface:
-				via = route.via_interface.name + ' ' + route.via_ip
-			elif route.via_ip != '0.0.0.0':
-				via = route.via_ip
-			else:
-				via = ''
+			via = None
+			if route.via_ip != '0.0.0.0':
+				name = self.device_name(devices, device, route.via_ip, 'name-only')
+				if name:
+					via = name + ' ' + route.via_ip
+			if not via:
+				if route.via_interface:
+					via = route.via_interface.name + ' ' + route.via_ip
+				elif route.via_ip != '0.0.0.0':
+					via = route.via_ip
+				else:
+					via = ''
 			
 			rows.append([dest, via, out, route.protocol, route.metric])
 			
@@ -661,23 +695,16 @@ class Poll(object):
 					row.append(route.group)
 					
 					# Source
-					admin_ip = self.admin_ip_by_subnet(devices, device, route.source, 0xFFFFFFFF)
-					if admin_ip:
-						row.append(admin_ip)
-					else:
-						row.append(route.source)
+					row.append(self.device_name(devices, device, route.source))
 					
 					# Upstream
-					admin_ip = self.admin_ip_by_subnet(devices, device, route.upstream, 0xFFFFFFFF)
-					if admin_ip:
-						row.append(admin_ip)
-					elif route.upstream == '0.0.0.0':
+					if route.upstream == '0.0.0.0':
 						row.append('')
 					else:
-						row.append(route.upstream)
+						row.append(self.device_name(devices, device, route.upstream))
 					
 					# Router
-					row.append(route.admin_ip)
+					row.append(self.device_name(devices, device, route.admin_ip))
 						
 					# Protocol
 					row.append(cgi.escape(route.protocol))
