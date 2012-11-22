@@ -23,7 +23,7 @@ function parse_predicate(expr)
 		'\\+|-|\\*|/|\\%|==|!=|<=|>=|<|>|and|or|contains|ends_with|starts_with',	// binary operator (Object)
 		'if',																		// ternary operator (Object)
 		'concat|log',															// variadic operator (Object)
-		'[a-zA-Z_]\\w*\\.[a-zA-Z_]\\w*'										// member (Object)
+		'[a-zA-Z_]\\w*\\.[a-zA-Z0-9._-]+'										// member (Object), note that we want to allow numeric methods (for mroutes)
 	];
 	parts = parts.map(function (x) {return '(' + x + ')';});
 	var re = new RegExp(parts.join('|'), "gm");	// unfortunately there is no verbose option
@@ -52,7 +52,10 @@ function parse_predicate(expr)
 		else if (match[10])
 			result.push({type: 'variadic', value: match[10]});
 		else if (match[11])
-			result.push({type: 'member', target: match[11].split('.')[0], member: match[11].split('.')[1]});
+		{
+			var i = match[11].indexOf('.');
+			result.push({type: 'member', target: match[11].substr(0, i), member: match[11].substr(i+1)});
+		}
 		else
 			throw SyntaxError("failed to parse '{0}'".format(expr));
 			

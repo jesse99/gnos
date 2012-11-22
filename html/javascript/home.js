@@ -54,7 +54,9 @@ function update_predicates(predicate)
 			$.each(expr, function (i, term)
 			{
 				if ($.isPlainObject(term) && 'type' in term && term.type === 'member' && term.target === 'options')
+				{
 					options.push(term.member);
+				}
 			});
 		}
 		catch (e)
@@ -70,7 +72,7 @@ function update_predicates(predicate)
 		if (!(option in GNOS.options))
 		{
 			var dropdown = $('#options_dropdown')[0];
-			dropdown.add(new Option(option.replace('_', ' '), option));
+			dropdown.add(new Option(option.replace('_', ' ').replace('_', ' '), option));	// TODO: do a saner global replace
 			GNOS.options[option] = false;
 		}
 	});
