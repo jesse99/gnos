@@ -72,7 +72,7 @@ def secs_to_str(secs):
 		units = 'minute'
 	elif secs >= 1:
 		value = '%.0f' % secs
-		units = 'seconds'
+		units = 'second'
 	else:
 		value = '%.3f' % (1000*secs)
 		units = 'msec'
