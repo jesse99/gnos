@@ -17,6 +17,7 @@
 # or whatever.
 #
 # Following site has a bunch of snmp links: http://www.wtcs.org/snmp4tpc/literature.htm
+# MIB browser: http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?local=en&substep=2&translate=Translate&tree=NO
 import cgi, json, itertools, httplib, re, sys, threading, time
 from helpers import *
 from net_types import *
@@ -67,7 +68,8 @@ def process_misc(data, contents, query):
 		query.device.system_info += '* ip forwarding is off\n'
 		
 	
-# IP-MIB::ipAdEntAddr[10.0.4.2] 10.0.4.2			will be one of these for each interface
+# key = [ipAdEntAddr]
+# IP-MIB::ipAdEntAddr[10.0.4.2] 10.0.4.2
 # IP-MIB::ipAdEntIfIndex[10.0.4.2] 7
 # IP-MIB::ipAdEntNetMask[10.0.4.2] 255.255.255.0
 # IP-MIB::ipAdEntBcastAddr[10.0.4.2] 1
@@ -84,7 +86,8 @@ def process_ip_addr(data, contents, query):
 		interface.ip = ip
 		interface.mask = masks.get(ip, '?')
 		
-# RFC1213-MIB::ipRouteDest[10.0.4.0] 10.0.4.0	one for each route (linux)
+# key = [ipRouteDest]
+# RFC1213-MIB::ipRouteDest[10.0.4.0] 10.0.4.0
 # RFC1213-MIB::ipRouteIfIndex[10.0.4.0] 7
 # RFC1213-MIB::ipRouteMetric1[10.0.4.0] 0
 # RFC1213-MIB::ipRouteNextHop[10.0.4.0] 0.0.0.0
@@ -109,7 +112,8 @@ def process_ip_route(data, contents, query):
 		
 		query.device.routes.append(route)
 		
-# IP-FORWARD-MIB::ipCidrRouteDest[17.11.12.0][255.255.255.0][0][0.0.0.0] 17.11.12.0		one for each route (cisco)
+# key = [ipCidrRouteDest][ipCidrRouteMask][ipCidrRouteTos][ipCidrRouteNextHop]
+# IP-FORWARD-MIB::ipCidrRouteDest[17.11.12.0][255.255.255.0][0][0.0.0.0] 17.11.12.0
 # IP-FORWARD-MIB::ipCidrRouteMask[17.11.12.0][255.255.255.0][0][0.0.0.0] 255.255.255.0
 # IP-FORWARD-MIB::ipCidrRouteTos[17.11.12.0][255.255.255.0][0][0.0.0.0] 0
 # IP-FORWARD-MIB::ipCidrRouteNextHop[17.11.12.0][255.255.255.0][0][0.0.0.0] 0.0.0.0
@@ -144,7 +148,8 @@ def process_ip_cidr(data, contents, query):
 			
 			query.device.routes.append(route)
 		
-# IF-MIB::ifNumber.0 13				will be one of these for each interface
+# key = [ifIndex]
+# IF-MIB::ifIndex[1] 1
 # IF-MIB::ifDescr[1] lo			
 # IF-MIB::ifType[1] softwareLoopback or tunnel or ethernetCsmacd
 # IF-MIB::ifMtu[1] 16436
@@ -224,6 +229,8 @@ def process_interfaces(data, contents, query):
 			close_alert(data, target, key)
 
 # HOST-RESOURCES-MIB::hrMemorySize.0 246004
+#
+# key = [hrStorageIndex]
 # HOST-RESOURCES-MIB::hrStorageIndex[1] 1													one of these for each storage type
 # HOST-RESOURCES-MIB::hrStorageType[1] HOST-RESOURCES-TYPES::hrStorageRam 	or hrStorageVirtualMemory, hrStorageOther, hrStorageFixedDisk
 # HOST-RESOURCES-MIB::hrStorageDescr[1] Physical memory 									or Virtual memory, Memory buffers, Cached memory, Swap space, /rom, /overlay
@@ -272,7 +279,8 @@ def process_storage(data, contents, query):
 			if level:
 				add_gauge(data, target, 'disk usage', value, level, style, sort_key = 'zzz')
 
-# CISCO-FLASH-MIB::ciscoFlashPartitionName[1][1] flash:1    one for each flash partition
+# key = [ciscoFlashDeviceIndex][ciscoFlashPartitionIndex]
+# CISCO-FLASH-MIB::ciscoFlashPartitionName[1][1] flash:1
 # CISCO-FLASH-MIB::ciscoFlashPartitionSize[1][1] 64016384
 # CISCO-FLASH-MIB::ciscoFlashPartitionFreeSpace[1][1] 802816
 # CISCO-FLASH-MIB::ciscoFlashPartitionFileCount[1][1] 29
@@ -311,6 +319,7 @@ def process_flash(data, contents, query):
 			if level:
 				add_gauge(data, target, name, use, level, style, sort_key = 'zz')
 
+# key = [ciscoEnvMonTemperatureStatusIndex]
 #  CISCO-ENVMON-MIB::ciscoEnvMonTemperatureStatusDescr[1] chassis
 # CISCO-ENVMON-MIB::ciscoEnvMonTemperatureStatusValue[1] 23
 # CISCO-ENVMON-MIB::ciscoEnvMonTemperatureThreshold[1] 65
@@ -342,7 +351,8 @@ def process_temp(data, contents, query):
 			else:
 				close_alert(data, target, key)
 
-# CISCO-ENVMON-MIB::ciscoEnvMonFanStatusDescr[1] Fan 1		one for each fan
+# key = [ciscoEnvMonFanStatusIndex]
+# CISCO-ENVMON-MIB::ciscoEnvMonFanStatusDescr[1] Fan 1
 # CISCO-ENVMON-MIB::ciscoEnvMonFanState[1] normal			or warning, critical, shutdown, notPresent, notFunctioning
 def process_fan(data, contents, query):
 	target = 'entities:%s' % query.device.admin_ip
@@ -361,6 +371,7 @@ def process_fan(data, contents, query):
 			else:
 				close_alert(data, target, key)
 
+# key = [cpmCPUTotalIndex]
 # CISCO-PROCESS-MIB::cpmCPUTotalPhysicalIndex[1] 0
 # CISCO-PROCESS-MIB::cpmCPUTotal5sec[1] 2
 # CISCO-PROCESS-MIB::cpmCPUTotal1min[1] 2
@@ -389,6 +400,7 @@ def process_cpu(data, contents, query):
 		if level:
 			add_gauge(data, target, 'processor load', value, level, style, sort_key = 'y')
 
+# key = [entPhysicalIndex]
 # CISCO-ENTITY-EXT-MIB::ceExtProcessorRam[3] 268435456
 # CISCO-ENTITY-EXT-MIB::ceExtNVRAMSize[3] 245752
 # CISCO-ENTITY-EXT-MIB::ceExtNVRAMUsed[3] 42847
@@ -414,7 +426,8 @@ def process_nvram(data, contents, query):
 			if level:
 				add_gauge(data, target, 'nvram', value, level, style, sort_key = 'zz')
 
-# CISCO-ENHANCED-MEMPOOL-MIB::cempMemPoolType[1][1] processorMemory		one for each pool
+# key = [entPhysicalIndex][cempMemPoolIndex]
+# CISCO-ENHANCED-MEMPOOL-MIB::cempMemPoolType[1][1] processorMemory
 # CISCO-ENHANCED-MEMPOOL-MIB::cempMemPoolName[1][1] Processor
 # CISCO-ENHANCED-MEMPOOL-MIB::cempMemPoolPlatformMemory[1][1] SNMPv2-SMI::zeroDotZero
 # CISCO-ENHANCED-MEMPOOL-MIB::cempMemPoolAlternate[1][1] 0
@@ -446,7 +459,8 @@ def process_mempool(data, contents, query):
 			if level:
 				add_gauge(data, target, name, value, level, style, sort_key = 'zz')
 
-# OSPF-MIB::ospfLsdbAreaId[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] 0.0.0.0     one for each link type/advert ip/router id
+# key = [ospfLsdbAreaId][ospfLsdbType][ospfLsdbLsid][ospfLsdbRouterId]
+# OSPF-MIB::ospfLsdbAreaId[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] 0.0.0.0  
 # OSPF-MIB::ospfLsdbType[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] routerLink   or asExternalLink
 # OSPF-MIB::ospfLsdbLsid[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] 172.20.254.10
 # OSPF-MIB::ospfLsdbRouterId[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] 172.20.254.10
@@ -473,7 +487,7 @@ def process_ospf_lsdb(data, contents, query):
 		if link.kind == 'routerLink':
 			query.device.links.append(link)
 
-# key = [group][source (sometimes all zeros, for inactive?)][source mask]
+# key = [ipMRouteGroup][ipMRouteSource][ipMRouteSourceMask ]
 # IPMROUTE-STD-MIB::ipMRouteUpstreamNeighbor[226.3.1.0][172.20.18.10][255.255.255.255] 0.0.0.0  none (use source)
 # IPMROUTE-STD-MIB::ipMRouteInIfIndex[226.3.1.0][172.20.18.10][255.255.255.255] 5
 # IPMROUTE-STD-MIB::ipMRouteUpTime[226.3.1.0][172.20.18.10][255.255.255.255] 209292
@@ -513,7 +527,8 @@ def process_mroute(data, contents, query):
 		env.logger.error("added %s" % route)
 		query.device.mroutes.append(route)
 
-# HOST-RESOURCES-MIB::hrDeviceIndex[768] 768																one of these for each processor, each network interface, disk, etc
+# key = [hrDeviceIndex ]
+# HOST-RESOURCES-MIB::hrDeviceIndex[768] 768
 # HOST-RESOURCES-MIB::hrDeviceType[768] HOST-RESOURCES-TYPES::hrDeviceProcessor				or hrDeviceNetwork, hrDeviceDiskStorage
 # HOST-RESOURCES-MIB::hrDeviceDescr[768] GenuineIntel: Intel(R) Atom(TM) CPU  330   @ 1.60GHz		or eth2, SCSI disk, etc
 # HOST-RESOURCES-MIB::hrDeviceID[768] SNMPv2-SMI::zeroDotZero
