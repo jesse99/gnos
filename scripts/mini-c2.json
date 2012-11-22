@@ -7,10 +7,10 @@
 	"path": "/modeler",
 	"devices":
 	{
-		"CAP2-RTR":
+		"CAP1-RTR":
 		{ 
-			"ip": "192.168.0.30",
-			"links": ["CAP1-RTR"],
+			"ip": "192.168.0.20",
+			"links": ["CAP2-RTR"],
 			"authentication": "-v3 -m all -u net_user -l authPriv -a md5 -A authpass -x des -X privpass",
 			"mibs": "cisco-router",
 			"modeler": "net-modeler.py",

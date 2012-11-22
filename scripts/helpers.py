@@ -81,6 +81,16 @@ def secs_to_str(secs):
 	else:
 		return '%s %ss' % (value, units)
 
+def to_si(value):
+	if value > 1000*1000*1000:
+		return "%.1f G" % (value/(1000*1000*1000.0))
+	elif value > 1000*1000:
+		return "%.1f M" % (value/(1000*1000.0))
+	elif value > 10*1000:
+		return "%.1f K" % (value/1000.0)
+	else:
+		return "%.0f " % (value/1.0)
+
 def run_process(command):
 	if env.options.verbose >= 4:
 		env.logger.debug("running '%s'" % command)

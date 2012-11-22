@@ -198,7 +198,8 @@ class Poll(object):
 					self.__process_device(data, device)
 				self.__add_next_hop_relations(data, devices)
 				self.__add_selection_route_relations(data, devices)
-				self.__add_ips(data, devices)
+				self.__add_network_ips(data, devices)
+				self.__add_network_mroutes(data, devices)
 				self.__add_mroutes(data, devices)
 				self.__add_link_relations(data, devices)
 				if self.__num_updates >= 2:
@@ -522,7 +523,7 @@ class Poll(object):
 							middle_labels.append({'label': route.label3, 'level': 3, 'style': 'font-size:x-small'})
 						add_relation(data, left, right, style, middle_labels = middle_labels, predicate = predicate)
 		
-	def __add_ips(self, data, devices):
+	def __add_network_ips(self, data, devices):
 		rows = []
 		for device in devices:
 			for interface in device.interfaces:
@@ -554,10 +555,78 @@ class Poll(object):
 			detail = {}
 			detail['style'] = 'html'
 			detail['header'] = ['Device', 'Name', 'IP Address', 'Mac Address', 'Speed', 'MTU']
-			detail['rows'] = sorted(rows, key = lambda row: row[0])
+			
+			rows = sorted(rows, key = lambda row: row[0])
+			rows = sorted(rows, key = lambda row: row[1])
+			detail['rows'] = rows
 			
 			target = 'entities:network'
-			add_details(data, target, 'Interfaces', [detail], opened = 'always', sort_key = 'alpha', key = 'ips table')
+			add_details(data, target, 'Interfaces', [detail], opened = 'yes', sort_key = 'alpha', key = 'ips table')
+		
+	def __add_network_mroutes(self, data, devices):
+		rows = []
+		for device in devices:
+			for route in device.mroutes:
+				if route.source != '0.0.0.0':
+					row = []
+					
+					# Group
+					row.append(route.group)
+					
+					# Source
+					admin_ip = self.admin_ip_by_subnet(devices, device, route.source, 0xFFFFFFFF)
+					if admin_ip:
+						row.append(admin_ip)
+					else:
+						row.append(route.source)
+					
+					# Upstream
+					admin_ip = self.admin_ip_by_subnet(devices, device, route.upstream, 0xFFFFFFFF)
+					if admin_ip:
+						row.append(admin_ip)
+					elif route.upstream == '0.0.0.0':
+						row.append('')
+					else:
+						row.append(route.upstream)
+					
+					# Router
+					row.append(route.admin_ip)
+						
+					# Protocol
+					row.append(cgi.escape(route.protocol))
+					
+					# Uptime
+					row.append(cgi.escape(route.uptime))
+					
+					# Packets
+					if route.packets != None:
+						packets = self.__process_sample(device, data, {'key': '%s-%s-%s-packets' % (route.admin_ip, route.group, route.source), 'raw': route.packets, 'units': 'pps'})
+						row.append(packets['html'])
+					else:
+						row.append('')
+					
+					# Octets
+					if route.octets != None:
+						octets = self.__process_sample(device, data, {'key': '%s-%s-%s-octets' % (route.admin_ip, route.group, route.source), 'raw': 8*route.octets/1000, 'units': 'kbps'})
+						row.append(octets['html'])
+					else:
+						row.append('')
+					
+					rows.append(row)
+			
+		if rows:
+			detail = {}
+			detail['style'] = 'html'
+			detail['header'] = ['Group', 'Source', 'Upstream', 'Router', 'Protocol', 'Uptime', 'Packets (pps)', 'Octets (kbps)']
+			
+			rows = sorted(rows, key = lambda row: row[0])	# sorted is stable and relies on Timsort so is efficient to do multiple times
+			rows = sorted(rows, key = lambda row: row[1])
+			rows = sorted(rows, key = lambda row: row[2])
+			detail['rows'] = rows
+			
+			target = 'entities:network'
+			footnote = '*The shaded area in the sparklines is the inter-quartile range: the range in which half the samples appear.*'
+			add_details(data, target, 'MRoutes', [detail, footnote], opened = 'no', sort_key = 'gamma', key = 'mroutes table')
 		
 	def __add_interfaces_table(self, data, device):
 		rows = []
@@ -589,7 +658,7 @@ class Poll(object):
 				if interface.active and interface.speed:
 					speed = interface.speed
 					if speed:
-						if out_octets['value']:
+						if out_octets and out_octets['value']:
 							self.__add_interface_gauge(data, device.admin_ip, name, out_octets['value'], speed/1000)
 						speed = speed/1000000
 						speed = '%.1f Mbps' % speed
@@ -633,11 +702,10 @@ class Poll(object):
 	# (we need to always record a sample value so that the various sample sets align).
 	# 2) It ships the new sample off to the server.
 	# 3) An html entry is initialized with either a blank value or an url to a sparkline chart for the sample.
-	# 4) The sample value and html link are returned to out caller.
+	# 4) The html link is returned to our caller.
 	def __process_sample(self, device, data, table):
-		# On input table has: key, raw, and units
-		# On exit: value and html are added
-		table['value'] = None
+		# on input table should have: key, raw, and units
+		# on input html and value are added
 		table['html'] = ''
 		value = 0.0
 		if self.__last_time and self.__last_sample.get(table['key'], 0.0) > 0.0:

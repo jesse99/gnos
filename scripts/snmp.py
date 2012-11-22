@@ -43,10 +43,6 @@ def find_interface(device, ifindex):
 # SNMPv2-MIB::sysName.0 RTR
 # SNMPv2-MIB::sysLocation.0 closet
 # SNMPv2-MIB::sysORLastChange.0 1
-#
-# SNMPv2-MIB::sysORID[1] IP-MIB::ip		will be one of these for each MIB supported by the device
-# SNMPv2-MIB::sysORDescr[1] The MIB module for managing IP and ICMP implementations
-# SNMPv2-MIB::sysORUpTime[1] 0
 def process_misc(data, contents, query):
 	#dump_snmp(query.device.admin_ip, 'system', contents)
 	up_time = get_value(contents, "%s", 'sysUpTime')
@@ -143,7 +139,7 @@ def process_ip_cidr(data, contents, query):
 			route.dst_subnet = key[0]
 			route.dst_mask = masks.get(key, '')
 			route.protocol = protocols.get(key, '')
-			route.metric = metrics.get(key, '')
+			route.metric = metrics.get(key, '')		# TODO: need to use other metrics if this one is -1
 			route.ifindex = indexes.get(key, '')
 			
 			query.device.routes.append(route)
@@ -488,7 +484,7 @@ def process_ospf_lsdb(data, contents, query):
 			query.device.links.append(link)
 
 # key = [ipMRouteGroup][ipMRouteSource][ipMRouteSourceMask ]
-# IPMROUTE-STD-MIB::ipMRouteUpstreamNeighbor[226.3.1.0][172.20.18.10][255.255.255.255] 0.0.0.0  none (use source)
+# IPMROUTE-STD-MIB::ipMRouteUpstreamNeighbor[226.3.1.0][172.20.18.10][255.255.255.255] 0.0.0.0
 # IPMROUTE-STD-MIB::ipMRouteInIfIndex[226.3.1.0][172.20.18.10][255.255.255.255] 5
 # IPMROUTE-STD-MIB::ipMRouteUpTime[226.3.1.0][172.20.18.10][255.255.255.255] 209292
 # IPMROUTE-STD-MIB::ipMRouteExpiryTime[226.3.1.0][172.20.18.10][255.255.255.255] 12130
@@ -506,6 +502,7 @@ def process_mroute(data, contents, query):
 	upstreams = get_values3(contents, "ipMRouteUpstreamNeighbor")
 	uptimes = get_values3(contents, "ipMRouteUpTime")
 	num_packets = get_values3(contents, "ipMRoutePkts")
+	num_octets = get_values3(contents, "ipMRouteOctets")
 	protocols = get_values3(contents, "ipMRouteProtocol")
 	for (key, upstream_ip) in upstreams.items():
 		(group, source, source_netmask) = key
@@ -516,15 +513,23 @@ def process_mroute(data, contents, query):
 		route.upstream = upstream_ip
 		age = uptimes.get(key, '')
 		if age:
-			route.label1 = "%s old" % secs_to_str(float(age)/100)
-		route.label2 = protocols.get(key, '')
-		if route.label2.endswith('Mode'):
-			route.label2 = route.label2[:-len('Mode')]
-		route.label3 = num_packets.get(key, '')
-		if route.label3:
-			route.label3 += " packets"
+			route.uptime = secs_to_str(float(age)/100)
+			route.label1 = route.uptime + " old"
+		protocol = protocols.get(key, '')
+		if protocol.endswith('Mode'):
+			route.protocol = protocol[:-len('Mode')]
+			route.label2 = route.protocol
+		pkts = num_packets.get(key, '')
+		if pkts:
+			route.packets = float(pkts)
+			route.label3 = "%spkt" % to_si(route.packets)
+		octets = num_octets.get(key, '')
+		if octets:
+			route.octets = float(octets)
 		
-		env.logger.error("added %s" % route)
+		# TODO: This kind of sucks because we're not showing what the upstream routers do
+		# but what a downstream router would do if it got packets. But afaict there is no way
+		# to get out interfaces for multicast using snmp.
 		query.device.mroutes.append(route)
 
 # key = [hrDeviceIndex ]

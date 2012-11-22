@@ -52,11 +52,16 @@ class MRoute(object):
 	def __init__(self):
 		self.admin_ip = None
 		self.group = None			# ip
-		self.source = None		# device ip
+		self.source = None		# device ip (may be zero)
 		self.upstream = None		# device ip
+		self.protocol = None
+		self.uptime = None
 		self.label1 = None			# relation detail 1
 		self.label2 = None			# relation detail 2
 		self.label3 = None			# relation detail 3
+		
+		self.packets = None		# float
+		self.octets = None			# float
 	
 	def __repr__(self):
 		return '%s/%s from %s' % (self.group or '?', self.source or '?', self.upstream or '?')
