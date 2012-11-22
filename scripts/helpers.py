@@ -1,5 +1,5 @@
 # Misc functions that pretty much every Python modeler will need to use.
-import json, logging, logging.handlers, subprocess
+import json, logging, logging.handlers, subprocess, time
 
 class Env(object):
 	def __init__(self):
@@ -93,6 +93,7 @@ def to_si(value):
 
 def run_process(command):
 	if env.options.verbose >= 4:
+		current_time = time.time()
 		env.logger.debug("running '%s'" % command)
 	process = subprocess.Popen(command, bufsize = 8*1024, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 	(outData, errData) = process.communicate()
@@ -100,7 +101,8 @@ def run_process(command):
 		env.logger.error(errData)
 		raise ValueError('return code was %s:' % process.returncode)
 	elif env.options.verbose == 4:
-		env.logger.debug("   %s lines in result" % outData.count('\n'))
+		elapsed = time.time() - current_time
+		env.logger.debug("   %s lines in result (%.1fs)" % (outData.count('\n'), elapsed))
 	elif env.options.verbose >= 5:
 		env.logger.debug("stdout: '%s'" % outData)
 		if errData:
