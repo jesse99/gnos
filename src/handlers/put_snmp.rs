@@ -479,18 +479,18 @@ priv fn get_str(value: &Json, key: ~str) -> ~str
 					}
 					_ =>
 					{
-						fail fmt!("Expected a String but found %?", *entry)
+						fail fmt!("Expected a String in %? for '%s' but found %?", value, key, *entry)
 					}
 				}
 			}
 			else
 			{
-				fail fmt!("%s key is missing from %?", key, value)
+				fail fmt!("'%s' key is missing from %?", key, value)
 			}
 		}
 		_ =>
 		{
-			fail fmt!("Expected an Object but found %?", *value)
+			fail fmt!("Expected an Object for '%s' but found %?", key, *value)
 		}
 	}
 }
