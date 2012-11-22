@@ -566,8 +566,70 @@ class Poll(object):
 			rows = sorted(rows, key = lambda row: row[1])
 			detail['rows'] = rows
 			
+			details = [detail]
+			self.__add_pim_hello_detail(devices, details)
+			self.__add_ospf_hello_detail(devices, details)
+			self.__add_ospf_dead_detail(devices, details)
+			
 			target = 'entities:network'
-			add_details(data, target, 'Interfaces', [detail], opened = 'yes', sort_key = 'alpha', key = 'ips table')
+			add_details(data, target, 'Interfaces', details, opened = 'yes', sort_key = 'alpha', key = 'ips table')
+			
+	# Note that both OSPF and PIM timers can differ across the network (tho they should be the
+	# same between peers). Figuring out whether a difference is actually an error is complex
+	# (especially with the different ospfIfType's) so we'll just list what everything is using.
+	def __add_pim_hello_detail(self, devices, details):
+		ranges = {}	# value => [device + ifname]
+		
+		for device in devices:
+			for (ifindex, value) in device.pim_hellos.items():
+				interface = device.find_ifindex(ifindex)
+				if interface and interface.name:
+					name = device.name + ' ' + interface.name.replace('/', ' ')
+				else:
+					name = device.name + ' ' + ifindex
+				ranges.setdefault(value, []).append(name)
+		
+		if len(ranges) == 1:
+			details.append('All devices are using pim hello interval %ss.' % ranges.keys()[0])
+		elif len(ranges) > 1:
+			for (value, names) in ranges.items():
+				details.append('**%s** are using pim hello interval %ss.' % (', '.join(names), value))
+		
+	def __add_ospf_hello_detail(self, devices, details):
+		ranges = {}	# value => [device + ifname]
+		
+		for device in devices:
+			for (ip, value) in device.ospf_hellos.items():
+				interface = device.find_ip(ip)
+				if interface and interface.name:
+					name = device.name + ' ' + interface.name.replace('/', ' ')
+				else:
+					name = device.name + ' ' + ip
+				ranges.setdefault(value, []).append(name)
+		
+		if len(ranges) == 1:
+			details.append('All devices are using ospf hello interval %ss.' % ranges.keys()[0])
+		elif len(ranges) > 1:
+			for (value, names) in ranges.items():
+				details.append('**%s** are using ospf hello interval %ss.' % (', '.join(names), value))
+		
+	def __add_ospf_dead_detail(self, devices, details):
+		ranges = {}	# value => [device + ifname]
+		
+		for device in devices:
+			for (ip, value) in device.ospf_deads.items():
+				interface = device.find_ip(ip)
+				if interface and interface.name:
+					name = device.name + ' ' + interface.name.replace('/', ' ')
+				else:
+					name = device.name + ' ' + ip
+				ranges.setdefault(value, []).append(name)
+		
+		if len(ranges) == 1:
+			details.append('All devices are using ospf dead interval %ss.' % ranges.keys()[0])
+		elif len(ranges) > 1:
+			for (value, names) in ranges.items():
+				details.append('**%s** are using ospf dead interval %ss.' % (', '.join(names), value))
 		
 	def __add_network_mroutes(self, data, devices):
 		rows = []

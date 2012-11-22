@@ -13,7 +13,7 @@ class Interface(object):
 		self.in_octets = None		# 9840.0 bytes
 		self.out_octets = None		# 9840.0 bytes
 		self.last_changed = None	# 2191.0 seconds
-	
+		
 	# True if the interface is able to communicate.
 	@property
 	def active(self):
@@ -79,6 +79,9 @@ class Device(object):
 		self.links = []				# [Link]
 		self.routes = []				# [Route]
 		self.mroutes = []			# [MRoute]
+		self.pim_hellos = {}		# {ifindex => seconds}
+		self.ospf_hellos = {}		# {device ip => seconds}
+		self.ospf_deads = {}		# {device ip => seconds}
 	
 	@property
 	def name(self):
@@ -91,6 +94,18 @@ class Device(object):
 	@property
 	def admin_ip(self):
 		return self.__config['ip']
-	
+		
+	def find_ifindex(self, ifindex):
+		for interface in self.interfaces:
+			if interface.index == ifindex:
+				return interface
+		return None
+		
+	def find_ip(self, ip):
+		for interface in self.interfaces:
+			if interface.ip == ip:
+				return interface
+		return None
+		
 	def __repr__(self):
 		return self.__config['ip']

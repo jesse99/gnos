@@ -1,6 +1,6 @@
 {
 	"network": "BLOS-C2",
-	"poll-rate": 40,
+	"poll-rate": 60,
 	"client": "10.4.0.3",
 	"server": "10.6.210.105",
 	"port": 8080,

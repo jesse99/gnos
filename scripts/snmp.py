@@ -183,7 +183,7 @@ def process_interfaces(data, contents, query):
 		# entries land in the table. So what we'll do is add the ones that are enabled and
 		# then add any that we missed that are down.
 		if status.get(index, '') == 'up' or status.get(index, '') == 'dormant':
-			name = descs.get(index, '').replace('/', '_')	# Ciscos use ifnames like FastEthernet0/0.8 which can cause problems with file paths and urls
+			name = descs.get(index, '').replace('/', '-')		# Ciscos use ifnames like FastEthernet0/0.8 which can cause problems with file paths and urls
 			found.add(name)
 			
 			interface = find_interface(query.device, index)
@@ -482,8 +482,43 @@ def process_ospf_lsdb(data, contents, query):
 		# Lots of other types are possible but we really only want to show links to routers.
 		if types.get(key, '') == 'routerLink':
 			query.device.links.append(link)
+	
+# key = [ospfIfIpAddress][ospfAddressLessIf]
+# OSPF-MIB::ospfIfIpAddress[17.11.12.12][0] 17.11.12.12
+# OSPF-MIB::ospfAddressLessIf[17.11.12.12][0] 0
+# OSPF-MIB::ospfIfAreaId[17.11.12.12][0] 0.0.0.0
+# OSPF-MIB::ospfIfType[17.11.12.12][0] pointToPoint
+# OSPF-MIB::ospfIfAdminStat[17.11.12.12][0] enabled
+# OSPF-MIB::ospfIfRtrPriority[17.11.12.12][0] 0
+# OSPF-MIB::ospfIfTransitDelay[17.11.12.12][0] 1
+# OSPF-MIB::ospfIfRetransInterval[17.11.12.12][0] 5
+# OSPF-MIB::ospfIfHelloInterval[17.11.12.12][0] 10
+# OSPF-MIB::ospfIfRtrDeadInterval[17.11.12.12][0] 30
+# OSPF-MIB::ospfIfPollInterval[17.11.12.12][0] 120
+# OSPF-MIB::ospfIfState[17.11.12.12][0] pointToPoint
+# OSPF-MIB::ospfIfDesignatedRouter[17.11.12.12][0] 0.0.0.0
+# OSPF-MIB::ospfIfBackupDesignatedRouter[17.11.12.12][0] 0.0.0.0
+# OSPF-MIB::ospfIfEvents[17.11.12.12][0] 1
+# OSPF-MIB::ospfIfAuthKey[17.11.12.12][0] ""
+# OSPF-MIB::ospfIfStatus[17.11.12.12][0] active
+# OSPF-MIB::ospfIfMulticastForwarding[17.11.12.12][0] blocked
+# OSPF-MIB::ospfIfDemand[17.11.12.12][0] false
+# OSPF-MIB::ospfIfAuthType[17.11.12.12][0] none
+def process_ospf_interfaces(data, contents, query):
+	statuses = get_values2(contents, "ospfIfStatus")
+	hellos = get_values2(contents, "ospfIfHelloInterval")
+	deads = get_values2(contents, "ospfIfRtrDeadInterval")
+	for (key, status) in statuses.items():
+		if status == 'active':
+			addr = key[0]
+			value = hellos.get(key, None)
+			if value:
+				query.device.ospf_hellos[addr] = value
+			value = deads.get(key, None)
+			if value:
+				query.device.ospf_deads[addr] = value
 
-# key = [ipMRouteGroup][ipMRouteSource][ipMRouteSourceMask ]
+# key = [ipMRouteGroup][ipMRouteSource][ipMRouteSourceMask]
 # IPMROUTE-STD-MIB::ipMRouteUpstreamNeighbor[226.3.1.0][172.20.18.10][255.255.255.255] 0.0.0.0
 # IPMROUTE-STD-MIB::ipMRouteInIfIndex[226.3.1.0][172.20.18.10][255.255.255.255] 5
 # IPMROUTE-STD-MIB::ipMRouteUpTime[226.3.1.0][172.20.18.10][255.255.255.255] 209292
@@ -565,17 +600,23 @@ def process_mroute(data, contents, query):
 def process_pim(data, contents, query):
 	ages = get_values1(contents, "pimNeighborUpTime")	# note that add_link_relations will automagically add left and right labels with interface info
 	models = get_values1(contents, "pimNeighborMode")
-	for (key, model) in models.items():
+	for (peer_ip, model) in models.items():
 		link = Link()
 		link.admin_ip = query.device.admin_ip
 		link.predicate = "options.pim"
-		link.peer_ip = key
-		age = ages.get(key, '')
+		link.peer_ip = peer_ip
+		age = ages.get(peer_ip, '')
 		if age:
 			link.label1 = "%s old" % secs_to_str(int(age)/100.0)
 		link.label2 = model
 		
 		query.device.links.append(link)
+	
+	hellos = get_values1(contents, "pimInterfaceHelloInterval")
+	statuses = get_values1(contents, "pimInterfaceStatus")
+	for (ifindex, hello) in hellos.items():
+		if statuses.get(ifindex, '') == 'active':
+			query.device.pim_hellos[ifindex] = hello
 	
 # key = [hrDeviceIndex ]
 # HOST-RESOURCES-MIB::hrDeviceIndex[768] 768
@@ -743,6 +784,7 @@ class QueryDevice(object):
 				add_if_missing(self.__mibs, 'cempMemPoolTable')
 				add_if_missing(self.__mibs, 'ipCidrRouteTable')
 				add_if_missing(self.__mibs, 'ospfLsdbTable')
+				add_if_missing(self.__mibs, 'ospfIfTable')
 				add_if_missing(self.__mibs, 'ipMRouteTable')
 				add_if_missing(self.__mibs, 'pim')
 			elif mib == 'linux-router' or  mib == 'linux-host':
@@ -769,6 +811,7 @@ class QueryDevice(object):
 			'ceExtPhysicalProcessorTable': process_nvram,
 			'cempMemPoolTable': process_mempool,
 			'ospfLsdbTable': process_ospf_lsdb,
+			'ospfIfTable': process_ospf_interfaces,
 			'ipMRouteTable': process_mroute,
 			'pim': process_pim,
 		}
