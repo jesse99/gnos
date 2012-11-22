@@ -2,7 +2,7 @@
 	"network": "BLOS-C2",
 	"poll-rate": 40,
 	"client": "10.4.0.3",
-	"server": "10.6.210.106",
+	"server": "10.6.210.105",
 	"port": 8080,
 	"path": "/modeler",
 	"devices":

@@ -455,7 +455,7 @@ class Poll(object):
 					if peer_admin_ip:
 						links[(link.admin_ip, peer_admin_ip)] = link
 					else:
-						env.logger.error("Couldn't find %s link to %s on %s" % (link.kind, link.peer_ip, link.admin_ip))
+						env.logger.error("Couldn't find link to %s on %s" % (link.peer_ip, link.admin_ip))
 		
 		for (key, link) in links.items():
 			(src_admin, peer_admin) = key
@@ -464,15 +464,21 @@ class Poll(object):
 			if (peer_admin, src_admin) in links:
 				if src_admin < peer_admin:
 					style = 'line-type:bidirectional'
-					left_labels.append({'label': links[(peer_admin, src_admin)].peer_ip, 'level': 2, 'style': 'font-size:xxx-small'})
+					left_labels.append({'label': links[(peer_admin, src_admin)].peer_ip, 'level': 3, 'style': 'font-size:xxx-small'})
 			else:
 				style = 'line-type:directed line-color:red'
-			right_labels = [{'label': link.peer_ip, 'level': 2, 'style': 'font-size:xxx-small'}]
+			right_labels = [{'label': link.peer_ip, 'level': 3, 'style': 'font-size:xxx-small'}]
 			if style:
 				left = 'entities:%s' % src_admin
 				right = 'entities:%s' % peer_admin
-				predicate = "options.ospf selection.name 'map' == and"
-				middle_labels = [{'label': link.label, 'level': 1, 'style': 'font-size:x-small'}]
+				predicate = link.predicate
+				middle_labels = []
+				if link.label1:
+					middle_labels.append({'label': link.label1, 'level': 1, 'style': 'font-size:x-small'})
+				if link.label2:
+					middle_labels.append({'label': link.label2, 'level': 2, 'style': 'font-size:x-small'})
+				if link.label3:
+					middle_labels.append({'label': link.label3, 'level': 3, 'style': 'font-size:x-small'})
 				add_relation(data, left, right, style, left_labels = left_labels, middle_labels = middle_labels, right_labels = right_labels, predicate = predicate)
 		
 	def __add_next_hop_relations(self, data, devices):

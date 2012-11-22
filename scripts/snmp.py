@@ -472,15 +472,15 @@ def process_ospf_lsdb(data, contents, query):
 	for (key, peer_ip) in ips.items():
 		link = Link()
 		link.admin_ip = query.device.admin_ip
-		link.kind = types.get(key)
+		link.predicate = "options.ospf selection.name 'map' == and"
 		link.peer_ip = peer_ip
-		link.label = types.get(key, '')
+		link.label1 = types.get(key, '')
 		age = ages.get(key, '')
 		if age:
-			link.label = "%s old" % secs_to_str(int(age))
+			link.label1 = "%s old" % secs_to_str(int(age))
 		
 		# Lots of other types are possible but we really only want to show links to routers.
-		if link.kind == 'routerLink':
+		if types.get(key, '') == 'routerLink':
 			query.device.links.append(link)
 
 # key = [ipMRouteGroup][ipMRouteSource][ipMRouteSourceMask ]
@@ -532,6 +532,51 @@ def process_mroute(data, contents, query):
 		# to get out interfaces for multicast using snmp.
 		query.device.mroutes.append(route)
 
+# PIM-MIB::pimJoinPruneInterval.0 60
+# 
+# key = [pimNeighborAddress]
+# PIM-MIB::pimNeighborIfIndex[17.11.12.11] 14
+# PIM-MIB::pimNeighborUpTime[17.11.12.11] 71287
+# PIM-MIB::pimNeighborExpiryTime[17.11.12.11] 2850
+# PIM-MIB::pimNeighborMode[17.11.12.11] dense
+# 
+# key = [pimRPGroupAddress][pimRPAddress]
+# PIM-MIB::pimRPState[226.3.1.0][172.20.12.113] up
+# PIM-MIB::pimRPStateTimer[226.3.1.0][172.20.12.113] 24599
+# PIM-MIB::pimRPLastChange[226.3.1.0][172.20.12.113] 56394
+# PIM-MIB::pimRPRowStatus[226.3.1.0][172.20.12.113] active
+# PIM-MIB::pimRPSetHoldTime[1][224.0.0.0][240.0.0.0][172.20.12.113] 0
+# PIM-MIB::pimRPSetExpiryTime[1][224.0.0.0][240.0.0.0][172.20.12.113] 0
+# 
+# key = [pimComponentIndex]
+# PIM-MIB::pimComponentBSRAddress[1] 172.20.12.113
+# PIM-MIB::pimComponentBSRExpiryTime[1] 12202
+# PIM-MIB::pimComponentCRPHoldTime[1] 0
+# PIM-MIB::pimComponentStatus[1] active
+# 
+# key = [pimInterfaceIfIndex]
+# PIM-MIB::pimInterfaceAddress[6] 172.20.12.62
+# PIM-MIB::pimInterfaceMode[6] dense
+# PIM-MIB::pimInterfaceDR[6] 172.20.12.62
+# PIM-MIB::pimInterfaceHelloInterval[6] 10
+# PIM-MIB::pimInterfaceStatus[6] active
+# PIM-MIB::pimInterfaceJoinPruneInterval[6] 60
+# PIM-MIB::pimInterfaceCBSRPreference[6] -1
+def process_pim(data, contents, query):
+	ages = get_values1(contents, "pimNeighborUpTime")	# note that add_link_relations will automagically add left and right labels with interface info
+	models = get_values1(contents, "pimNeighborMode")
+	for (key, model) in models.items():
+		link = Link()
+		link.admin_ip = query.device.admin_ip
+		link.predicate = "options.pim"
+		link.peer_ip = key
+		age = ages.get(key, '')
+		if age:
+			link.label1 = "%s old" % secs_to_str(int(age)/100.0)
+		link.label2 = model
+		
+		query.device.links.append(link)
+	
 # key = [hrDeviceIndex ]
 # HOST-RESOURCES-MIB::hrDeviceIndex[768] 768
 # HOST-RESOURCES-MIB::hrDeviceType[768] HOST-RESOURCES-TYPES::hrDeviceProcessor				or hrDeviceNetwork, hrDeviceDiskStorage
@@ -699,6 +744,7 @@ class QueryDevice(object):
 				add_if_missing(self.__mibs, 'ipCidrRouteTable')
 				add_if_missing(self.__mibs, 'ospfLsdbTable')
 				add_if_missing(self.__mibs, 'ipMRouteTable')
+				add_if_missing(self.__mibs, 'pim')
 			elif mib == 'linux-router' or  mib == 'linux-host':
 				add_if_missing(self.__mibs, 'ipRouteTable')
 				add_if_missing(self.__mibs, 'hrStorageTable')
@@ -724,6 +770,7 @@ class QueryDevice(object):
 			'cempMemPoolTable': process_mempool,
 			'ospfLsdbTable': process_ospf_lsdb,
 			'ipMRouteTable': process_mroute,
+			'pim': process_pim,
 		}
 		self.device = device
 	

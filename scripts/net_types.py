@@ -25,9 +25,11 @@ class Interface(object):
 class Link(object):
 	def __init__(self):
 		self.admin_ip = None
-		self.kind = None			# 'ospf', 'pim-dm', etc
+		self.predicate = None
 		self.peer_ip = None
-		self.label = None			# may include stuff like age or cost
+		self.label1 = None			# may include stuff like age or cost
+		self.label2 = None
+		self.label3 = None
 	
 	def __repr__(self):
 		return self.peer_ip or '?'
