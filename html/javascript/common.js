@@ -236,3 +236,23 @@ function show(elements, visible)
 			$(element).attr('hidden', 'hidden');
 	});
 }
+
+function add_sorted_option(dropdown, name, value, start_index)
+{
+	var i = start_index || 0;
+	while (true)
+	{
+		var current = dropdown.item(i);
+		if (current === null)
+		{
+			dropdown.add(new Option(name, value));
+			break;
+		}
+		else if (current.text >= name)
+		{
+			dropdown.add(new Option(name, value), current);
+			break;
+		}
+		i += 1;
+	}
+}

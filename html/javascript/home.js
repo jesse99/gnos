@@ -72,7 +72,10 @@ function update_predicates(predicate)
 		if (!(option in GNOS.options))
 		{
 			var dropdown = $('#options_dropdown')[0];
-			dropdown.add(new Option(option.replace('_', ' ').replace('_', ' '), option));	// TODO: do a saner global replace
+			
+			var name = option.replace('_', ' ').replace('_', ' ');	// TODO: do a saner global replace
+			add_sorted_option(dropdown, name, option, 1);	// start at 1 so none is always first
+			
 			GNOS.options[option] = false;
 		}
 	});
@@ -755,8 +758,17 @@ function map_renderer(element, model, model_names)
 			shape.to_node = relation.right;
 		});
 		
-		GNOS.relation_detail.max = max_relation;
-		show(['#relation_detail', '#relation_detail_label'], max_relation !== 0);
+		if (max_relation > 0)
+		{
+			GNOS.relation_detail.max = max_relation;
+			show(['#relation_detail', '#relation_detail_label'], true);
+		}
+		else
+		{
+			// We don't reset the max value so that it will be legit next time
+			// around (assuming we get relations with details then).
+			show(['#relation_detail', '#relation_detail_label'], false);
+		}
 		
 		return edges;
 	}
