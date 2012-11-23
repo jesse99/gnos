@@ -1,4 +1,4 @@
-/// This is the code that handles PUTs from the snmp-modeler script. It parses the
+/// This is the code that handles PUTs from the modeler scripts. It parses the
 /// incoming json, converts it into triplets, and updates the model.
 use core::io::{WriterUtil, ReaderUtil};
 use std::json::{Json};
@@ -18,12 +18,12 @@ pub type SamplesChan = Chan<samples::Msg>;
 // are expected to be more likely) will retain correspondingly longer time spans.
 pub const samples_capacity: uint = 180;
 
-pub fn put_snmp(options: &Options, state_chan: Chan<Msg>, samples_chan: SamplesChan, request: &server::Request, response: &server::Response) -> server::Response
+pub fn put_json(options: &Options, state_chan: Chan<Msg>, samples_chan: SamplesChan, request: &server::Request, response: &server::Response) -> server::Response
 {
 	// Unfortunately we don't send an error back to the modeler if the json was invalid.
 	// Of course that shouldn't happen...
 	let addr = copy request.remote_addr;
-	info!("-------- got new modeler data from %s --------", addr);
+	info!("-------- got %? bytes from %s --------", request.body.len(), addr);
 	
 	let options = copy *options;
 	comm::send(state_chan, UpdateMsg(~"primary", |s, d, move options| {handle_update(&options, addr, s, d, samples_chan)}, copy request.body));

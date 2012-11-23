@@ -69,6 +69,16 @@ class MRoute(object):
 	def __repr__(self):
 		return '%s/%s from %s' % (self.group or '?', self.source or '?', self.upstream or '?')
 
+class Igmp(object):
+	def __init__(self):
+		self.group = None
+		self.reporter = None		# device ip
+		self.status = None			# "active" or a bunch of inactive labels
+		self.age = None			# seconds
+	
+	def __repr__(self):
+		return '%s from %s' % (self.group or '?', self.reporter or '?')
+
 class Device(object):
 	def __init__(self, name, config):
 		self.__name = name		# from network json
@@ -80,6 +90,7 @@ class Device(object):
 		self.links = []				# [Link]
 		self.routes = []				# [Route]
 		self.mroutes = []			# [MRoute]
+		self.igmps = []				# [Igmp]
 		self.pim_hellos = {}		# {ifindex => seconds}
 		self.ospf_hellos = {}		# {device ip => seconds}
 		self.ospf_deads = {}		# {device ip => seconds}

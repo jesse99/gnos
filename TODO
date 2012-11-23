@@ -42,44 +42,24 @@ javascript model/view: http://documentcloud.github.com/backbone/
 		try and find a matching local IP
 	- allow multiple subnets
 		makefile should use 10.4.0.0/24,10.0.0.0/8
+* Need an L2 option:
+	- also snmp: http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&ved=0CFUQFjAA&url=http%3A%2F%2Fwww.cisco.com%2Fen%2FUS%2Ftech%2Ftk648%2Ftk362%2Ftechnologies_tech_note09186a00801c9199.shtml&ei=KDAdUMWsBYOGyQHmpIDQDw&usg=AFQjCNG7O3ox230HFyYMKT6966T399Z8wg&sig2=F3LAXDBFGp4L1ZdXMfWsyQ
+	- add dynamic entities for each VLAN, only shown if options.L2
+	- add static entities for the switch, guess this is always shown
+	- add static entity for the bridge and ttnt, show if options.L2
+	- modeler will have to change up wiring when options.L2
+	- switch will need snmp enabled
+	dot1dTpFdbPort maps peer MACs to ports
+	vmMembershipSummaryMemberPorts maps ports to VLANs
+	vlanTrunkPortVlansEnabled maps VLANs to trunks
+	ifPhysAddress MAC for the switch port
 * Support snmp traps
-* Probably want the net-modeler to run sub-modelers on two periods:
-	- slow one to collect stuff like system info, L2 info, interface status
-	- faster one to collect interface stats, maybe routing
 * net-modeler should be its own project
-* Work on new architecture
-	- agents: python, snmp/vtysh/etc, json
-	- server: rdf
-	- client: canvas, html
-	- how do multiple stores work?
-		perhaps one store: on new data clear out subjects with a matching source id
-	- entity + content + relations
-	- conteent can be labels, tables, lists, images, urls, markdown, etc
-	- content has a zoom in level
-	- content can be tagged left, middle, right (probably top and bottom to)
-		` for relations content is rendered at the appropiate place along the line
-		` for entities flexible box layout is used
-	- entity id is an url? or a hash?
-	- is there a way to get aspects/views?
-		maybe relations can have an optional filter?
-	- tools:
-		pointer	?
-		hand	drag stuff, overlays?
-		zoom in/out
-		navigate up and in
-	- search
-	- maybe use grid lines to show magnification
-	- may be some stuff on tufte's site
-	- attach custom info
 * Sliders and option dropdown values should be persisted in a pref:
 	- use web storage?
 	- not exactly clear when the prefs should be applied
 	- set the pref when the associated value changes
 	- use the pref when the associated widget is (re)initialized
-* Could have a subnets relation:
-	- middle should be network address		10.102.0.0/24
-	- left and right should be 					eth1 10.102.0.2
-	- if there are multiple relations between peers use commas
 * modeler should listen for generic traps and at least a few custom ones admins can add
 	- standard generic traps are: coldStart, warmStart, linkDown, linkUp, authenticationFailure, egpNeighborLoss
 	- net-snmp has fewer: http://www.net-snmp.org/tutorial/tutorial-5/commands/snmptrap.html
@@ -92,12 +72,6 @@ javascript model/view: http://documentcloud.github.com/backbone/
 * Interesting wayts to connect html thingies:
 	- http://jsplumb.org/doc/usage.html
 	- http://js-graph-it.sourceforge.net/index.html
-* Need a container relation:
-	- contained items are rendered as ...
-	- contained items are persisted in their own store
-	- probably has some sort of root statement pointing to the container entity/store
-	- clicking on ... shows contained items and root at middle top
-	- clicking on root goes back to root's store
 * UI
 	- widget at upper left in window shows how deep naved in, click navs out
 	- widget at entity upper right shows how far can nav in
@@ -136,36 +110,10 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	  </menu>
 	</section>
 	- but it's not in chrome yet: http://caniuse.com/#search=contextmenu
-* Need a group relation
-	- group name can stuff "ttnt" or "10.8.0.0/8"
-	- probably need to treat the group as an object
-	- might be a bit more flexible to use standard relations and the synthetic objects
-* Details views:
-	active alerts
-	inactive alerts
-	summary
-		ip stats
-		forwarding flag
-		up time
-	interfaces
-		status
-		name
-		stats
-		mtu
-		speed
-		ip
-		mac
-* Maybe add some functional/unit tests:
-	- take one or more json snmp and check store is updated correctly
 * Switch to using libuv:
 	- write a tcp example
 	- don't use libc sleep
 	- may want to timeout sse and connections
-* Would be great to have a vlan map:
-	- on a cisco can use show mac-address-table to find mac addresses on a port
-	- also snmp: http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&ved=0CFUQFjAA&url=http%3A%2F%2Fwww.cisco.com%2Fen%2FUS%2Ftech%2Ftk648%2Ftk362%2Ftechnologies_tech_note09186a00801c9199.shtml&ei=KDAdUMWsBYOGyQHmpIDQDw&usg=AFQjCNG7O3ox230HFyYMKT6966T399Z8wg&sig2=F3LAXDBFGp4L1ZdXMfWsyQ
-	- maybe show this if the user double clicks on a switch
-* Can compile python using something like: python -m py_compile foo.py
 * Should be able to support different dashboard styles:
 	- operational: largely an easy to interpret view of network health
 	- analysis: details on network behavior
@@ -177,36 +125,10 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- config probably also needs something for results, either display stdout or download file
 * Would be nice to support more entity shapes: rect, oval, circle, none
 * Semantic styles would allow user customization
-* Front page needs to use a rather fancy query:
-	- page contains list of <device name> <status> <note>
-	- where status is "UP" or "DOWN"
-	- node is typically a recent alert
-	- for now store can look like:
-		gnos:10.101.0.10	gnos:device_name		"GRS-1"
-		gnos:10.101.0.10	gnos:status				"UP"
-		gnos:10.101.0.10	gnos:alert					_:alert1
-		
-		_:alert1				gnos:alert_text			"blah blah"
-		_:alert1				gnos:alert_date			"Jan 1"
-	- query could be:
-		SELECT ?name ?status ?alert			# alert may be option:none
-		WHERE
-		{
-			?device			gnos:device_name	?name .
-			?device			gnos:status			?status .
-			OPTIONAL
-			{
-				?device		gnos:alert				?alert_ref .
-				?alert_ref		gnos:alert_text		?alert .
-				?alert_ref		gnos:alert_date		?date .
-				FILTER (?date >= {{threshold}})	
-			}
-		}
 * OpenOntologyRepository (OOR) and Xmdr
 	- also can use swoogle to search for ontologies
 * Make gnos a sparql endpoint?
 	- note that there is a protocol for this
-* May want to allow double clicking on relations.
 * Netflow:
 	Netflow Overview:
 	http://www.cisco.com/en/US/prod/collateral/iosswrel/ps6537/ps6555/ps6601/prod_white_paper0900aecd80406232.html
@@ -234,120 +156,24 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- update-libraries eithe git clones/pulls or uses subtrees
 	- check-all runs all unit tests
 	- make defaults to building everything
-* Work on home view:
-	- get some sort of side bar or something showing device links
-	- client needs to request updates
-	- client needs to use the DOM to update the view
-		` if small number of devices just use a list
-		` otherwise use a disclosure widget
-	- links should be color coded depending on device status
-	- get rid of the greeting code
-* Should have a --scripts option:
-	- run everything inside there with a standard set of options
-* Modeler poll rate should default to something large and reduce when a client is up.
 * Probably should have a pref to control canvas size (maybe on the map inspector).
-* When merging different modeler info:
-	- could use the snmp modeler interval
-	- then add in the other modelers
 * Use valid time? Also look at Owl-Time
-* Eth0 can only be named using a device so it should be a blank node.
 * Should validate the network.json file.
-* Should subjects have time stamps?
-* Store last N snapshots? Separate stores?
 * Might be nice if subject page color coded fields that change as new results come in.
 * Protege is an open source ontology editor.
 * Maybe allow people to do tcpdumps on device(s)
 	- possibly use something like http://www.tcptrace.org/index.html views
-* Figure out how to get data into gnos:
-	- how big is the store? should the home page have an estimate of the store size?
-	- gnos needs to scp over config file
-	- gnos needs to startup the modeler script
-	- move the snmp modeler crap into its own module
-	- gnos needs to restart the modeler script if it dies
-	- display the model info, for now maybe just a sidebar with links
-	- need a way for users to configure the config file
-	- if the config changes need to restart the script
-	
-	- need a home page with a sidebar showing links to machine names
-	- might want to make these disclosure widgets with whatever is under the host names
-* Run the script with ssh
-	- will need to scp the config file over
-	- when gnos dies kill the ssh
-	- if we need to do a rehup sort of thing just restart the ssh
-* Provide a view of the model.
-	- probably just a page showing the entire store.
-	- device pages should have a link to their version of the store (i.e. statements that include their admin ip)
-	- model page should support user queries
-	- device page could be a link with a canned query
-		http://jena.sourceforge.net/ARQ/Tutorial/data.html
-		http://www.w3.org/TR/rdf-sparql-protocol/
-		http://www.w3.org/Submission/2003/SUBM-rdf-netapi-20031002/
 * Make the licensing explicit
 	- need to do this for other projects as well
-* Work on alerts
-	- managed ip that doesn't exist
-	- small up time
-* Work on warnings
-	- need issue page
-	- need to persist warnings and alerts
-	- snmp modeler (or maybe #error/#warning) should add warnings to store
-* Need to support ifXTable.
-* Information flow is:
-	- scripts gather data using snmp get, traps, vtysh, etc
-	- scripts PUT the data using json into gnos
-	- gnos saves the data into a series of time-stamped triplet stores
-	- clients registers queries with the server which replies with json
-	- server auto-magically pushes new updates
-* send some meta-info back
-	keys will become subject paths under /model/network
-	values need a type (could be implicit via json types)
-   server
-	should persist everything
-	stick it in a triplet store
-	add a timestamp
-	
-	when charting
-		do a query and build x and y vectors
-		when new data arrives ship it off to clients
-* Gracefully handle device down.
 * Might want an alert if ipForwarding is off and its a router
 	- how do we know if its a router? quagga is running?
 * What about icmp mib?
 * Should be an alert if the server logs an #error.
 * Alert if snmp-modeler takes to long to put:
 	- either automatically or manually restart the script
-* Probably want a second script to do a (possibly partial) snmpwalk
-	- reuse config?
 * Might want to allows admins to create custom alerts:
 	- data comes from a custom query
 	- html comes from a template
-* Dashboard should show network health:
-	- list devices
-	- sort by health and then by name
-	- admin should be able to adjust and set health thresholds
-	  e.g. machine and process uptimes, peers, link costs, cpu, memory
-	- probably want optional email too
-* Work on schema:
-	- define the bulk of basic NMS, probably want to stick this in an rtf file
-	- may want to install zenoss locally
-	- review http://www.science.uva.nl/research/sne/ndl/?c=12-Layer-Schema
-	- review http://www.ninebynine.org/SWAD-E/Scenario-HomeNetwork/HomeNetworkConfig-20021215.html
-* Read up on rust
-	prototype, scriptaculous
-	hidden urls to display entities?
-	can we generate schema docs?
-	dir with template html
-		register munger
-	check (but no ui) for admin rights
-	do functions have preconditions or not?
-* Both go and python have simple http servers.
-* Crates can have dir attributes?
-* Custom modelers will need a way to add custom styles
-	- maybe something crappy like a way to register javascript
-	- GET the javascript
-	- and evail it
-* net-snmp does not enable the host mib by default
-	- need to enable it via configure script
 * Quagga:
 	- http://www.nongnu.org/quagga/docs/docs-info.html#SEC143
 	   has lots of info on setting up quagga
@@ -356,76 +182,19 @@ javascript model/view: http://documentcloud.github.com/backbone/
 * Examples:
 	- zenoss
 	- cacti
-* Work on infrastructure:
-	- arcitecture doc
-	- need a make file
-	- create an in-memory rdf db
-	- sampler: gather datapoint(s) often
-	- modeler: gather info infrequently
-	- views: registered url responders
-	- daemons: auto-started, usually have a view or modeler
-	- may want a restful rust web project (rrweb)
-	- is there a standard rdf vocabulary for network devices?
-	- would be cool to generate a dot file for the rdf
-
-* Get the web UI working
-	- uv module has support for handling async events.
-	- use hard-coded info (and not even a db)
-	- use window.json not eval
-	- can we push (the new) model to views and let them handle updates?
-	- maybe for now can serve up some simple html
-	- should have a layer of indirection from URLs to actions
-	- markup should not be in code
-	- most graphics should be done using svg
-	- server sent events allow for a push model
-	- should be able to hover over nodes to get info
-	- graphvix and webdot
-	- should be a way to specify multiple modelerer nodes
-
-* Get a database schema setup
-	- database rows can be added, but not changed or removed
-	  how does this work with admin capabilities?
-	  is there a separate database for admin settings? maybe call it settings?
-	- modeling should create a brand-new rdf database
-	- MySQL supports referential integrity (and there are several go libs for it)
-	- need to provide an abstraction for db access
-	- active record pattern
-	- data object access (dao)
-	- can multiple procceses write to sqlite?
-	- would need to version the tables
-	- could maybe use off-line storage to save last 10mins of data
 * Might need some sort of rdd database, see rrdtool
 * Rmon
 	- supports packet level stats
 	- allows traps for stats that go above or below a threshold
 * Admins should be able to set which origins the server accepts.
-* Syslog can be used to send logs elsewhere?
+* Syslog can be used to send logs elsewhere
 * Next generation network management
 	- http://books.google.com/books?id=9WWereKFb54C&dq=rdf+schema+%22network+management%22&source=gbs_navlinks_s
-
-* Get plugins working
-	- could do this by installing core packages somewhere, then link them with custom
-	  packages
-	- these would have to be either external tools run periodically
-	- or daemon processes that talk to the db
-	- probably need some way for a daemon to register an url for custom web pages
-	- could get some decoupling by having modelers and samplers posting changes
-	- for simple views can just point to secondary file system roots
-	  this would also work for more complex views if the plugin generated files
-	
-* Get gatherers working
-	- snmp
-	- ssh
+* Add some more modelers
 	- port scanners
 	- syslogs
 * OpenId can be used to identify users. OpenAuth can be used to authenticate them.
 
-can we leverage R?
-could use graphviz to create maps (but hit testing and such would suck)
-
-would be great to have a pim view
-live monitor maps vtysh pim goo to rdf
-simple reuseable goo to map rdf to tables and whatnot
 
 /Users/jessejones/Documents/Developer/rust.rtf
 /Users/jessejones/Documents/javascript.rtf

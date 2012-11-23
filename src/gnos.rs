@@ -150,7 +150,7 @@ fn main()
 	let subject_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {get_subject::get_subject(&options, request, response)};
 	let details_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {get_details::get_details(&options, request, response)};
 	let home_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, response: &Response, copy options| {get_home::get_home(&options, response)};
-	let modeler_p: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {put_snmp::put_snmp(&options, state_chan, samples_chan, request, response)};
+	let modeler_p: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {put_json::put_json(&options, state_chan, samples_chan, request, response)};
 	let query_store_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {get_query_store::get_query_store(&options, request, response)};
 	let bail_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, _response: &Response| {get_shutdown(copy cleanup)};
 	let static_v: ResponseHandler = |config: &ConnConfig, request: &Request, response: &Response, copy options| {static_view(&options, config, request, response)};

@@ -593,6 +593,29 @@ def process_mroute(data, contents, query):
 		# to get out interfaces for multicast using snmp.
 		query.device.mroutes.append(route)
 
+# key = [igmpCacheAddress][igmpCacheIfIndex]
+# IGMP-STD-MIB::igmpCacheSelf[226.3.1.0][6] false
+# IGMP-STD-MIB::igmpCacheLastReporter[226.3.1.0][6] 172.20.19.10
+# IGMP-STD-MIB::igmpCacheUpTime[226.3.1.0][6] 551600
+# IGMP-STD-MIB::igmpCacheExpiryTime[226.3.1.0][6] 12200
+# IGMP-STD-MIB::igmpCacheStatus[226.3.1.0][6] active
+def process_igmp(data, contents, query):
+	#dump_snmp(query.device.admin_ip, 'igmp', contents)
+	reporters = get_values2(contents, "igmpCacheLastReporter")
+	uptimes = get_values2(contents, "igmpCacheUpTime")
+	statuses = get_values2(contents, "igmpCacheStatus")
+	for (key, reporter_ip) in reporters.items():
+		(group, ifindex) = key
+		igmp = Igmp()
+		igmp.group = group
+		igmp.reporter = reporter_ip
+		igmp.status = statuses.get(key, '')
+		age = uptimes.get(key, '')
+		if age:
+			igmp.uptime = float(age)/100
+		
+		query.device.igmps.append(igmp)
+
 # PIM-MIB::pimJoinPruneInterval.0 60
 # 
 # key = [pimNeighborAddress]
@@ -684,8 +707,8 @@ def process_device(data, contents, query):
 			query.device.system_info += '* %s is %s with %s errors\n' % (desc, stat, errs)
 		
 	# add a gauge if processor load is high
-	loads = get_value1(contents, '%s', 'hrProcessorLoad')
-	for (num, load) in loads.items():
+	loads = get_values1(contents, 'hrProcessorLoad')
+	for (index, load) in loads.items():
 		target = 'entities:%s' % query.device.admin_ip
 		level = None
 		value = int(load)/100.0
@@ -699,7 +722,7 @@ def process_device(data, contents, query):
 			level = 3
 			style = 'gauge-bar-color:skyblue'
 		if level:
-			add_gauge(data, target, 'processor %s load' % num, value, level, style, sort_key = 'y')
+			add_gauge(data, target, 'processor %s load' % index, value, level, style, sort_key = 'y')
 			
 # In general lines look like:
 #    IP-MIB::icmpOutErrors.0 0
@@ -799,7 +822,7 @@ class QueryDevice(object):
 		# TODO: 
 		# alert if hrSystemDate is too far from admin machine's datetime (5min maybe)
 		# might be nice to do something with tcp and udp stats
-		self.__mibs = ['sysUpTime sysUpTimeInstance sysDescr sysContact ipForwarding', 'ipAddrTable', 'interfaces']
+		self.__mibs = ['sysUpTime sysUpTimeInstance sysDescr sysContact ipForwarding', 'ipAddrTable', 'interfaces', 'ifXTable']
 		for mib in device.config.get('mibs', '').split(' '):
 			if mib == 'cisco-router':
 				add_if_missing(self.__mibs, 'ciscoFlashPartitionTable')
@@ -813,8 +836,13 @@ class QueryDevice(object):
 				add_if_missing(self.__mibs, 'ospfIfTable')
 				add_if_missing(self.__mibs, 'ipMRouteTable')
 				add_if_missing(self.__mibs, 'pim')
-				add_if_missing(self.__mibs, 'ifXTable')
-			elif mib == 'linux-router' or  mib == 'linux-host':
+				add_if_missing(self.__mibs, 'igmpCacheTable')
+			elif mib == 'linux-router':
+				add_if_missing(self.__mibs, 'ipRouteTable')		# TODO: probably want to add ospf and pim mibs
+				add_if_missing(self.__mibs, 'hrStorageTable')
+				add_if_missing(self.__mibs, 'hrDevice')
+				add_if_missing(self.__mibs, 'igmpCacheTable')
+			elif  mib == 'linux-host':
 				add_if_missing(self.__mibs, 'ipRouteTable')
 				add_if_missing(self.__mibs, 'hrStorageTable')
 				add_if_missing(self.__mibs, 'hrDevice')
@@ -842,6 +870,7 @@ class QueryDevice(object):
 			'ipMRouteTable': process_mroute,
 			'pim': process_pim,
 			'ifXTable': process_ifX,
+			'igmpCacheTable': process_igmp,
 		}
 		self.device = device
 	

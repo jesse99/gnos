@@ -201,6 +201,7 @@ class Poll(object):
 				self.__add_network_ips(data, devices)
 				self.__add_network_mroutes(data, devices)
 				self.__add_mroutes(data, devices)
+				self.__add_igmp(data, devices)
 				self.__add_link_relations(data, devices)
 				if self.__num_updates >= 2:
 					self.__add_bandwidth_details(data, 'out')
@@ -287,25 +288,31 @@ class Poll(object):
 					route.dst_admin_ip = self.admin_ip_by_subnet(devices, device, route.dst_subnet, ip_to_int(route.dst_mask))
 		
 	def admin_ip_by_subnet(self, devices, src_device, network_ip, netmask):
-		# First try the devices we don't know about (these are the devices we want to use when 
-		# forwarding to a device on an attached subnet).
-		subnet = ip_to_int(network_ip) & netmask
-		for (name, device) in env.config["devices"].items():
-			if device['type'] != 'snmp' and device['type'] != 'linux_ssh':
-				candidate = ip_to_int(device['ip']) & netmask
-				if candidate == subnet:
-					return device['ip']
+		candidates = []
 		
-		# Then try to find a device we do know about that isn't src_admin.
-		# This will tend to be the direct link to a peer machine case.
-		for device in devices:
-			for interface in device.interfaces:
-				if interface.ip:
-					candidate = ip_to_int(interface.ip) & netmask
-					if candidate == subnet and device.admin_ip != src_device.admin_ip:
-						return device.admin_ip
+		if network_ip and network_ip != '0.0.0.0':
+			# First try the devices we don't know about (these are the devices we want to use when 
+			# forwarding to a device on an attached subnet).
+			subnet = ip_to_int(network_ip) & netmask
+			for (name, device) in env.config["devices"].items():
+				if device['type'] != 'snmp' and device['type'] != 'linux_ssh':
+					candidate = ip_to_int(device['ip']) & netmask
+					if candidate == subnet:
+						candidates.append(device['ip'])
+			
+			# Then try to find a device we do know about that isn't src_admin.
+			# This will tend to be the direct link to a peer machine case.
+			for device in devices:
+				for interface in device.interfaces:
+					if interface.ip:
+						candidate = ip_to_int(interface.ip) & netmask
+						if candidate == subnet and device.admin_ip != src_device.admin_ip:
+							candidates.append(device.admin_ip)
 		
-		return None
+		if len(candidates) == 1:
+			return candidates[0]
+		else:
+			return None
 		
 	def device_name(self, devices, device, ip, flags = ''):
 		# First try to get the actual name.
@@ -446,16 +453,24 @@ class Poll(object):
 					if route.dst_admin_ip and device.admin_ip != via_admin:
 						key = (device.admin_ip, via_admin, route.dst_admin_ip)
 						routes[key] = route
+						if device.name == 'DDG':
+							env.logger.error("admin1: %s dst: %s, via: %s," % (device.admin_ip, route.dst_admin_ip, via_admin))
+							env.logger.error("    dst: %s, via: %s" % (route.dst_subnet, route.via_ip))
 				elif route.dst_admin_ip:
 					# If the netmask is all ones then this will be a direct link to a peer machine.
 					# Otherwise it is used when forwarding to a device on an attached subnet.
 					key = (device.admin_ip, route.dst_admin_ip, route.dst_admin_ip)
 					routes[key] = route
+					if device.name =='DDG':
+						env.logger.error("admin2: %s, dst: %s, via: %s" % (device.admin_ip, route.dst_admin_ip, route.dst_admin_ip))
+						env.logger.error("    dst: %s, via: %s" % (route.dst_subnet, route.via_ip))
 				
 		for (key, route) in routes.items():
 			(src_admin, via_admin, dst_admin) = key
 			left = 'entities:%s' % src_admin
 			right = 'entities:%s' % via_admin
+			if src_admin == '10.10.4.32':
+				env.logger.error("from %s to %s" % (src_admin, via_admin))
 			
 			left_labels = []
 			if route.src_interface:
@@ -542,17 +557,24 @@ class Poll(object):
 				predicate = "options.routes selection.name 'map' == and"
 				add_relation(data, left, right, style, middle_labels = [{'label': 'next hop', 'level': 1, 'style': 'font-size:x-small'}], predicate = predicate)
 		
+	# TODO:
+	# source should handle downstream
+	#    if device is the source then add a link to route (assuming we have just one)
 	def __add_mroutes(self, data, devices):
+		routes = []
 		for device in devices:
 			for route in device.mroutes:
-				if route.source != '0.0.0.0':		# TODO: need to special case this for the origin router
+				name = '%s_from_%s' % (route.group, self.device_name(devices, device, route.source))
+				predicate = "options.%s" % name
+				style = 'line-type:directed'
+				add_if_missing(routes, (route.group, route.source, name, predicate))
+				
+				# handle upstream from mroute
+				if route.source != '0.0.0.0':
 					up_admin_ip = self.admin_ip_by_subnet(devices, device, route.upstream, 0xFFFFFFFF)
 					if up_admin_ip:
-						name = '%s_from_%s' % (route.group, route.source)
-						style = 'line-type:directed'
 						left = 'entities:%s' % up_admin_ip
 						right = 'entities:%s' % route.admin_ip
-						predicate = "options.%s" % name
 						
 						middle_labels = []
 						if route.label1:
@@ -562,6 +584,48 @@ class Poll(object):
 						if route.label3:
 							middle_labels.append({'label': route.label3, 'level': 3, 'style': 'font-size:x-small'})
 						add_relation(data, left, right, style, middle_labels = middle_labels, predicate = predicate)
+						
+				# handle downstream from igmp
+				for igmp in device.igmps:
+					if igmp.group == route.group:
+						reporter_admin_ip = self.admin_ip_by_subnet(devices, device, igmp.reporter, 0xFFFFFFFF)
+						if reporter_admin_ip:
+							left = 'entities:%s' % device.admin_ip
+							right = 'entities:%s' % reporter_admin_ip
+							
+							middle_labels = []
+							if igmp.age:
+								middle_labels.append({'label': secs_to_str(igmp.age) + " old", 'level': 1, 'style': 'font-size:x-small'})
+							middle_labels.append({'label': 'igmp', 'level': 2, 'style': 'font-size:x-small'})
+							add_relation(data, left, right, style, middle_labels = middle_labels, predicate = predicate)
+							
+		# handle upstream from source
+		for (group, source, name, predicate) in routes:
+			for candidate in devices:
+				if candidate.find_ip(source):
+					vias = [r for r in candidate.routes if r.via_ip and r.via_ip != '0.0.0.0']
+					if len(set(vias)) == 1:
+						left = 'entities:%s' % candidate.admin_ip
+						right = 'entities:%s' % vias[0].dst_admin_ip
+						
+						middle_labels = [{'label': 'gateway', 'level': 2, 'style': 'font-size:x-small'}]
+						add_relation(data, left, right, 'line-type:directed', middle_labels = middle_labels, predicate = predicate)
+					break
+		
+	def __add_igmp(self, data, devices):
+		for device in devices:
+			for igmp in device.igmps:
+				reporter_admin_ip = self.admin_ip_by_subnet(devices, device, igmp.reporter, 0xFFFFFFFF)
+				if reporter_admin_ip:
+					style = 'line-type:directed'
+					left = 'entities:%s' % device.admin_ip
+					right = 'entities:%s' % reporter_admin_ip
+					
+					middle_labels = []
+					if igmp.age:
+						middle_labels.append({'label': secs_to_str(igmp.age) + " old", 'level': 1, 'style': 'font-size:x-small'})
+					middle_labels.append({'label': igmp.group, 'level': 2, 'style': 'font-size:x-small'})
+					add_relation(data, left, right, style, middle_labels = middle_labels, predicate = "options.igmp")
 		
 	def __add_network_ips(self, data, devices):
 		rows = []
