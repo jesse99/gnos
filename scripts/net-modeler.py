@@ -453,24 +453,16 @@ class Poll(object):
 					if route.dst_admin_ip and device.admin_ip != via_admin:
 						key = (device.admin_ip, via_admin, route.dst_admin_ip)
 						routes[key] = route
-						if device.name == 'DDG':
-							env.logger.error("admin1: %s dst: %s, via: %s," % (device.admin_ip, route.dst_admin_ip, via_admin))
-							env.logger.error("    dst: %s, via: %s" % (route.dst_subnet, route.via_ip))
 				elif route.dst_admin_ip:
 					# If the netmask is all ones then this will be a direct link to a peer machine.
 					# Otherwise it is used when forwarding to a device on an attached subnet.
 					key = (device.admin_ip, route.dst_admin_ip, route.dst_admin_ip)
 					routes[key] = route
-					if device.name =='DDG':
-						env.logger.error("admin2: %s, dst: %s, via: %s" % (device.admin_ip, route.dst_admin_ip, route.dst_admin_ip))
-						env.logger.error("    dst: %s, via: %s" % (route.dst_subnet, route.via_ip))
 				
 		for (key, route) in routes.items():
 			(src_admin, via_admin, dst_admin) = key
 			left = 'entities:%s' % src_admin
 			right = 'entities:%s' % via_admin
-			if src_admin == '10.10.4.32':
-				env.logger.error("from %s to %s" % (src_admin, via_admin))
 			
 			left_labels = []
 			if route.src_interface:
@@ -557,9 +549,6 @@ class Poll(object):
 				predicate = "options.routes selection.name 'map' == and"
 				add_relation(data, left, right, style, middle_labels = [{'label': 'next hop', 'level': 1, 'style': 'font-size:x-small'}], predicate = predicate)
 		
-	# TODO:
-	# source should handle downstream
-	#    if device is the source then add a link to route (assuming we have just one)
 	def __add_mroutes(self, data, devices):
 		routes = []
 		for device in devices:
