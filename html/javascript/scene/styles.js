@@ -53,9 +53,9 @@ function apply_styles(context, styles)
 	});
 	
 	if (context.arrow_width === undefined)
-		context.arrow_width = 12 + context.lineWidth;
+		context.arrow_width = 8 + context.lineWidth;
 	if (context.arrow_height === undefined)
-		context.arrow_height = 15 + context.lineWidth;
+		context.arrow_height = 10 + context.lineWidth;
 	
 	context.font_parts[1] = context.font_parts[1].toFixed();
 	context.font_parts[2] = context.font_parts[2].toFixed() + 'pt';
