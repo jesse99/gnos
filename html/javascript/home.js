@@ -695,8 +695,17 @@ function map_renderer(element, model, model_names)
 		// This is the only place where we know all of the levels of the entity infos.
 		// If the range has changed we update the slider accordingly. (It's a bit weird
 		// that we also use the slider value here but we can't do better).
-		GNOS.entity_detail.max = max_entity;
-		show(['#entity_detail', '#entity_detail_label'], max_entity !== 0);
+		if (max_entity > 0)
+		{
+			GNOS.entity_detail.max = max_entity;
+			show(['#entity_detail', '#entity_detail_label'], true);
+		}
+		else
+		{
+			// We don't reset the max value so that it will be legit next time
+			// around (assuming we get entities with details then).
+			show(['#entity_detail', '#entity_detail_label'], false);
+		}
 		
 		return nodes;
 	}
