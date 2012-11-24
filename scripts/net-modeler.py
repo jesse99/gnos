@@ -73,6 +73,8 @@ def send_entities(connection):
 	relations = []
 	for (name, device) in env.config["devices"].items():
 		style = "font-weight:bolder"
+		if '-host' in device['mibs']:		# TODO: probably should have a dedicated device type field
+			style += ' frame-back-color:lavender'
 		entity = {"id": device['ip'], "label": name, "style": style}
 		env.logger.debug("entity: %s" % entity)
 		entities.append(entity)
@@ -178,6 +180,9 @@ class Poll(object):
 			address = "%s:%s" % (env.config['server'], env.config['port'])
 			self.__connection = httplib.HTTPConnection(address, strict = True, timeout = 10)
 	
+	# Note that this processing takes a neglible amount of time (less than a tenth of a second).
+	# All the time is spent in run_process waiting for the results of the snmp commands (together
+	# these take 5s for a network with 6 cisco routers and 8 linux hosts).
 	def run(self):
 		try:
 			if self.__connection:
