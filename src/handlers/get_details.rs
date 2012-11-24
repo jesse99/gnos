@@ -11,7 +11,13 @@ pub fn get_details(options: &options::Options, request: &server::Request, respon
 	
 	// subject will be something like entities/10.103.0.2
 	let i = str::rfind_char(*subject, '/');
-	response.context.insert(@~"label", mustache::Str(@subject.slice(i.get()+1, subject.len())));
+	let mut label = subject.slice(i.get()+1, subject.len());
+	let m = vec::position(options.devices, |d| {d.managed_ip == label});
+	if m.is_some()
+	{
+		label = fmt!("%s %s", options.devices[m.get()].name, label);
+	}
+	response.context.insert(@~"label", mustache::Str(@label));
 	error!("sending response");
 	
 	server::Response {template: ~"details.html", ..*response}
