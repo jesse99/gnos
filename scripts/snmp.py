@@ -625,20 +625,6 @@ def process_igmp(data, contents, query):
 # PIM-MIB::pimNeighborExpiryTime[17.11.12.11] 2850
 # PIM-MIB::pimNeighborMode[17.11.12.11] dense
 # 
-# key = [pimRPGroupAddress][pimRPAddress]
-# PIM-MIB::pimRPState[226.3.1.0][172.20.12.113] up
-# PIM-MIB::pimRPStateTimer[226.3.1.0][172.20.12.113] 24599
-# PIM-MIB::pimRPLastChange[226.3.1.0][172.20.12.113] 56394
-# PIM-MIB::pimRPRowStatus[226.3.1.0][172.20.12.113] active
-# PIM-MIB::pimRPSetHoldTime[1][224.0.0.0][240.0.0.0][172.20.12.113] 0
-# PIM-MIB::pimRPSetExpiryTime[1][224.0.0.0][240.0.0.0][172.20.12.113] 0
-# 
-# key = [pimComponentIndex]
-# PIM-MIB::pimComponentBSRAddress[1] 172.20.12.113
-# PIM-MIB::pimComponentBSRExpiryTime[1] 12202
-# PIM-MIB::pimComponentCRPHoldTime[1] 0
-# PIM-MIB::pimComponentStatus[1] active
-# 
 # key = [pimInterfaceIfIndex]
 # PIM-MIB::pimInterfaceAddress[6] 172.20.12.62
 # PIM-MIB::pimInterfaceMode[6] dense
@@ -667,6 +653,27 @@ def process_pim(data, contents, query):
 	for (ifindex, hello) in hellos.items():
 		if statuses.get(ifindex, '') == 'active':
 			query.device.pim_hellos[ifindex] = hello
+	
+# key = [pimRPSetComponent][pimRPSetGroupAddress][pimRPSetGroupMask][pimRPSetAddress]
+# PIM-MIB::pimRPSetHoldTime[1][224.0.0.0][240.0.0.0][172.20.12.113] 0
+# PIM-MIB::pimRPSetExpiryTime[1][224.0.0.0][240.0.0.0][172.20.12.113] 0
+def process_pim_rp(data, contents, query):
+	times = get_values4(contents, "pimRPSetHoldTime")
+	for (key, time) in times.items():
+		(component, group, mask, rp) = key
+		query.device.pim_rps.append(rp)
+	
+# key = [pimComponentIndex]
+# PIM-MIB::pimComponentBSRAddress[1] 172.20.12.113
+# PIM-MIB::pimComponentBSRExpiryTime[1] 12202
+# PIM-MIB::pimComponentCRPHoldTime[1] 0
+# PIM-MIB::pimComponentStatus[1] active
+def process_pim_component(data, contents, query):
+	bsrs = get_values1(contents, "pimComponentBSRAddress")
+	statuses = get_values1(contents, "pimComponentStatus")
+	for (component, bsr) in bsrs.items():
+		if statuses.get(component, '') == 'active':
+			query.device.pim_bsrs.append(bsr)
 	
 # key = [hrDeviceIndex ]
 # HOST-RESOURCES-MIB::hrDeviceIndex[768] 768
@@ -837,6 +844,8 @@ class QueryDevice(object):
 				add_if_missing(self.__mibs, 'ospfIfTable')
 				add_if_missing(self.__mibs, 'ipMRouteTable')
 				add_if_missing(self.__mibs, 'pim')
+				add_if_missing(self.__mibs, 'pimRPSetTable')
+				add_if_missing(self.__mibs, 'pimComponentTable')
 				add_if_missing(self.__mibs, 'igmpCacheTable')
 			elif mib == 'linux-router':
 				add_if_missing(self.__mibs, 'ipRouteTable')		# TODO: probably want to add ospf and pim mibs
@@ -870,6 +879,8 @@ class QueryDevice(object):
 			'ospfIfTable': process_ospf_interfaces,
 			'ipMRouteTable': process_mroute,
 			'pim': process_pim,
+			'pimRPSetTable': process_pim_rp,
+			'pimComponentTable': process_pim_component,
 			'ifXTable': process_ifX,
 			'igmpCacheTable': process_igmp,
 		}

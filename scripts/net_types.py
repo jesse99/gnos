@@ -92,8 +92,13 @@ class Device(object):
 		self.mroutes = []			# [MRoute]
 		self.igmps = []				# [Igmp]
 		self.pim_hellos = {}		# {ifindex => seconds}
+		self.pim_rps = []			# rendezvous points
+		self.pim_bsrs = []			# boot-strap routers
 		self.ospf_hellos = {}		# {device ip => seconds}
 		self.ospf_deads = {}		# {device ip => seconds}
+		
+		self.is_rp = False
+		self.is_bsr = False
 	
 	@property
 	def name(self):
