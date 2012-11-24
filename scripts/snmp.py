@@ -492,21 +492,22 @@ def process_mempool(data, contents, query):
 # OSPF-MIB::ospfLsdbAdvertisement[0.0.0.0][routerLink][172.20.254.10][172.20.254.10] "00 00..."
 def process_ospf_lsdb(data, contents, query):
 	#dump_snmp(query.device.admin_ip, 'ospf', contents)
-	ips = get_values4(contents, "ospfLsdbLsid")
+	areas = get_values4(contents, "ospfLsdbAreaId")			# we don't actually use this, but have seen Ciscos where this is the only one available
 	ages = get_values4(contents, "ospfLsdbAge")
-	types = get_values4(contents, "ospfLsdbType")
-	for (key, peer_ip) in ips.items():
+	for (key, area) in areas.items():
+		(area_id, kind, peer_ip, router_id) = key
+		
 		link = Link()
 		link.admin_ip = query.device.admin_ip
 		link.predicate = "options.ospf selection.name 'map' == and"
 		link.peer_ip = peer_ip
-		link.label1 = types.get(key, '')
+		link.label1 = kind
 		age = ages.get(key, '')
 		if age:
 			link.label1 = "%s old" % secs_to_str(int(age))
 		
 		# Lots of other types are possible but we really only want to show links to routers.
-		if types.get(key, '') == 'routerLink':
+		if kind == 'routerLink':
 			query.device.links.append(link)
 	
 # key = [ospfIfIpAddress][ospfAddressLessIf]
