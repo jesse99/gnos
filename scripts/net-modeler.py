@@ -285,20 +285,20 @@ class Poll(object):
 				if route.via_ip != None and route.via_ip != '0.0.0.0':
 					route.via_interface = interface_by_device_ip(devices, route.via_ip)
 				if route.dst_subnet and route.dst_mask:
-					route.dst_admin_ip = self.admin_ip_by_subnet(devices, device, route.dst_subnet, ip_to_int(route.dst_mask))
+					route.dst_admin_ips = self.admin_ip_by_subnet(devices, device, route.dst_subnet, ip_to_int(route.dst_mask), 'all')
 		
-	def admin_ip_by_subnet(self, devices, src_device, network_ip, netmask):
+	def admin_ip_by_subnet(self, devices, src_device, network_ip, netmask, flags = ''):
 		candidates = []
 		
-		if network_ip and network_ip != '0.0.0.0':
+		subnet = ip_to_int(network_ip) & netmask
+		if network_ip and (subnet == 0 or subnet != ip_to_int(src_device.admin_ip) & netmask):	# admin network is not there for the devices so don't return results for it
 			# First try the devices we don't know about (these are the devices we want to use when 
 			# forwarding to a device on an attached subnet).
-			subnet = ip_to_int(network_ip) & netmask
 			for (name, device) in env.config["devices"].items():
 				if device['type'] != 'snmp' and device['type'] != 'linux_ssh':
 					candidate = ip_to_int(device['ip']) & netmask
-					if candidate == subnet:
-						candidates.append(device['ip'])
+					if subnet == 0 or candidate == subnet:
+						add_if_missing(candidates, device['ip'])
 			
 			# Then try to find a device we do know about that isn't src_admin.
 			# This will tend to be the direct link to a peer machine case.
@@ -306,10 +306,12 @@ class Poll(object):
 				for interface in device.interfaces:
 					if interface.ip:
 						candidate = ip_to_int(interface.ip) & netmask
-						if candidate == subnet and device.admin_ip != src_device.admin_ip:
-							candidates.append(device.admin_ip)
+						if subnet == 0 or (candidate == subnet and device.admin_ip != src_device.admin_ip):
+							add_if_missing(candidates, device.admin_ip)
 		
-		if len(candidates) == 1:
+		if flags == 'all':
+			return candidates
+		elif len(candidates) == 1:
 			return candidates[0]
 		else:
 			return None
@@ -450,14 +452,16 @@ class Poll(object):
 				if route.via_interface:
 					# Used when forwarding (through a router or through an interface and locally to the router).
 					via_admin = route.via_interface.admin_ip
-					if route.dst_admin_ip and device.admin_ip != via_admin:
-						key = (device.admin_ip, via_admin, route.dst_admin_ip)
-						routes[key] = route
-				elif route.dst_admin_ip:
+					for dst in route.dst_admin_ips:
+						if dst != via_admin:
+							key = (device.admin_ip, via_admin, dst)
+							routes[key] = route
+				else:
 					# If the netmask is all ones then this will be a direct link to a peer machine.
 					# Otherwise it is used when forwarding to a device on an attached subnet.
-					key = (device.admin_ip, route.dst_admin_ip, route.dst_admin_ip)
-					routes[key] = route
+					for dst in route.dst_admin_ips:
+						key = (device.admin_ip, dst, dst)
+						routes[key] = route
 				
 		for (key, route) in routes.items():
 			(src_admin, via_admin, dst_admin) = key
@@ -488,31 +492,31 @@ class Poll(object):
 			add_relation(data, left, right, 'line-type:directed line-color:blue line-width:3', left_labels = left_labels, middle_labels = middle_labels, right_labels = right_labels, predicate = predicate)
 		
 	def __add_link_relations(self, data, devices):
-		links = {}			# (src admin ip, peer admin ip) => Link
+		links = {}			# (src admin ip, peer admin ip, predicate) => Link
 		for device in devices:
 			for link in device.links:
 				if link.peer_ip:
 					peer_admin_ip = self.admin_ip_by_subnet(devices, device, link.peer_ip, 0xFFFFFFFF)
+					if link.predicate == "options.ospf selection.name 'map' == and":
+						print '%s: %s => %s' % (link.admin_ip, link.peer_ip, peer_admin_ip)
 					if peer_admin_ip:
-						links[(link.admin_ip, peer_admin_ip)] = link
+						links[(link.admin_ip, peer_admin_ip, link.predicate)] = link
 					else:
 						env.logger.error("Couldn't find link to %s on %s" % (link.peer_ip, link.admin_ip))
 		
 		for (key, link) in links.items():
-			(src_admin, peer_admin) = key
+			(src_admin, peer_admin, predicate) = key
 			style = None
 			left_labels = []
-			if (peer_admin, src_admin) in links:
+			if (peer_admin, src_admin, predicate) in links:
 				if src_admin < peer_admin:
 					style = 'line-type:bidirectional'
-					left_labels.append({'label': links[(peer_admin, src_admin)].peer_ip, 'level': 3, 'style': 'font-size:xxx-small'})
+					left_labels.append({'label': links[(peer_admin, src_admin, predicate)].peer_ip, 'level': 3, 'style': 'font-size:xxx-small'})
 			else:
 				style = 'line-type:directed line-color:red'
-			right_labels = [{'label': link.peer_ip, 'level': 3, 'style': 'font-size:xxx-small'}]
 			if style:
 				left = 'entities:%s' % src_admin
 				right = 'entities:%s' % peer_admin
-				predicate = link.predicate
 				middle_labels = []
 				if link.label1:
 					middle_labels.append({'label': link.label1, 'level': 1, 'style': 'font-size:x-small'})
@@ -520,6 +524,7 @@ class Poll(object):
 					middle_labels.append({'label': link.label2, 'level': 2, 'style': 'font-size:x-small'})
 				if link.label3:
 					middle_labels.append({'label': link.label3, 'level': 3, 'style': 'font-size:x-small'})
+				right_labels = [{'label': link.peer_ip, 'level': 3, 'style': 'font-size:xxx-small'}]
 				add_relation(data, left, right, style, left_labels = left_labels, middle_labels = middle_labels, right_labels = right_labels, predicate = predicate)
 		
 	def __add_next_hop_relations(self, data, devices):
@@ -531,9 +536,10 @@ class Poll(object):
 					via_admin = route.via_interface.admin_ip
 					if src_admin != via_admin:
 						routes[(src_admin, via_admin)] = route
-				elif route.dst_admin_ip and route.src_interface:
-					src_admin = route.src_interface.admin_ip
-					routes[(src_admin, route.dst_admin_ip)] = route
+				elif route.src_interface:
+					for dst in route.dst_admin_ips:
+						src_admin = route.src_interface.admin_ip
+						routes[(src_admin, dst)] = route
 		
 		for (key, route) in routes.items():
 			(src_admin, via_admin) = key
@@ -553,49 +559,50 @@ class Poll(object):
 		routes = []
 		for device in devices:
 			for route in device.mroutes:
-				name = '%s_from_%s' % (route.group, self.device_name(devices, device, route.source))
-				predicate = "options.%s" % name
-				style = 'line-type:directed'
-				add_if_missing(routes, (route.group, route.source, name, predicate))
-				
-				# handle upstream from mroute
 				if route.source != '0.0.0.0':
-					up_admin_ip = self.admin_ip_by_subnet(devices, device, route.upstream, 0xFFFFFFFF)
-					if up_admin_ip:
-						left = 'entities:%s' % up_admin_ip
-						right = 'entities:%s' % route.admin_ip
-						
-						middle_labels = []
-						if route.label1:
-							middle_labels.append({'label': route.label1, 'level': 1, 'style': 'font-size:x-small'})
-						if route.label2:
-							middle_labels.append({'label': route.label2, 'level': 2, 'style': 'font-size:x-small'})
-						if route.label3:
-							middle_labels.append({'label': route.label3, 'level': 3, 'style': 'font-size:x-small'})
-						add_relation(data, left, right, style, middle_labels = middle_labels, predicate = predicate)
-						
-				# handle downstream from igmp
-				for igmp in device.igmps:
-					if igmp.group == route.group:
-						reporter_admin_ip = self.admin_ip_by_subnet(devices, device, igmp.reporter, 0xFFFFFFFF)
-						if reporter_admin_ip:
-							left = 'entities:%s' % device.admin_ip
-							right = 'entities:%s' % reporter_admin_ip
+					name = '%s_from_%s' % (route.group, self.device_name(devices, device, route.source))
+					predicate = "options.%s" % name
+					style = 'line-type:directed'
+					add_if_missing(routes, (route.group, route.source, name, predicate))
+					
+					# handle upstream from mroute
+					if route.source != '0.0.0.0':
+						up_admin_ip = self.admin_ip_by_subnet(devices, device, route.upstream, 0xFFFFFFFF)
+						if up_admin_ip:
+							left = 'entities:%s' % up_admin_ip
+							right = 'entities:%s' % route.admin_ip
 							
 							middle_labels = []
-							if igmp.age:
-								middle_labels.append({'label': secs_to_str(igmp.age) + " old", 'level': 1, 'style': 'font-size:x-small'})
-							middle_labels.append({'label': 'igmp', 'level': 2, 'style': 'font-size:x-small'})
+							if route.label1:
+								middle_labels.append({'label': route.label1, 'level': 1, 'style': 'font-size:x-small'})
+							if route.label2:
+								middle_labels.append({'label': route.label2, 'level': 2, 'style': 'font-size:x-small'})
+							if route.label3:
+								middle_labels.append({'label': route.label3, 'level': 3, 'style': 'font-size:x-small'})
 							add_relation(data, left, right, style, middle_labels = middle_labels, predicate = predicate)
+							
+					# handle downstream from igmp
+					for igmp in device.igmps:
+						if igmp.group == route.group:
+							reporter_admin_ip = self.admin_ip_by_subnet(devices, device, igmp.reporter, 0xFFFFFFFF)
+							if reporter_admin_ip:
+								left = 'entities:%s' % device.admin_ip
+								right = 'entities:%s' % reporter_admin_ip
+								
+								middle_labels = []
+								if igmp.age:
+									middle_labels.append({'label': secs_to_str(igmp.age) + " old", 'level': 1, 'style': 'font-size:x-small'})
+								middle_labels.append({'label': 'igmp', 'level': 2, 'style': 'font-size:x-small'})
+								add_relation(data, left, right, style, middle_labels = middle_labels, predicate = predicate)
 							
 		# handle upstream from source
 		for (group, source, name, predicate) in routes:
 			for candidate in devices:
 				if candidate.find_ip(source):
-					vias = [r for r in candidate.routes if r.via_ip and r.via_ip != '0.0.0.0']
-					if len(set(vias)) == 1:
+					vias = [r for r in candidate.routes if r.via_ip and r.via_ip != '0.0.0.0' and r.via_interface]
+					for v in vias:
 						left = 'entities:%s' % candidate.admin_ip
-						right = 'entities:%s' % vias[0].dst_admin_ip
+						right = 'entities:%s' % v.via_interface.admin_ip
 						
 						middle_labels = [{'label': 'gateway', 'level': 2, 'style': 'font-size:x-small'}]
 						add_relation(data, left, right, 'line-type:directed', middle_labels = middle_labels, predicate = predicate)

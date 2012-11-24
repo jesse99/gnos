@@ -46,7 +46,7 @@ class Route(object):
 		
 		self.src_interface = None
 		self.via_interface = None
-		self.dst_admin_ip = None
+		self.dst_admin_ips = []	# subnet may match multiple devices
 	
 	def __repr__(self):
 		return '%s via %s' % (self.dst_subnet or '?', self.via_ip or '?')
