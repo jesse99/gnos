@@ -109,3 +109,43 @@ def run_process(command):
 			env.logger.debug("stderr: '%s'" % errData)
 	return outData
 
+def configure_logging(use_stdout, file_name):
+	global env
+	env.logger = logging.getLogger(file_name)
+	if env.options.verbose <= 1:
+		env.logger.setLevel(logging.WARNING)
+	elif env.options.verbose == 2:
+		env.logger.setLevel(logging.INFO)
+	else:
+		env.logger.setLevel(logging.DEBUG)
+		
+	if use_stdout:
+		handler = logging.StreamHandler()
+		formatter = logging.Formatter('%(asctime)s  %(message)s', datefmt = '%I:%M:%S')
+	else:
+		# Note that we don't use SysLogHandler because, on Ubuntu at least, /etc/default/syslogd
+		# has to be configured to accept remote logging requests.
+		handler = logging.FileHandler(file_name, mode = 'w')
+		formatter = logging.Formatter('%(asctime)s  %(message)s', datefmt = '%m/%d %I:%M:%S %p')
+	handler.setFormatter(formatter)
+	env.logger.addHandler(handler)
+
+def send_update(connection, data):
+	env.logger.debug("sending update")
+	env.logger.debug("%s" % json.dumps(data, sort_keys = True, indent = 4))
+	if connection:
+		try:
+			body = json.dumps(data)
+			headers = {"Content-type": "application/json", "Accept": "text/html"}
+			
+			connection.request("PUT", env.config['path'], body, headers)
+			response = connection.getresponse()
+			response.read()			# we don't use this but we must call it (or, on the second call, we'll get ResponseNotReady errors)
+			if not str(response.status).startswith('2'):
+				env.logger.error("Error PUTing: %s %s" % (response.status, response.reason))
+				raise Exception("PUT failed")
+		except Exception as e:
+			address = "%s:%s" % (env.config['server'], env.config['port'])
+			env.logger.error("Error PUTing to %s:%s: %s" % (address, env.config['path'], e), exc_info = type(e) != socket.error)
+			raise Exception("PUT failed")
+
