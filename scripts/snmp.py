@@ -902,7 +902,6 @@ class QueryDevice(object):
 					self.__results[name] = result
 		except:
 			env.logger.error("snmpwalk failed for %s" % self.device.admin_ip, exc_info = True)
-			pass
 	
 	def process(self, data):
 		target = 'entities:%s' % self.device.admin_ip

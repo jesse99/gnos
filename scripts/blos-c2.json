@@ -31,7 +31,7 @@
 			"links": ["GCE-RTR", "CAP2-IMG", "CAP2-AID"],
 			"authentication": "-v3 -m all -u net_user -l authPriv -a md5 -A authpass -x des -X privpass",
 			"mibs": "cisco-router",
-			"modeler": "net-modeler.py",
+			"modeler": "invert-modeler.py",
 			"type": "snmp"
 		},
 		"GCE-RTR":
