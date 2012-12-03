@@ -91,15 +91,15 @@ priv fn get_shutdown(cleanup: ~[ExitFn]) -> !
 priv fn update_globals(store: &Store, options: &options::Options) -> bool
 {
 	store.add(~"gnos:globals", ~[
-		(~"gnos:admin", BoolValue(true)),		// TODO: get this from a setting
-		(~"gnos:debug", BoolValue(true)),		// TODO: get this from command line
+		(~"gnos:admin", @BoolValue(true)),		// TODO: get this from a setting
+		(~"gnos:debug", @BoolValue(true)),		// TODO: get this from command line
 	]);
 	
-	let devices = vec::zip(vec::from_elem(options.devices.len(), ~"gnos:device"), do options.devices.map |n| {StringValue(copy n.managed_ip, ~"")});
+	let devices = vec::zip(vec::from_elem(options.devices.len(), ~"gnos:device"), do options.devices.map |n| {@StringValue(copy n.managed_ip, ~"")});
 	store.add(~"gnos:globals", devices);
 	
 	let names = model::get_standard_store_names();
-	let stores = vec::zip(vec::from_elem(names.len(), ~"gnos:store"), do names.map |n| {StringValue(n.to_unique(), ~"")});
+	let stores = vec::zip(vec::from_elem(names.len(), ~"gnos:store"), do names.map |n| {@StringValue(n.to_unique(), ~"")});
 	store.add(~"gnos:globals", stores);
 	
 	true

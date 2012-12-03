@@ -18,7 +18,7 @@ all: bin/gnos lint-js
 # gnos doesn't return so we start the client before the browser.
 run: bin/gnos lint-js
 	#export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace && export GNOS_USER && ./bin/gnos --admin --root=html --browse='http://localhost:8080' scripts/fat.json
-	export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace=3 && export GNOS_USER && ./bin/gnos --admin --root=html --browse='http://localhost:8080' scripts/blos-c2.json
+	export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace=4 && export GNOS_USER && ./bin/gnos --admin --root=html --browse='http://localhost:8080' scripts/blos-c2.json
 
 run-net:
 	$(SCP) scripts/*.json scripts/*.py jjones@10.4.0.3: && ssh jjones@10.4.0.3 "python net-modeler.py -vvvv --stdout  --dont-put --duration=0 mini-c2.json"
@@ -27,7 +27,10 @@ run-invert:
 	$(SCP) scripts/*.json scripts/*.py jjones@10.4.0.3: && ssh jjones@10.4.0.3 "python invert-modeler.py -vvvv --stdout  --dont-put --duration=0 blos-c2.json"
 
 run-db: bin/gnos lint-js
-	export RUST_LOG=gnos=2,rwebserve=1,socket=1,rrdf=0,::rt::backtrace=3 && export GNOS_USER && ./bin/gnos --admin --root=html --db scripts/fat.json --browse='http://localhost:8080'
+	export RUST_LOG=gnos=2,rwebserve=1,socket=1,rrdf=0,::rt::backtrace=4 && export GNOS_USER && ./bin/gnos --admin --root=html --db scripts/fat.json --browse='http://localhost:8080'
+
+profile: bin/gnos lint-js
+	export RUST_LOG=gnos=1 && export GNOS_USER && export RUST_MIN_STACK=1048576 && ./bin/gnos --admin --root=html --browse='http://localhost:8080' scripts/blos-c2.json
 
 lint-js: html/javascript/*.js html/javascript/scene/*.js
 	$(JSL) -nologo -nofilelisting -nocontext -conf jsl.conf -process 'html/javascript/*.js' -process 'html/javascript/scene/*.js'

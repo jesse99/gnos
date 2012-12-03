@@ -4,15 +4,24 @@ use rrdf::rrdf::*;
 use model::*;
 use Namespace = rrdf::solution::Namespace;
 
+pub fn check_strs(actual: ~str, expected: ~str) -> bool
+{
+	if actual != expected
+	{
+		io::stderr().write_line(fmt!("Found '%s', but expected '%s'", actual, expected));
+		return false;
+	}
+	return true;
+}
+
 fn check_solutions(actual: &Solution, expected: &Solution) -> bool
 {
 	fn print_result(value: &Solution)
 	{
-		for vec::eachi(value.rows)
-		|i, row|
+		for vec::eachi(value.rows) |i, row|
 		{
 			let mut entries = ~[];
-			for row.each |e| {vec::push(&mut entries, fmt!("%s = %s", e.first(), e.second().to_str()))};
+			for row.eachi |j, e| {vec::push(&mut entries, fmt!("%s = %s", value.bindings[j], e.to_str()))};
 			io::stderr().write_line(fmt!("   %?: %s", i, str::connect(entries, ~", ")));
 		};
 	}
@@ -27,56 +36,43 @@ fn check_solutions(actual: &Solution, expected: &Solution) -> bool
 	}
 	
 	// OK if they are both empty.
-	if vec::is_empty(actual.rows) && vec::is_empty(expected.rows)
+	if actual.rows.is_empty() && expected.rows.is_empty()
 	{
 		return true;
 	}
 	
 	// Both sides should have the same number of rows.
-	if vec::len(actual.rows) != vec::len(expected.rows)
+	if actual.rows.len() != expected.rows.len()
 	{
 		print_failure(#fmt["Actual result had %? rows but expected %? rows.", 
-			vec::len(actual.rows), vec::len(expected.rows)], actual, expected);
+			actual.rows.len(), expected.rows.len()], actual, expected);
 		return false;
 	}
 	
 	// Actual should have only the expected values.
-	for vec::eachi(actual.rows)
-	|i, row1|
+	for vec::eachi(actual.rows) |i, row1|
 	{
 		let row2 = copy expected.rows[i];
-		if vec::len(*row1) != vec::len(row2)
+		if actual.num_selected != row2.len()
 		{
 			print_failure(#fmt["Row %? had size %? but expected %?.",
-				i, vec::len(*row1), vec::len(row2)], actual, expected);
+				i, row1.len(), row2.len()], actual, expected);
 			return false;
 		}
 		
-		for row1.each
-		|entry1|
+		for uint::range(0, actual.num_selected) |j|
 		{
-			let name1 = entry1.first();
-			let value1 = entry1.second();
-			match row2.search(name1)
+			let name1 = &actual.bindings[j];
+			let value1 = row1[j];
+			let value2 = row2[j];
+			if value1 != value2
 			{
-				option::Some(ref value2) =>
-				{
-					if value1 != *value2
-					{
-						print_failure(#fmt["Row %? actual %s was %s but expected %s.",
-							i, name1, value1.to_str(), value2.to_str()], actual, expected);
-						return false;
-					}
-				}
-				option::None =>
-				{
-					print_failure(#fmt["Row %? had unexpected ?%s.",
-						i, name1], actual, expected);
-					return false;
-				}
+				print_failure(#fmt["Row %? actual %s was %s but expected %s.",
+					i, *name1, value1.to_str(), value2.to_str()], actual, expected);
+				return false;
 			}
-		};
-	};
+		}
+	}
 	
 	return true;
 }
@@ -114,7 +110,7 @@ fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
 						{
 							let key = get_str(*entry, 0);
 							let value = get_str(*entry, 1);
-							store.replace_triple(~[], {subject: copy subject, predicate: ~"gnos:" + key, object: StringValue(value, ~"")});
+							store.replace_triple(~[], {subject: copy subject, predicate: ~"gnos:" + key, object: @StringValue(value, ~"")});
 						}
 						ref y =>
 						{
@@ -159,24 +155,19 @@ WHERE
 	
 	// store starts out empty
 	let solution = query_chan.recv();
-	assert check_solutions(&solution, &Solution {namespaces: ~[], rows: ~[
-	]});
+	assert check_strs(solution.to_str(), ~"[]");
 	
 	// after adding ttl can query for it
 	update(state_chan, ~[(~"ttl", ~"50")]);
 	comm::send(state_chan, QueryMsg(~"primary", copy query, query_chan));
 	let solution = query_chan.recv();
-	assert check_solutions(&solution, &Solution {namespaces: ~[], rows: ~[
-		~[(~"ttl", StringValue(~"50", ~""))],
-	]});
+	assert check_strs(solution.to_str(), ~"[{\"ttl\":\"50\"}]");
 	
 	// after changing ttl can query for it
 	update(state_chan, ~[(~"ttl", ~"75")]);
 	comm::send(state_chan, QueryMsg(~"primary", query, query_chan));
 	let solution = query_chan.recv();
-	assert check_solutions(&solution, &Solution {namespaces: ~[], rows: ~[
-		~[(~"ttl", StringValue(~"75", ~""))],
-	]});
+	assert check_strs(solution.to_str(), ~"[{\"ttl\":\"75\"}]");
 	
 	// only get a solution after a change if we request it
 	update(state_chan, ~[(~"ttl", ~"80")]);
@@ -218,20 +209,15 @@ WHERE
 	
 	// get solutions on registration,
 	let solutions = ttl_chan.recv().get();
-	assert check_solutions(&solutions[0], &Solution {namespaces: ~[], rows: ~[
-	]});
+	assert check_strs(solutions.to_str(), ~"[]");
 	
 	let solutions = fwd_chan.recv().get();
-	assert check_solutions(&solutions[0], &Solution {namespaces: ~[], rows: ~[
-	]});
+	assert check_strs(solutions.to_str(), ~"[]");
 	
 	// and when the query results change
 	update(state_chan, ~[(~"ttl", ~"50")]);
 	let solutions = ttl_chan.recv().get();
-	assert solutions.len() == 1;
-	assert check_solutions(&solutions[0], &Solution {namespaces: ~[], rows: ~[
-		~[(~"ttl", StringValue(~"50", ~""))],
-	]});
+	assert check_strs(solutions.to_str(), ~"[{\"ttl\":\"50\"}]");
 	
 	comm::send(state_chan, SyncMsg(sync_chan)); sync_chan.recv();
 	assert !fwd_chan.peek();
@@ -273,16 +259,12 @@ WHERE
 	
 	// get solutions on registration,
 	let solutions = ttl_chan.recv().get();
-	assert check_solutions(&solutions[0], &Solution {namespaces: ~[], rows: ~[
-	]});
+	assert check_strs(solutions.to_str(), ~"[]");
 	
 	// and when the query results change
 	update(state_chan, ~[(~"ttl", ~"50")]);
 	let solutions = ttl_chan.recv().get();
-	assert solutions.len() == 1;
-	assert check_solutions(&solutions[0], &Solution {namespaces: ~[], rows: ~[
-		~[(~"ttl", StringValue(~"50", ~""))],
-	]});
+	assert check_strs(solutions.to_str(), ~"[{\"ttl\":\"50\"}]");
 	
 	// but once we deregister we don't get solutions
 	comm::send(state_chan, DeregisterMsg(~"primary", ~"ttl-query"));
@@ -337,49 +319,49 @@ fn test_alerts()
 	
 	// open foo/bar => adds the alert
 	open_alert(&store, &Alert {target: ~"gnos:foo", id: ~"bar", level: ~"0", mesg: ~"fie", resolution: ~""});
-	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
-		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
+	assert check_alerts(&store, &Solution {namespaces: ~[], bindings: ~[~"mesg", ~"closed", ~"subject", ~"end"], num_selected: 2, rows: ~[
+		~[@StringValue(~"fie", ~""), @BoolValue(false)],
 	]});
 	
 	// open foo/bar => does nothing
 	open_alert(&store, &Alert {target: ~"gnos:foo", id: ~"bar", level: ~"0", mesg: ~"no-op fie", resolution: ~""});
-	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
-		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
+	assert check_alerts(&store, &Solution {namespaces: ~[], bindings: ~[~"mesg", ~"closed", ~"subject", ~"end"], num_selected: 2, rows: ~[
+		~[@StringValue(~"fie", ~""), @BoolValue(false)],
 	]});
 	
 	// open foo/cat => adds alert
 	open_alert(&store, &Alert {target: ~"gnos:foo", id: ~"cat", level: ~"0", mesg: ~"meow", resolution: ~""});
-	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
-		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
-		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(false))],
+	assert check_alerts(&store, &Solution {namespaces: ~[], bindings: ~[~"mesg", ~"closed", ~"subject", ~"end"], num_selected: 2, rows: ~[
+		~[@StringValue(~"meow", ~""), @BoolValue(false)],
+		~[@StringValue(~"fie", ~""), @BoolValue(false)],
 	]});
 	
 	// close foo/bar => closes it
 	close_alert(&store, ~"gnos:foo", ~"bar");
-	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
-		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
-		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
+	assert check_alerts(&store, &Solution {namespaces: ~[], bindings: ~[~"mesg", ~"closed", ~"subject", ~"end"], num_selected: 2, rows: ~[
+		~[@StringValue(~"meow", ~""), @BoolValue(false)],
+		~[@StringValue(~"fie", ~""), @BoolValue(true)],
 	]});
 	
 	// close foo/dog => does nothing
 	close_alert(&store, ~"gnos:foo", ~"dog");
-	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
-		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
-		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
+	assert check_alerts(&store, &Solution {namespaces: ~[], bindings: ~[~"mesg", ~"closed", ~"subject", ~"end"], num_selected: 2, rows: ~[
+		~[@StringValue(~"meow", ~""), @BoolValue(false)],
+		~[@StringValue(~"fie", ~""), @BoolValue(true)],
 	]});
 	
 	// close foo/bar => does nothing
 	close_alert(&store, ~"gnos:foo", ~"bar");
-	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
-		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
-		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
+	assert check_alerts(&store, &Solution {namespaces: ~[], bindings: ~[~"mesg", ~"closed", ~"subject", ~"end"], num_selected: 2, rows: ~[
+		~[@StringValue(~"meow", ~""), @BoolValue(false)],
+		~[@StringValue(~"fie", ~""), @BoolValue(true)],
 	]});
 	
 	// open foo/bar => adds a new alert
 	open_alert(&store, &Alert {target: ~"gnos:foo", id: ~"bar", level: ~"0", mesg: ~"fum", resolution: ~""});
-	assert check_alerts(&store, &Solution {namespaces: ~[], rows: ~[
-		~[(~"mesg", StringValue(~"fum", ~"")), (~"closed", BoolValue(false))],
-		~[(~"mesg", StringValue(~"meow", ~"")), (~"closed", BoolValue(false))],
-		~[(~"mesg", StringValue(~"fie", ~"")), (~"closed", BoolValue(true))],
+	assert check_alerts(&store, &Solution {namespaces: ~[], bindings: ~[~"mesg", ~"closed", ~"subject", ~"end"], num_selected: 2, rows: ~[
+		~[@StringValue(~"fum", ~""), @BoolValue(false)],
+		~[@StringValue(~"meow", ~""), @BoolValue(false)],
+		~[@StringValue(~"fie", ~""), @BoolValue(true)],
 	]});
 }

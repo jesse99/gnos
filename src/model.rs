@@ -1,6 +1,9 @@
 /// Functions and types used to manage a task responsible for managing RDF stores.
 use std::map::{HashMap};
+use std::time;
 use comm::{Chan, Port};
+use std::json::ToJson;
+use std::json::to_str;
 use rrdf::rrdf::*;
 use Namespace = rrdf::solution::Namespace;
 
@@ -16,7 +19,7 @@ pub type UpdatesFn = fn~ (store: &[@Store], data: &str) -> bool;
 /// subsequent results back to the original task.
 ///
 /// In the case of an error only the initial result is sent.
-pub type RegisterChan = Chan<result::Result<~[Solution], ~str>>;
+pub type RegisterChan = Chan<result::Result<std::json::Json, ~str>>;
 
 /// Enum used to communicate with the model task.
 ///
@@ -24,7 +27,7 @@ pub type RegisterChan = Chan<result::Result<~[Solution], ~str>>;
 /// server-sent events. Store should be "model" or "alerts".
 pub enum Msg
 {
-	QueryMsg(~str, ~str, Chan<Solution>),			// store + SPARQL query + channel to send results back along (store prefixes are auto-added to the query)
+	QueryMsg(~str, ~str, Chan<std::json::Json>),		// store + SPARQL query + channel to send results back along (store prefixes are auto-added to the query)
 	UpdateMsg(~str, UpdateFn, ~str),					// store + function to use to update the store + data to use
 	UpdatesMsg(~[~str], UpdatesFn, ~str),			// stores + function to use to update the stores + data to use
 	
@@ -100,7 +103,7 @@ pub fn manage_state(port: Port<Msg>, server: &str,  server_port: u16)
 			{
 				let solutions = eval_queries(stores.get(name), queries, ~[expr]).get();		// always a canned query so we want to fail fast on error
 				assert solutions.len() == 1;
-				comm::send(channel, copy solutions[0]);
+				comm::send(channel, solutions_to_json(solutions));
 			}
 			UpdateMsg(copy name, ref f, ref data) =>
 			{
@@ -136,9 +139,9 @@ pub fn manage_state(port: Port<Msg>, server: &str,  server_port: u16)
 				{
 					match eval_queries(stores.get(copy name), queries, exprs)
 					{
-						result::Ok(copy solutions) =>
+						result::Ok(move solutions) =>
 						{
-							comm::send(channel, result::Ok(copy solutions));
+							comm::send(channel, result::Ok(solutions_to_json(solutions)));
 							
 							let added = registered[name].insert(key, {queries: exprs, channel: channel, solutions: @mut solutions});
 							assert added;
@@ -174,7 +177,7 @@ pub fn manage_state(port: Port<Msg>, server: &str,  server_port: u16)
 }
 
 /// Helper used to query model state.
-pub fn get_state(name: &str, channel: Chan<Msg>, query: &str) -> Solution
+pub fn get_state(name: &str, channel: Chan<Msg>, query: &str) -> std::json::Json
 {
 	let port = Port();
 	let chan = Chan(&port);
@@ -221,16 +224,17 @@ pub fn open_alert(store: &Store, alert: &Alert) -> bool
 		result::Ok(ref solution) =>
 		{
 			// Add the alert if it doesn't already exist OR it exists but is closed (i.e. if we found rows they must all be closed).
-			if solution.rows.all(|row| {row.search(~"end").is_some()})
+			let i = solution.bindings.position_elem(&~"end");		// will be 1 (until the query changes anyway)
+			if solution.rows.all(|row| {!row[i.get()].is_unbound()})
 			{
 				let subject = get_blank_name(store, ~"alert");
 				store.add(subject, ~[
-					(~"gnos:target", IriValue(copy alert.target)),
-					(~"gnos:alert", StringValue(copy alert.id, ~"")),
-					(~"gnos:begin", DateTimeValue(std::time::now())),
-					(~"gnos:mesg", StringValue(copy alert.mesg, ~"")),
-					(~"gnos:resolution", StringValue(copy alert.resolution, ~"")),
-					(~"gnos:style", StringValue(~"alert-type:" + alert.level, ~"")),
+					(~"gnos:target", @IriValue(copy alert.target)),
+					(~"gnos:alert", @StringValue(copy alert.id, ~"")),
+					(~"gnos:begin", @DateTimeValue(std::time::now())),
+					(~"gnos:mesg", @StringValue(copy alert.mesg, ~"")),
+					(~"gnos:resolution", @StringValue(copy alert.resolution, ~"")),
+					(~"gnos:style", @StringValue(~"alert-type:" + alert.level, ~"")),
 				]);
 				
 				if alert.level == ~"error"
@@ -277,16 +281,18 @@ pub fn close_alert(store: &Store, target: &str, id: &str) -> bool
 		{
 			let mut changed = false;
 			let mut added = 0;
-			for solution.rows.each
-			|row|
+			let subject_index = solution.bindings.position_elem(&~"subject").get();	// will be 0 (until the query changes anyway)
+			let style_index = solution.bindings.position_elem(&~"style").get();		// will be 1 (until the query changes anyway)
+			let end_index = solution.bindings.position_elem(&~"end").get();		// will be 2 (until the query changes anyway)
+			for solution.rows.each |row|
 			{
-				if row.search(~"end").is_none()
+				if row[end_index].is_unbound()
 				{
-					if row.get(~"style").as_str().ends_with(~":error")
+					if row[style_index].as_str().ends_with(~":error")
 					{
 						added += 1;
 					}
-					store.add_triple(~[], {subject: row.get(~"subject").to_str(), predicate: ~"gnos:end", object: DateTimeValue(std::time::now())});
+					store.add_triple(~[], {subject: (*row[subject_index]).to_str(), predicate: ~"gnos:end", object: @DateTimeValue(std::time::now())});
 					changed = true;
 				}
 			}
@@ -294,6 +300,9 @@ pub fn close_alert(store: &Store, target: &str, id: &str) -> bool
 			{
 				assert added == 1;
 				update_err_count(store, -1);
+			}
+			if changed
+			{
 			}
 			changed
 		}
@@ -312,10 +321,17 @@ pub fn eval_query(store: &Store, expr: &str) -> result::Result<Solution, ~str>
 	{
 		result::Ok(selector) =>
 		{
+			let start = time::precise_time_s();
 			match selector(store)
 			{
 				result::Ok(copy solution) =>
 				{
+					let elapsed = time::precise_time_s() - start;
+					if elapsed > 0.1
+					{
+						error!("evaluated %s", expr);
+						error!("%? in %.3fs, %? rows", expr.len(), elapsed, solution.rows.len());
+					}
 					result::Ok(solution)
 				}
 				result::Err(ref err) =>
@@ -346,7 +362,7 @@ priv fn update_registered(stores: HashMap<~str, @Store>, name: &str, queries: Ha
 				let solutions = eval_queries(store.get(), queries, r.queries).get();	// query that worked once so should be OK to fail fast
 				if solutions != *r.solutions
 				{
-					comm::send(r.channel, result::Ok(copy(solutions)));
+					comm::send(r.channel, result::Ok(solutions_to_json(solutions)));
 					*r.solutions = solutions;
 				}
 			}
@@ -358,12 +374,12 @@ priv fn update_err_count(store: &Store, delta: i64)
 {
 	match store.find_object(~"store:globals", ~"gnos:num_errors")
 	{
-		option::Some(IntValue(value)) =>
+		option::Some(@IntValue(value)) =>
 		{
 			// TODO: This is a rather inefficient pattern (though it doesn't matter here because
 			// subject has only one predicate). But maybe replace_triple should have a variant 
 			// or something that passes the original value to a closure.
-			store.replace_triple(~[], {subject: ~"store:globals", predicate: ~"gnos:num_errors", object: IntValue(value + delta)});
+			store.replace_triple(~[], {subject: ~"store:globals", predicate: ~"gnos:num_errors", object: @IntValue(value + delta)});
 		}
 		option::Some(ref x) =>
 		{
@@ -372,7 +388,7 @@ priv fn update_err_count(store: &Store, delta: i64)
 		option::None =>
 		{
 			assert delta == 1;		// if we're closing an alert we should have found the err_count for the open alert
-			store.add_triple(~[], {subject: ~"store:globals", predicate: ~"gnos:num_errors", object: IntValue(1)});
+			store.add_triple(~[], {subject: ~"store:globals", predicate: ~"gnos:num_errors", object: @IntValue(1)});
 		}
 	}
 }
@@ -417,10 +433,17 @@ priv fn eval_queries(store: &Store, queries: HashMap<~str, Selector>, exprs: &[~
 		{
 			result::Ok(selector) =>
 			{
+				let start = time::precise_time_s();
 				match selector(store)
 				{
 					result::Ok(copy solution) =>
 					{
+						let elapsed = time::precise_time_s() - start;
+						if elapsed > 0.1
+						{
+							error!("evaluated %s", expr);
+							error!("%? in %.3fs, %? rows", expr.len(), elapsed, solution.rows.len());
+						}
 						result::Ok(solution)
 					}
 					result::Err(copy err) =>
@@ -438,3 +461,73 @@ priv fn eval_queries(store: &Store, queries: HashMap<~str, Selector>, exprs: &[~
 	}
 }
 
+priv fn solutions_to_json(solutions: &[Solution]) -> std::json::Json
+{
+	if solutions.len() == 1
+	{
+		solution_to_json(&solutions[0])
+	}
+	else
+	{
+		std::json::List(
+			do vec::map(solutions)
+			|solution|
+			{
+				solution_to_json(solution)
+			}
+		)
+	}
+}
+
+priv fn solution_to_json(solution: &Solution) -> std::json::Json
+{
+	//info!(" ");
+	std::json::List(
+		do vec::map(solution.rows) |row|
+		{
+			//info!("row: %?", row);
+			solution_row_to_json(solution, row)
+		}
+	)
+}
+
+priv fn solution_row_to_json(solution: &Solution, row: &SolutionRow) -> std::json::Json
+{
+	let mut obj = ~send_map::linear::linear_map_with_capacity(row.len());
+	
+	for uint::range(0, solution.num_selected) |i|
+	{
+		if !row[i].is_unbound()
+		{
+			let value = object_to_json(row[i]);
+			obj.insert(copy solution.bindings[i], value);
+		}
+	}
+	
+	std::json::Object(obj)
+}
+
+// TODO: need to escape as html? This should change to use auto-serialization.
+priv fn object_to_json(obj: &Object) -> std::json::Json
+{
+	match *obj
+	{
+		IriValue(ref value) | BlankValue(ref value) =>
+		{
+			value.to_json()
+		}
+		UnboundValue(*) | InvalidValue(*) | ErrorValue(*) =>
+		{
+			// TODO: use custom css and render these in red
+			obj.to_str().to_json()
+		}
+		StringValue(ref value, ~"") =>
+		{
+			value.to_json()
+		}
+		_ =>
+		{
+			obj.to_str().to_json()
+		}
+	}
+}

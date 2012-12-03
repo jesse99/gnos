@@ -41,8 +41,8 @@ priv fn handle_update(options: &Options, remote_addr: &str, store: &Store, body:
 			{
 				json::Object(ref d) =>
 				{
-					store.replace_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:last_update", object: DateTimeValue(std::time::now())});
-					store.replace_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:poll_interval", object: IntValue(options.poll_rate as i64)});
+					store.replace_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:last_update", object: @DateTimeValue(std::time::now())});
+					store.replace_triple(~[], {subject: ~"gnos:map", predicate: ~"gnos:poll_interval", object: @IntValue(options.poll_rate as i64)});
 					
 					let mut modeler = option::None;
 					if d.contains_key(&~"modeler")
@@ -82,14 +82,14 @@ priv fn add_entities(store: &Store, modeler: &Option<Object>, list: &json::List)
 		let mut entries = ~[];
 		if modeler.is_some()
 		{
-			entries.push((~"gnos:modeler-subject", modeler.get()));
+			entries.push((~"gnos:modeler-subject", @modeler.get()));
 		}
 		let label = get_str(object, ~"label");
 		debug!("adding %s entity", label);
 		
-		entries.push((~"gnos:entity", StringValue(label, ~"")));
-		do optional_str(object, ~"style") |value| 		{entries.push((~"gnos:style", StringValue(value, ~"")))};
-		do optional_str(object, ~"predicate") |value|	{entries.push((~"gnos:predicate", StringValue(value, ~"")))};
+		entries.push((~"gnos:entity", @StringValue(label, ~"")));
+		do optional_str(object, ~"style") |value| 		{entries.push((~"gnos:style", @StringValue(value, ~"")))};
+		do optional_str(object, ~"predicate") |value|	{entries.push((~"gnos:predicate", @StringValue(value, ~"")))};
 		
 		let subject = ~"entities:" + get_str(object, ~"id");
 		store.add(subject, entries);
@@ -108,18 +108,18 @@ priv fn add_labels(store: &Store, modeler: &Option<Object>, list: &json::List)
 		let mut entries = ~[];
 		if modeler.is_some()
 		{
-			entries.push((~"gnos:modeler-subject", modeler.get()));
+			entries.push((~"gnos:modeler-subject", @modeler.get()));
 		}
 		let target = get_str(object, ~"target-id");
 		let label = get_str(object, ~"label");
 		debug!("adding %s label for %s", label, target);
 		
-		entries.push((~"gnos:target",		IriValue(target)));
-		entries.push((~"gnos:label",		StringValue(label, ~"")));
-		entries.push((~"gnos:level", 		IntValue(get_i64(object, ~"level"))));
-		entries.push((~"gnos:sort_key",	StringValue(get_str(object, ~"sort-key"), ~"")));
-		do optional_str(object, ~"style") |value| 		{entries.push((~"gnos:style", StringValue(value, ~"")))};
-		do optional_str(object, ~"predicate") |value|	{entries.push((~"gnos:predicate", StringValue(value, ~"")))};
+		entries.push((~"gnos:target",		@IriValue(target)));
+		entries.push((~"gnos:label",		@StringValue(label, ~"")));
+		entries.push((~"gnos:level", 		@IntValue(get_i64(object, ~"level"))));
+		entries.push((~"gnos:sort_key",	@StringValue(get_str(object, ~"sort-key"), ~"")));
+		do optional_str(object, ~"style") |value| 		{entries.push((~"gnos:style", @StringValue(value, ~"")))};
+		do optional_str(object, ~"predicate") |value|	{entries.push((~"gnos:predicate", @StringValue(value, ~"")))};
 		
 		store.add(get_blank_name(store, ~"label"), entries);
 	}
@@ -137,19 +137,19 @@ priv fn add_gauges(store: &Store, modeler: &Option<Object>, list: &json::List)
 		let mut entries = ~[];
 		if modeler.is_some()
 		{
-			entries.push((~"gnos:modeler-subject", modeler.get()));
+			entries.push((~"gnos:modeler-subject", @modeler.get()));
 		}
 		let target = get_str(object, ~"entity-id");
 		let label = get_str(object, ~"label");
 		debug!("adding %s gauge for %s", label, target);
 		
-		entries.push((~"gnos:target",		IriValue(target)));
-		entries.push((~"gnos:gauge", 		FloatValue(get_f64(object, ~"value"))));
-		entries.push((~"gnos:title",		StringValue(label, ~"")));
-		entries.push((~"gnos:level", 		IntValue(get_i64(object, ~"level"))));
-		entries.push((~"gnos:sort_key",	StringValue(get_str(object, ~"sort-key"), ~"")));
-		do optional_str(object, ~"style") |value| 		{entries.push((~"gnos:style", StringValue(value, ~"")))};
-		do optional_str(object, ~"predicate") |value|	{entries.push((~"gnos:predicate", StringValue(value, ~"")))};
+		entries.push((~"gnos:target",		@IriValue(target)));
+		entries.push((~"gnos:gauge", 		@FloatValue(get_f64(object, ~"value"))));
+		entries.push((~"gnos:title",		@StringValue(label, ~"")));
+		entries.push((~"gnos:level", 		@IntValue(get_i64(object, ~"level"))));
+		entries.push((~"gnos:sort_key",	@StringValue(get_str(object, ~"sort-key"), ~"")));
+		do optional_str(object, ~"style") |value| 		{entries.push((~"gnos:style", @StringValue(value, ~"")))};
+		do optional_str(object, ~"predicate") |value|	{entries.push((~"gnos:predicate", @StringValue(value, ~"")))};
 		
 		store.add(get_blank_name(store, ~"gauge"), entries);
 	}
@@ -167,18 +167,18 @@ priv fn add_details(store: &Store, modeler: &Option<Object>, list: &json::List)
 		let mut entries = ~[];
 		if modeler.is_some()
 		{
-			entries.push((~"gnos:modeler-subject", modeler.get()));
+			entries.push((~"gnos:modeler-subject", @modeler.get()));
 		}
 		let target = get_str(object, ~"entity-id");
 		let label = get_str(object, ~"label");
 		debug!("adding %s details for %s", label, target);
 		
-		entries.push((~"gnos:target",		IriValue(target)));
-		entries.push((~"gnos:title",		StringValue(label, ~"")));
-		entries.push((~"gnos:details",		StringValue(get_str(object, ~"details"), ~"")));
-		entries.push((~"gnos:open",		StringValue(get_str(object, ~"open"), ~"")));
-		entries.push((~"gnos:sort_key",	StringValue(get_str(object, ~"sort-key"), ~"")));
-		entries.push((~"gnos:key",		StringValue(get_str(object, ~"id"), ~"")));
+		entries.push((~"gnos:target",		@IriValue(target)));
+		entries.push((~"gnos:title",		@StringValue(label, ~"")));
+		entries.push((~"gnos:details",		@StringValue(get_str(object, ~"details"), ~"")));
+		entries.push((~"gnos:open",		@StringValue(get_str(object, ~"open"), ~"")));
+		entries.push((~"gnos:sort_key",	@StringValue(get_str(object, ~"sort-key"), ~"")));
+		entries.push((~"gnos:key",		@StringValue(get_str(object, ~"id"), ~"")));
 		
 		store.add(get_blank_name(store, ~"detail"), entries);
 	}
@@ -191,7 +191,7 @@ priv fn add_details(store: &Store, modeler: &Option<Object>, list: &json::List)
 
 priv fn add_relations(store: &Store, modeler: &Option<Object>, list: &json::List)
 {
-	fn add_labels(store: &Store, modeler: &Option<Object>, object: &Json, entries: &mut ~[(~str, Object)], target: &str, position: ~str)
+	fn add_labels(store: &Store, modeler: &Option<Object>, object: &Json, entries: &mut ~[(~str, @Object)], target: &str, position: ~str)
 	{
 		let mut labels = ~[];
 		do optional_list(object, position + ~"-labels") |list|
@@ -201,21 +201,21 @@ priv fn add_relations(store: &Store, modeler: &Option<Object>, list: &json::List
 				let mut sub_entries = ~[];
 				if modeler.is_some()
 				{
-					sub_entries.push((~"gnos:modeler-subject", modeler.get()));
+					sub_entries.push((~"gnos:modeler-subject", @modeler.get()));
 				}
-				sub_entries.push((~"gnos:target",		BlankValue(target.to_unique())));
-				sub_entries.push((~"gnos:label",		StringValue(get_str(sub_object, ~"label"), ~"")));
-				sub_entries.push((~"gnos:level", 		IntValue(get_i64(sub_object, ~"level"))));
-				sub_entries.push((~"gnos:sort_key",	StringValue(i.to_str(), ~"")));
-				do optional_str(sub_object, ~"style") 		|value| {sub_entries.push((~"gnos:style", StringValue(value, ~"")))};
-				do optional_str(sub_object, ~"predicate") |value| {sub_entries.push((~"gnos:predicate", StringValue(value, ~"")))};
+				sub_entries.push((~"gnos:target",		@BlankValue(target.to_unique())));
+				sub_entries.push((~"gnos:label",		@StringValue(get_str(sub_object, ~"label"), ~"")));
+				sub_entries.push((~"gnos:level", 		@IntValue(get_i64(sub_object, ~"level"))));
+				sub_entries.push((~"gnos:sort_key",	@StringValue(i.to_str(), ~"")));
+				do optional_str(sub_object, ~"style") 		|value| {sub_entries.push((~"gnos:style", @StringValue(value, ~"")))};
+				do optional_str(sub_object, ~"predicate") |value| {sub_entries.push((~"gnos:predicate", @StringValue(value, ~"")))};
 				
 				let sub_target = get_blank_name(store, ~"label");
 				store.add(sub_target, sub_entries);
 				labels.push(sub_target);
 			}
 		}
-		entries.push((fmt!("gnos:%s_infos", position), StringValue(str::connect(labels, " "), ~"")));
+		entries.push((fmt!("gnos:%s_infos", position), @StringValue(str::connect(labels, " "), ~"")));
 	}
 	
 	fn add_relation(store: &Store, modeler: &Option<Object>, object: &Json)
@@ -225,16 +225,16 @@ priv fn add_relations(store: &Store, modeler: &Option<Object>, list: &json::List
 		let mut entries = ~[];
 		if modeler.is_some()
 		{
-			entries.push((~"gnos:modeler-subject", modeler.get()));
+			entries.push((~"gnos:modeler-subject", @modeler.get()));
 		}
 		let left = get_str(object, ~"left-entity-id");
 		let right = get_str(object, ~"right-entity-id");
 		debug!("adding relation for %s -> %s", left, right);
 		
-		entries.push((~"gnos:left",		IriValue(left)));
-		entries.push((~"gnos:right",	IriValue(right)));
-		do optional_str(object, ~"style")		|value| {entries.push((~"gnos:style", StringValue(value, ~"")))};
-		do optional_str(object, ~"predicate")	|value| {entries.push((~"gnos:predicate", StringValue(value, ~"")))};
+		entries.push((~"gnos:left",		@IriValue(left)));
+		entries.push((~"gnos:right",	@IriValue(right)));
+		do optional_str(object, ~"style")		|value| {entries.push((~"gnos:style", @StringValue(value, ~"")))};
+		do optional_str(object, ~"predicate")	|value| {entries.push((~"gnos:predicate", @StringValue(value, ~"")))};
 		
 		add_labels(store, modeler, object, &mut entries, target, ~"left");
 		add_labels(store, modeler, object, &mut entries, target, ~"middle");
@@ -421,7 +421,7 @@ priv fn prune_modeler(store: &Store, value: &Json) -> Option<Object>
 			do utils::remove_entry_if(store.subjects) |_key, value|
 			{
 				let entry = value.get_elt(0);
-				entry.predicate == ~"http://www.gnos.org/2012/schema#modeler-subject" && entry.object == mine.get()
+				entry.predicate == ~"http://www.gnos.org/2012/schema#modeler-subject" && *entry.object == mine.get()
 			}
 		}
 		_ =>

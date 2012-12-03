@@ -18,7 +18,6 @@ pub fn get_details(options: &options::Options, request: &server::Request, respon
 		label = fmt!("%s %s", options.devices[m.get()].name, label);
 	}
 	response.context.insert(@~"label", mustache::Str(@label));
-	error!("sending response");
 	
 	server::Response {template: ~"details.html", ..*response}
 }

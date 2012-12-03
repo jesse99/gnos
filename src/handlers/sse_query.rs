@@ -1,9 +1,8 @@
 /// Uses Server Sent Events to send solutions for a query after the model is updated.
-use std::json::ToJson;
-use std::json::to_str;
 use comm::{Chan, Port};
 use model::{Msg, DeregisterMsg, RegisterMsg};
 use rrdf::rrdf::*;
+use std::json::ToJson;
 use server = rwebserve::rwebserve;
 use rwebserve::imap::ImmutableMap;
 use ConnConfig = rwebserve::connection::ConnConfig;
@@ -32,8 +31,7 @@ pub fn sse_query(state_chan: Chan<Msg>, request: &server::Request, push: server:
 	let name = copy *request.params.get(@~"name");
 	let queries = get_queries(request);
 	
-	do task::spawn_listener
-	|control_port: server::ControlPort|
+	do task::spawn_listener |control_port: server::ControlPort|
 	{
 		info!("starting %s query stream", name);
 		let notify_port = Port();
@@ -42,7 +40,7 @@ pub fn sse_query(state_chan: Chan<Msg>, request: &server::Request, push: server:
 		let key = fmt!("query %?", ptr::addr_of(&notify_port));
 		comm::send(state_chan, RegisterMsg(copy name, copy key, copy queries, notify_chan));
 		
-		let mut solutions = ~[];
+		let mut solutions = std::json::Null;
 		loop
 		{
 			match comm::select2(notify_port, control_port)
@@ -52,10 +50,7 @@ pub fn sse_query(state_chan: Chan<Msg>, request: &server::Request, push: server:
 					if *new_solutions != solutions
 					{
 						solutions = copy *new_solutions;	// TODO: need to escape the json?
-						comm::send(push, fmt!("retry: 5000\ndata: %s\n\n", solutions_to_json(solutions).to_str()));
-					}
-					else
-					{
+						comm::send(push, fmt!("retry: 5000\ndata: %s\n\n", solutions.to_str()));
 					}
 				}
 				either::Left(result::Err(ref err)) =>
@@ -64,7 +59,7 @@ pub fn sse_query(state_chan: Chan<Msg>, request: &server::Request, push: server:
 				}
 				either::Right(server::RefreshEvent) =>
 				{
-					comm::send(push, fmt!("retry: 5000\ndata: %s\n\n", solutions_to_json(solutions).to_str()));
+					comm::send(push, fmt!("retry: 5000\ndata: %s\n\n", solutions.to_str()));
 				}
 				either::Right(server::CloseEvent) =>
 				{
@@ -82,8 +77,7 @@ priv fn get_queries(request: &server::Request) -> ~[~str]
 	let mut queries = ~[];
 	vec::push(&mut queries, copy *request.params.get(@~"expr"));
 	
-	for uint::iterate(2, 10)
-	|i|
+	for uint::iterate(2, 10) |i|
 	{
 		match request.params.find(@fmt!("expr%?", i))
 		{
@@ -98,73 +92,4 @@ priv fn get_queries(request: &server::Request) -> ~[~str]
 	};
 	
 	return queries;
-}
-
-priv fn solutions_to_json(solutions: &[Solution]) -> std::json::Json
-{
-	if solutions.len() == 1
-	{
-		solution_to_json(&solutions[0])
-	}
-	else
-	{
-		std::json::List(
-			do vec::map(solutions)
-			|solution|
-			{
-				solution_to_json(solution)
-			}
-		)
-	}
-}
-
-priv fn solution_to_json(solution: &Solution) -> std::json::Json
-{
-	//info!(" ");
-	std::json::List(
-		do vec::map(solution.rows)
-		|row|
-		{
-			//info!("row: %?", row);
-			solution_row_to_json(row)
-		}
-	)
-}
-
-priv fn solution_row_to_json(row: &SolutionRow) -> std::json::Json
-{
-	let mut obj = ~send_map::linear::linear_map_with_capacity(row.size());
-	
-	for vec::each(*row) |entry|
-	{
-		let value = object_to_json(entry.second());
-		obj.insert(entry.first(), value);
-	}
-	
-	std::json::Object(obj)
-}
-
-// TODO: need to escape as html?
-priv fn object_to_json(obj: Object) -> std::json::Json
-{
-	match obj
-	{
-		IriValue(ref value) | BlankValue(ref value) =>
-		{
-			value.to_json()
-		}
-		UnboundValue(*) | InvalidValue(*) | ErrorValue(*) =>
-		{
-			// TODO: use custom css and render these in red
-			obj.to_str().to_json()
-		}
-		StringValue(ref value, ~"") =>
-		{
-			value.to_json()
-		}
-		_ =>
-		{
-			obj.to_str().to_json()
-		}
-	}
 }
