@@ -202,15 +202,22 @@ Scene.prototype.do_adjust_graph_positions = function (context)
 	{
 		var center = new Point(pt.x, pt.y);
 		
-		if (node.data.center.distance_squared(center) >= 1)
+		if (node.data && node.data.center)
 		{
-			node.data.set_center(context, center);
-			nodes[node.data.name] = [node.data, true];
-			changed = true;
+			if (node.data.center.distance_squared(center) >= 1)
+			{
+				node.data.set_center(context, center);
+				nodes[node.data.name] = [node.data, true];
+				changed = true;
+			}
+			else
+			{
+				nodes[node.data.name] = [node.data, false];
+			}
 		}
 		else
 		{
-			nodes[node.data.name] = [node.data, false];
+			console.log("node data was null: {0:j}".format(node));
 		}
 	});
 	
@@ -241,7 +248,7 @@ Scene.prototype.do_draw_graph = function (context)
 	
 	this.particles.eachNode(function (node)
 	{
-		if (evaluate(node.data.predicate))
+		if (!node.data.predicate || evaluate(node.data.predicate))
 			node.data.draw(context);
 	});
 };
