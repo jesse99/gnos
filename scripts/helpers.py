@@ -1,5 +1,5 @@
 # Misc functions that pretty much every Python modeler will need to use.
-import json, logging, logging.handlers, subprocess, time
+import json, logging, logging.handlers, socket, subprocess, time
 
 class Env(object):
 	def __init__(self):
