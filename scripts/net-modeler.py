@@ -41,10 +41,12 @@ def send_entities(connection):
 		
 		if 'links' in device:
 			for link in device['links']:
-				left = 'entities:%s' % device['ip']
-				right = 'entities:%s' % find_ip(link)
-				relation = {'left-entity-id': left, 'right-entity-id': right, 'predicate': 'options.none'}
-				relations.append(relation)
+				ip = find_ip(link)
+				if ip:
+					left = 'entities:%s' % device['ip']
+					right = 'entities:%s' % ip
+					relation = {'left-entity-id': left, 'right-entity-id': right, 'predicate': 'options.none'}
+					relations.append(relation)
 	send_update(connection, {"modeler": "config", "entities": entities, 'relations': relations})
 
 def mask_to_subnet(s):
