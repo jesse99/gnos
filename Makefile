@@ -56,7 +56,7 @@ update-libraries:
 	rm -f bin/gnos
 
 dist:
-	tar --create --compress --exclude \*/.git --exclude \*/.git/\* --file=gnos-0.1.tar.gz \
+	tar --create --compress --exclude \*/.git --exclude \*/.git/\* --file=gnos-0.2.tar.gz \
 		Makefile html src
 
 # ------------------

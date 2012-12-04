@@ -48,6 +48,23 @@ def send_entities(connection):
 					relation = {'left-entity-id': left, 'right-entity-id': right, 'predicate': 'options.none'}
 					relations.append(relation)
 	send_update(connection, {"modeler": "config", "entities": entities, 'relations': relations})
+	
+# Virtual devices may change their IP addresses as they go down and come back up. To deal
+# with these we use an optional network_addr file. If this is present it will tell us what the
+# admin IPs of the devices should be.
+def fixup_admin_ips(config):
+	try:
+		path = config["network_addr"]
+		with open(path) as f:
+			net_ip = f.readline()
+			net_ip = ip_to_int(net_ip)
+			for device in config["devices"].values():
+				admin_ip = device["ip"]
+				if admin_ip.startswith("0."):			# some networks are a mix of virtual and physical devices
+					admin_ip = ip_to_int(admin_ip) | net_ip
+					device["ip"] = int_to_ip(admin_ip)
+	except:
+		env.logger.error("Failed fixing up admin ips using %s" % path, exc_info=True)
 
 def mask_to_subnet(s):
 	def count_leading_ones(mask):
@@ -986,7 +1003,7 @@ parser.add_argument("--dont-put", dest = 'put', action='store_false', default=Tr
 parser.add_argument("--duration", action='store', default=float('inf'), type=float, metavar='SECS', help = 'amount of time to poll (for testing)')
 parser.add_argument("--stdout", action='store_true', default=False, help = 'log to stdout instead of snmp-modeler.log')
 parser.add_argument("--verbose", "-v", action='count', help = 'print extra information')
-parser.add_argument("--version", "-V", action='version', version='%(prog)s 0.1')	# TODO: keep this version synced up with the gnos version
+parser.add_argument("--version", "-V", action='version', version='%(prog)s 0.2')	# TODO: keep this version synced up with the gnos version
 parser.add_argument("config", metavar = "CONFIG-FILE", help = "path to json formatted configuration file")
 env.options = parser.parse_args()
 
@@ -997,6 +1014,8 @@ try:
 	# Read config info.
 	with open(env.options.config, 'r') as f:
 		env.config = json.load(f)
+		if "network_addr" in env.config:
+			fixup_admin_ips(env.config)
 		
 	poller = Poll()
 	poller.run()

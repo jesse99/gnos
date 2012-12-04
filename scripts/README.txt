@@ -11,6 +11,7 @@ The json files are used by the modelers to discover which devices need to be mod
 * server - is the IP address to which modelers should PUT new information.
 * port - is the TCP port to which modelers should PUT new information.
 * path - is the path component of the URL modelers should use when PUTing.
+* network_addr - optional path to a file on the client where the first line contains the network admin address. For example, if it contains 10.10.1.0 and a device has an ip of 0.0.0.3 then the modeler will use 10.10.1.3. Note that the network_addr is only used if the device ip starts with "0.".
 
 Each device in the network should also be listed. Devices have the following required entries:
 * <key> - The device entries are keyed using their name. This is the name used by clients in the main view.

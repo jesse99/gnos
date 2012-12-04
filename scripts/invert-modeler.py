@@ -89,7 +89,7 @@ parser.add_argument("--dont-put", dest = 'put', action='store_false', default=Tr
 parser.add_argument("--duration", action='store', default=float('inf'), type=float, metavar='SECS', help = 'amount of time to poll (for testing)')
 parser.add_argument("--stdout", action='store_true', default=False, help = 'log to stdout instead of snmp-modeler.log')
 parser.add_argument("--verbose", "-v", action='count', help = 'print extra information')
-parser.add_argument("--version", "-V", action='version', version='%(prog)s 0.1')	# TODO: keep this version synced up with the gnos version
+parser.add_argument("--version", "-V", action='version', version='%(prog)s 0.2')	# TODO: keep this version synced up with the gnos version
 parser.add_argument("config", metavar = "CONFIG-FILE", help = "path to json formatted configuration file")
 env.options = parser.parse_args()
 
