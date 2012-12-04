@@ -77,7 +77,7 @@ class Poll(object):
 					if 'S023' in alias:
 						close_alert(data, target, key = 'inverted')
 					elif 'S078' in alias:
-						open_alert(data, target, key = 'inverted', mesg = 'VLANs need to be inverted.', resolution = 'Run `./DCI_ARL.sh 12 invert`', kind = 'error')
+						open_alert(data, target, key = 'inverted', mesg = 'VLANs need to be inverted.', resolution = 'Run `./DCI_ARL.sh 12 invert` on CAP2-AID-L.', kind = 'error')
 					else:
 						open_alert(data, target, key = 'inverted', mesg = 'Expected interface S023 or S078 on VLAN 4 but found %s.' % alias, resolution = '', kind = 'error')
 					return
