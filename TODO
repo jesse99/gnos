@@ -31,6 +31,10 @@ restful uris: http://redrata.com/restful-uri-design/
 javascript model/view: http://documentcloud.github.com/backbone/
 
 
+* It would be nice to support virtual networks better:
+	- modeler could run on a virtual host
+	- would have to do PUTs to a unique store
+	- gnos home page would have to have a way to pick which store to show
 * Need to detect server ip (so it works on different machines and after re-connecting to VPN)
 	- or just switch to using libuv and fix that up as neccesary
 	- add some code to socket to enumerate over local IPs

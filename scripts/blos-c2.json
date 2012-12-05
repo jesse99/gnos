@@ -2,15 +2,14 @@
 	"network": "BLOS-C2",
 	"poll-rate": 30,
 	"client": "10.4.0.3",
-	"server": "10.6.210.110",
+	"server": "10.6.210.108",
 	"port": 8080,
 	"path": "/modeler",
-	"network_addr": "/tmp/uml_network_addr",
 	"devices":
 	{
 		"CAP1-IMG-R7":
 		{
-			"ip": "0.0.0.30",
+			"ip": "10.10.4.30",
 			"authentication": "-v2c -c public",
 			"mibs": "linux-host",
 			"modeler": "net-modeler.py",
@@ -18,7 +17,7 @@
 		},
 		"CAP1-ASC-R7":
 		{
-			"ip": "0.0.0.31",
+			"ip": "10.10.4.31",
 			"authentication": "-v2c -c public",
 			"mibs": "linux-host",
 			"modeler": "net-modeler.py",
@@ -26,7 +25,7 @@
 		},
 		"CAP1-ASC-L1":
 		{
-			"ip": "0.0.0.32",
+			"ip": "10.10.4.32",
 			"authentication": "-v2c -c public",
 			"mibs": "linux-host",
 			"modeler": "net-modeler.py",
@@ -34,7 +33,7 @@
 		},
 		"CAP1-AID-L1":
 		{
-			"ip": "0.0.0.33",
+			"ip": "10.10.4.33",
 			"authentication": "-v2c -c public",
 			"mibs": "linux-host",
 			"modeler": "net-modeler.py",
@@ -42,7 +41,7 @@
 		},
 		"CAP1-MAINT":
 		{
-			"ip": "0.0.0.34",
+			"ip": "10.10.4.34",
 			"authentication": "-v2c -c public",
 			"mibs": "linux-host",
 			"modeler": "net-modeler.py",
@@ -50,7 +49,7 @@
 		},
 		"CAP2-IMG-R7":
 		{
-			"ip": "0.0.0.35",
+			"ip": "10.10.4.35",
 			"authentication": "-v2c -c public",
 			"mibs": "linux-host",
 			"modeler": "net-modeler.py",
@@ -58,7 +57,7 @@
 		},
 		"CAP2-AID-L1":
 		{
-			"ip": "0.0.0.36",
+			"ip": "10.10.4.36",
 			"authentication": "-v2c -c public",
 			"mibs": "linux-host",
 			"modeler": "net-modeler.py",
@@ -66,7 +65,7 @@
 		},
 		"DDG":
 		{
-			"ip": "0.0.0.37",
+			"ip": "10.10.4.37",
 			"links": ["DDG-RTR"],
 			"authentication": "-v2c -c public",
 			"mibs": "linux-host",
@@ -75,7 +74,7 @@
 		},
 		"GCE":
 		{
-			"ip": "0.0.0.38",
+			"ip": "10.10.4.38",
 			"links": ["GCE-RTR"],
 			"authentication": "-v2c -c public",
 			"mibs": "linux-host",
@@ -84,7 +83,7 @@
 		},
 		"ROVER-1":
 		{
-			"ip": "0.0.0.40",
+			"ip": "10.10.4.40",
 			"links": ["CAP1-VORTEX"],
 			"authentication": "-v2c -c public",
 			"mibs": "linux-host",
@@ -93,7 +92,7 @@
 		},
 		"ROVER-2":
 		{
-			"ip": "0.0.0.41",
+			"ip": "10.10.4.41",
 			"links": ["CAP2-VORTEX"],
 			"authentication": "-v2c -c public",
 			"mibs": "linux-host",
@@ -102,7 +101,7 @@
 		},
 		"CAP1-VORTEX":
 		{
-			"ip": "0.0.0.100",
+			"ip": "10.10.4.100",
 			"links": ["CAP1-RTR"],
 			"authentication": "-v2c -c public",
 			"mibs": "cisco-router",
@@ -111,7 +110,7 @@
 		},
 		"CAP2-VORTEX":
 		{
-			"ip": "0.0.0.101",
+			"ip": "10.10.4.101",
 			"links": ["CAP2-RTR"],
 			"authentication": "-v2c -c public",
 			"mibs": "cisco-router",
