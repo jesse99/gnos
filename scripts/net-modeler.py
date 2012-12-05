@@ -691,11 +691,12 @@ class Poll(object):
 			for device in devices:
 				for (ifindex, value) in device.pim_hellos.items():
 					interface = device.find_ifindex(ifindex)
-					if interface and interface.name:
-						name = device.name + ' ' + interface.name.replace('/', ' ')
-					else:
-						name = device.name + ' ' + ifindex
-					ranges.setdefault(value, []).append(name)
+					if interface.active:
+						if interface and interface.name:
+							name = device.name + ' ' + interface.name.replace('/', ' ')
+						else:
+							name = device.name + ' ' + ifindex
+						ranges.setdefault(value, []).append(name)
 			
 			if len(ranges) == 1:
 				details.append('All devices are using pim hello interval %ss.' % ranges.keys()[0])
@@ -773,11 +774,12 @@ class Poll(object):
 			for device in devices:
 				for (ip, value) in device.ospf_hellos.items():
 					interface = device.find_ip(ip)
-					if interface and interface.name:
-						name = device.name + ' ' + interface.name.replace('/', ' ')
-					else:
-						name = device.name + ' ' + ip
-					ranges.setdefault(value, []).append(name)
+					if interface.active:
+						if interface and interface.name:
+							name = device.name + ' ' + interface.name.replace('/', ' ')
+						else:
+							name = device.name + ' ' + ip
+						ranges.setdefault(value, []).append(name)
 			
 			if len(ranges) == 1:
 				details.append('All devices are using ospf hello interval %ss.' % ranges.keys()[0])
@@ -796,11 +798,12 @@ class Poll(object):
 			for device in devices:
 				for (ip, value) in device.ospf_deads.items():
 					interface = device.find_ip(ip)
-					if interface and interface.name:
-						name = device.name + ' ' + interface.name.replace('/', ' ')
-					else:
-						name = device.name + ' ' + ip
-					ranges.setdefault(value, []).append(name)
+					if interface.active:
+						if interface and interface.name:
+							name = device.name + ' ' + interface.name.replace('/', ' ')
+						else:
+							name = device.name + ' ' + ip
+						ranges.setdefault(value, []).append(name)
 			
 			if len(ranges) == 1:
 				details.append('All devices are using ospf dead interval %ss.' % ranges.keys()[0])
