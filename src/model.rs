@@ -439,9 +439,9 @@ priv fn eval_queries(store: &Store, queries: HashMap<~str, Selector>, exprs: &[~
 					result::Ok(copy solution) =>
 					{
 						let elapsed = time::precise_time_s() - start;
-						if elapsed > 0.1
+						if elapsed > 0.333
 						{
-							error!("evaluated %s", expr);
+							//error!("evaluated %s", expr);
 							error!("%? in %.3fs, %? rows", expr.len(), elapsed, solution.rows.len());
 						}
 						result::Ok(solution)
