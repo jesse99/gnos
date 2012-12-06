@@ -39,9 +39,9 @@ priv fn modeler_exited(script: &str, err: option::Option<~str>, state_chan: comm
 	comm::send(state_chan, model::UpdateMsg(~"primary", |store, _err| {model::open_alert(store, &alert)}, ~""));
 }
 
-priv fn run_modeler(user: &str, host: &str, script: &str, network_file: &str) -> option::Option<~str>
+priv fn run_modeler(user: &str, host: &str, script: &str, network_file: &str, ip: &str, port: u16) -> option::Option<~str>
 {
-	utils::run_remote_command(user, host, fmt!("python %s -v %s", script, network_file))
+	utils::run_remote_command(user, host, fmt!("python %s --ip=%s --port=%? -v %s", script, ip, port, network_file))
 }
 
 priv fn setup(options: &options::Options, state_chan: comm::Chan<model::Msg>) -> ~[ExitFn]
@@ -55,7 +55,7 @@ priv fn setup(options: &options::Options, state_chan: comm::Chan<model::Msg>) ->
 	}
 	
 	let root = copy options.root;
-	let client = copy options.client;
+	let client = copy options.client_ip;
 	let action: task_runner::JobFn = |copy client| copy_scripts(&root, env!("GNOS_USER"), client);
 	task_runner::run_blocking(Job {action: action, policy: task_runner::ShutdownOnFailure}, ~[]);
 	
@@ -65,10 +65,12 @@ priv fn setup(options: &options::Options, state_chan: comm::Chan<model::Msg>) ->
 	{
 		if !vec::contains(modelers, &@copy device.modeler)
 		{
-			let client = copy options.client;
+			let client = copy options.client_ip;
 			let network_file = copy network_file;
 			let modeler = copy device.modeler;
-			let action: task_runner::JobFn = |copy client, copy modeler| run_modeler(env!("GNOS_USER"), client, modeler, network_file);
+			let ip = copy options.bind_ip;
+			let port = copy options.bind_port;
+			let action: task_runner::JobFn = |copy client, copy modeler| run_modeler(env!("GNOS_USER"), client, modeler, network_file, ip, port);
 			let script = Job {action: action, policy: task_runner::NotifyOnExit(|err, copy modeler| {modeler_exited(modeler, err, state_chan)})};
 			modelers.push(@copy modeler);
 			
@@ -129,7 +131,7 @@ fn main()
 	let mut options = options::parse_command_line(os::args());
 	options::validate(&options);
 	
-	let state_chan = do task::spawn_listener |port, copy options| {model::manage_state(port, options.server, options.port)};
+	let state_chan = do task::spawn_listener |port, copy options| {model::manage_state(port, options.bind_ip, options.bind_port)};
 	let samples_chan = do task::spawn_listener |port| {samples::manage_samples(port)};
 	let cleanup = if !options.db
 		{
@@ -164,8 +166,8 @@ fn main()
 		// We need to bind to the server addresses so that we receive modeler PUTs.
 		// We bind to localhost to ensure that we can hit the web server using a local
 		// browser.
-		hosts: if options.db {~[~"localhost"]} else if options.admin {~[copy options.server, ~"localhost"]} else {~[copy options.server]},
-		port: options.port,
+		hosts: if options.db {~[~"localhost"]} else if options.admin {~[copy options.bind_ip, ~"localhost"]} else {~[copy options.bind_ip]},
+		port: options.bind_port,
 		server_info: ~"gnos " + options::get_version(),
 		resources_root: options.root,
 		routes: ~[

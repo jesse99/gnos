@@ -8,8 +8,6 @@ The json files are used by the modelers to discover which devices need to be mod
 * network - is the name of the network. It's typically used by clients within window titles.
 * poll-rate - is the interval in seconds at which modelers should probe devices.
 * client - is the IP address of the machine which should run the modelers. 
-* server - is the IP address to which modelers should PUT new information.
-* port - is the TCP port to which modelers should PUT new information.
 * path - is the path component of the URL modelers should use when PUTing.
 
 Each device in the network should also be listed. Devices have the following required entries:

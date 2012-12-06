@@ -2,8 +2,6 @@
 	"network": "Mini-Fat",
 	"poll-rate": 20,
 	"client": "10.8.0.179",
-	"server": "10.6.210.104",
-	"port": 8080,
 	"path": "/modeler",
 	"devices":
 	{

@@ -19,12 +19,12 @@ pub struct Options
 	pub network_file: ~str,
 	pub db: bool,
 	pub browse: ~str,
+	pub bind_ip: ~str,
+	pub bind_port: u16,
 	
 	// these are from the network.json file
 	pub network_name: ~str,
-	pub client: ~str,
-	pub server: ~str,
-	pub port: u16,
+	pub client_ip: ~str,
 	pub poll_rate: u16,
 	pub devices: ~[Device],
 }
@@ -53,7 +53,7 @@ pub fn parse_command_line(args: ~[~str]) -> Options
 		reqopt(~"root"),
 		optflag(~"h"),
 		optflag(~"help"),
-		optopt(~"port"),
+		optopt(~"bind"),
 		optopt(~"browse"),		// TODO: not sure we always want to have this, maybe debug only?
 		optflag(~"version")
 	];
@@ -83,11 +83,11 @@ pub fn parse_command_line(args: ~[~str]) -> Options
 		network_file: path.filename().get(),
 		db: opt_present(copy matched, ~"db"),
 		browse: if opt_present(copy matched, ~"browse") {opt_str(copy matched, ~"browse")} else {~""},
+		bind_ip: if opt_present(copy matched, ~"bind") {endpoint_to_ip(opt_str(copy matched, ~"bind"))} else {~"127.0.0.1"},
+		bind_port: if opt_present(copy matched, ~"bind") {endpoint_to_port(opt_str(copy matched, ~"bind"))} else {8080},
 		
 		network_name: network.network,
-		client: network.client,
-		server: if opt_present(copy matched, ~"db") {~"localhost"} else {copy network.server},
-		port: network.port,
+		client_ip: network.client,
 		poll_rate: network.poll_rate,
 		devices: network.devices,
 	}
@@ -109,13 +109,15 @@ priv fn print_usage()
 	io::println(~"");
 	io::println(~"./gnos [options] --root=DIR network.json");
 	io::println(~"--admin     allows web clients to shut the server down");
+	io::println(~"--bind=IP[:PORT]  local address or interface to bind to [127.0.0.1:8080");
+	io::println(~"--browse=URL  use git to open a browser window to the URL");
 	io::println(~"--db        use a hard-coded database instead of modeler scripts");
 	io::println(~"-h, --help  prints this message and exits");
 	io::println(~"--root=DIR  path to the directory containing html files");
 	io::println(~"--version   prints the gnos version number and exits");
 }
 
-priv fn load_network_file(path: &Path) -> {network: ~str, client: ~str, server: ~str, port: u16, poll_rate: u16, devices: ~[Device]}
+priv fn load_network_file(path: &Path) -> {network: ~str, client: ~str, poll_rate: u16, devices: ~[Device]}
 {
 	match io::file_reader(path)
 	{
@@ -128,8 +130,6 @@ priv fn load_network_file(path: &Path) -> {network: ~str, client: ~str, server: 
 					{
 						network: get_network_str(path, *data, &~"network"),
 						client: get_network_str(path, *data, &~"client"),
-						server: get_network_str(path, *data, &~"server"),
-						port: get_network_u16(path, *data, &~"port"),
 						poll_rate: get_network_u16(path, *data, &~"poll-rate"),
 						devices: get_network_devices(path, *data, &~"devices"),
 					}
@@ -273,3 +273,81 @@ priv fn get_network_float(path: &Path, data: &send_map::linear::LinearMap<~str, 
 		}
 	}
 }
+
+// TODO: This is moderately terrible. Probably the way to go is something like
+// http://www.geekpage.jp/en/programming/linux-network/get-ipaddr.php
+// but it might be tricky to write portable rust wrappers for that.
+priv fn find_interface_ip(ifname: ~str) -> ~str
+{
+	// eth1.100  Link encap:Ethernet  HWaddr 00:10:18:49:e4:6d
+	//     inet addr:172.16.0.2  Bcast:172.16.0.255  Mask:255.255.255.0
+	//
+	// utun0: flags=80d1<UP,POINTOPOINT,RUNNING,NOARP,MULTICAST> mtu 1399
+	//	inet 10.6.210.108 --> 10.6.210.108 netmask 0xffff8000 
+	match core::run::program_output("/sbin/ifconfig", &[copy ifname])
+	{
+		{status: 0, out: ref out, _} =>
+		{
+			let p1 = "inet addr:";
+			let p2 = "inet ";
+			let i1 = str::find_str(*out, p1);
+			let i2 = str::find_str(*out, p2);
+			if i1.is_some()
+			{
+				let k = str::find_char_from(*out, ' ', i1.get() + p1.len());
+				out.slice(i1.get() + p1.len(), k.get())
+			}
+			else if i2.is_some()
+			{
+				let k = str::find_char_from(*out, ' ', i2.get() + p2.len());
+				out.slice(i2.get() + p2.len(), k.get())
+			}
+			else
+			{
+				io::stderr().write_line(fmt!("Couldn't find '%s' or '%s' in '%s'.", p1, p2, *out));
+				libc::exit(1)
+			}
+		}
+		_ =>
+		{
+			io::stderr().write_line(fmt!("'%s' is not an IP address or interface name.", ifname));
+			libc::exit(1)
+		}
+	}
+}
+
+priv fn endpoint_to_ip(endpoint: &str) -> ~str
+{
+	let addr = match str::find_char(endpoint, ':')
+	{
+		option::Some(i) => endpoint.slice(0, i),
+		option::None => endpoint.to_unique(),
+	};
+	if str::all(addr, |c| char::is_digit(c) || c == '.')	// TODO: could do some better validation here
+	{
+		addr
+	}
+	else
+	{
+		find_interface_ip(addr)
+	}
+}
+
+fn endpoint_to_port(endpoint: &str) -> u16
+{
+	let port = match str::find_char(endpoint, ':')
+	{
+		option::Some(i) => endpoint.slice(i + 1, endpoint.len()),
+		option::None => ~"8080",
+	};
+	match u16::from_str(port)
+	{
+		option::Some(p) => p,
+		option::None =>
+		{
+			io::stderr().write_line(fmt!("'%s' is not a valid port.", port));
+			libc::exit(1)
+		}
+	}
+}
+
