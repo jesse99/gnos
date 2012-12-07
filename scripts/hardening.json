@@ -1,0 +1,155 @@
+{
+	"network": "BLOS-C2",
+	"poll-rate": 30,
+	"client": "10.4.0.3",
+	"path": "/modeler",
+	"devices":
+	{
+		"CAP1-IMG-R7":
+		{
+			"ip": "10.10.4.35",
+			"authentication": "-v2c -c public",
+			"mibs": "linux-host",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"CAP1-ASC-R7":
+		{
+			"ip": "10.10.4.36",
+			"authentication": "-v2c -c public",
+			"mibs": "linux-host",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"CAP1-ASC-L1":
+		{
+			"ip": "10.10.4.37",
+			"authentication": "-v2c -c public",
+			"mibs": "linux-host",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"CAP1-AID-L1":
+		{
+			"ip": "10.10.4.38",
+			"authentication": "-v2c -c public",
+			"mibs": "linux-host",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"CAP1-MAINT":
+		{
+			"ip": "10.10.4.39",
+			"authentication": "-v2c -c public",
+			"mibs": "linux-host",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"CAP2-IMG-R7":
+		{
+			"ip": "10.10.4.40",
+			"authentication": "-v2c -c public",
+			"mibs": "linux-host",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"CAP2-AID-L1":
+		{
+			"ip": "10.10.4.41",
+			"authentication": "-v2c -c public",
+			"mibs": "linux-host",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"DDG":
+		{
+			"ip": "10.10.4.42",
+			"links": ["DDG-RTR"],
+			"authentication": "-v2c -c public",
+			"mibs": "linux-host",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"GCE":
+		{
+			"ip": "10.10.4.43",
+			"links": ["GCE-RTR"],
+			"authentication": "-v2c -c public",
+			"mibs": "linux-host",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"ROVER-1":
+		{
+			"ip": "10.10.4.45",
+			"links": ["CAP1-VORTEX"],
+			"authentication": "-v2c -c public",
+			"mibs": "linux-host",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"ROVER-2":
+		{
+			"ip": "10.10.4.46",
+			"links": ["CAP2-VORTEX"],
+			"authentication": "-v2c -c public",
+			"mibs": "linux-host",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"CAP1-VORTEX":
+		{
+			"ip": "10.10.4.100",
+			"links": ["CAP1-RTR"],
+			"authentication": "-v2c -c public",
+			"mibs": "cisco-router",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"CAP2-VORTEX":
+		{
+			"ip": "10.10.4.101",
+			"links": ["CAP2-RTR"],
+			"authentication": "-v2c -c public",
+			"mibs": "cisco-router",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"DDG-RTR":
+		{
+			"ip": "192.168.0.10",
+			"links": ["CAP1-RTR"],
+			"authentication": "-v3 -m all -u net_user -l authPriv -a md5 -A authpass -x des -X privpass",
+			"mibs": "cisco-router",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"CAP1-RTR":
+		{
+			"ip": "192.168.0.20",
+			"links": ["CAP1-VORTEX", "CAP2-RTR", "CAP1-IMG-R7", "CAP1-AID-L1", "CAP1-ASC-R7", "CAP1-ASC-L1", "CAP1-MAINT"],
+			"authentication": "-v3 -m all -u net_user -l authPriv -a md5 -A authpass -x des -X privpass",
+			"mibs": "cisco-router",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"CAP2-RTR":
+		{
+			"ip": "192.168.0.30",
+			"links": ["CAP2-VORTEX", "GCE-RTR", "CAP2-IMG-R7", "CAP2-AID-L1"],
+			"authentication": "-v3 -m all -u net_user -l authPriv -a md5 -A authpass -x des -X privpass",
+			"mibs": "cisco-router",
+			"modeler": "invert-modeler.py",
+			"type": "snmp"
+		},
+		"GCE-RTR":
+		{
+			"ip": "192.168.0.40",
+			"links": ["CAP2-RTR"],
+			"authentication": "-v3 -m all -u net_user -l authPriv -a md5 -A authpass -x des -X privpass",
+			"mibs": "cisco-router",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		}
+	}
+}

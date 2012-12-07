@@ -19,7 +19,7 @@ all: bin/gnos lint-js
 # gnos doesn't return so we start the client before the browser.
 run: bin/gnos lint-js
 	#export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace && export GNOS_USER && ./bin/gnos --admin --root=html --browse='http://localhost:8080' scripts/fat.json
-	export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace=4 && export GNOS_USER && ./bin/gnos --admin --root=html --bind=$(LOCAL_IP) --browse='http://localhost:8080' scripts/blos-c2.json
+	export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace=4 && export GNOS_USER && ./bin/gnos --admin --root=html --bind=$(LOCAL_IP) --browse='http://localhost:8080' scripts/hardening.json
 
 run-net:
 	$(SCP) scripts/*.json scripts/*.py jjones@10.4.0.3: && ssh jjones@10.4.0.3 "python net-modeler.py -vvvv --stdout  --dont-put --duration=0 mini-c2.json"
