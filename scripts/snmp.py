@@ -219,7 +219,7 @@ def process_interfaces(data, contents, query):
 		key = '%s-oper-status' % name
 		if index in oper_status and admin != oper_status[index] and oper_status[index] != 'dormant':
 			mesg = 'Admin set %s to %s but it is %s.' % (name, admin, oper_status[index])
-			open_alert(data, target, key, mesg = mesg, resolution = '', kind = 'error')	# TODO: what about resolution?
+			open_alert(data, target, key, mesg = mesg, resolution = '', kind = 'warning')	# TODO: what about resolution?
 		else:
 			close_alert(data, target, key)
 
