@@ -774,7 +774,7 @@ class Poll(object):
 			for device in devices:
 				for (ip, value) in device.ospf_hellos.items():
 					interface = device.find_ip(ip)
-					if interface.active:
+					if interface and interface.active:
 						if interface and interface.name:
 							name = device.name + ' ' + interface.name.replace('/', ' ')
 						else:
@@ -798,7 +798,7 @@ class Poll(object):
 			for device in devices:
 				for (ip, value) in device.ospf_deads.items():
 					interface = device.find_ip(ip)
-					if interface.active:
+					if interface and interface.active:
 						if interface and interface.name:
 							name = device.name + ' ' + interface.name.replace('/', ' ')
 						else:
