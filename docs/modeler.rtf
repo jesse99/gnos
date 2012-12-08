@@ -220,6 +220,8 @@ The JSON should be formatted like this:\
 \
 All the top level items are optional. Style and predicates are documented in styles.rtf and predicates.rtf.\
 \
+For SNMP MIBs may need to be installed. You can download them from http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?local=en. They should be installed in one of the directories returned by `net-snmp-config --default-mibdirs`. Should also add "mibs +ALL" to ~/.snmp/snmp.conf. In the event of errors `snmptranslate -m +SOME-MIB -IR -On tableFromTheMib` can show you what's wrong (e.g. a MIB which depends on other MIBs).\
+\
 \cf2 Need to describe how sampled data is sent.\
 \pard\pardeftab480\pardirnatural
 

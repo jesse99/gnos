@@ -1,0 +1,18 @@
+{
+	"network": "Auto-Sat",
+	"poll-rate": 30,
+	"client": "10.8.0.149",
+	"path": "/modeler",
+	"devices":
+	{
+		"Cisco-F":
+		{
+			"ip": "10.106.1.2",
+			"links": ["GoBook-Foxtrot"],
+			"authentication": "-v2c -c public",
+			"mibs": "cisco-router",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		}
+	}
+}

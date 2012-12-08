@@ -1,6 +1,6 @@
 {
 	"network": "Auto-Sat",
-	"poll-rate": 20,
+	"poll-rate": 30,
 	"client": "10.8.0.149",
 	"path": "/modeler",
 	"devices":
@@ -8,22 +8,95 @@
 		"GRS-A":
 		{
 			"ip": "10.101.100.2",
-			"authentication": "-c public"
+			"links": ["GRS-B", "GRS-D", "GoBook-Alpha"],
+			"authentication": "-v2c -c public",
+			"mibs": "linux-router",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
 		},
 		"GRS-B":
 		{
 			"ip": "10.102.100.2",
-			"authentication": "-c public"
+			"links": ["GRS-C", "GoBook-Bravo"],
+			"authentication": "-v2c -c public",
+			"mibs": "linux-router",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
 		},
 		"GRS-C":
 		{
 			"ip": "10.103.100.2",
-			"authentication": "-c public"
+			"links": ["GRS-D", "GoBook-Charlie", "Cisco-F"],
+			"authentication": "-v2c -c public",
+			"mibs": "linux-router",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
 		},
 		"GRS-D":
 		{
 			"ip": "10.104.100.2",
-			"authentication": "-c public"
+			"links": ["GoBook-Delta", "GoBook-Echo"],
+			"authentication": "-v2c -c public",
+			"mibs": "linux-router",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
+		"GoBook-Alpha":
+		{
+			"ip": "10.101.100.10",
+			"ssh": "sshpass -p root ssh -f root@",
+			"modeler": "net-modeler.py",
+			"mibs": "linux-host",
+			"type": "linux_ssh"
+		},
+		"GoBook-Bravo":
+		{
+			"ip": "10.102.100.10",
+			"ssh": "sshpass -p root ssh -f root@",
+			"modeler": "net-modeler.py",
+			"mibs": "linux-host",
+			"type": "linux_ssh"
+		},
+		"GoBook-Charlie":
+		{
+			"ip": "10.103.100.10",
+			"ssh": "sshpass -p root ssh -f root@",
+			"modeler": "net-modeler.py",
+			"mibs": "linux-host",
+			"type": "linux_ssh"
+		},
+		"GoBook-Delta":
+		{
+			"ip": "10.104.100.10",
+			"ssh": "sshpass -p root ssh -f root@",
+			"modeler": "net-modeler.py",
+			"mibs": "linux-host",
+			"type": "linux_ssh"
+		},
+		"GoBook-Echo":
+		{
+			"ip": "10.0.46.10",
+			"ssh": "sshpass -p root ssh -f root@",
+			"modeler": "net-modeler.py",
+			"mibs": "linux-host",
+			"type": "linux_ssh"
+		},
+		"GoBook-Foxtrot":
+		{
+			"ip": "10.106.100.10",
+			"ssh": "sshpass -p root ssh -f root@",
+			"modeler": "net-modeler.py",
+			"mibs": "linux-host",
+			"type": "linux_ssh"
+		},
+		"Cisco-F":
+		{
+			"ip": "10.106.1.2",
+			"links": ["GoBook-Foxtrot"],
+			"authentication": "-v2c -c public",
+			"mibs": "cisco-router",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
 		}
 	}
 }

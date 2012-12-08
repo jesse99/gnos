@@ -18,10 +18,10 @@ all: bin/gnos lint-js
 
 # gnos doesn't return so we start the client before the browser.
 run: bin/gnos lint-js
-	export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace=4 && export GNOS_USER && ./bin/gnos --admin --root=html --bind=$(LOCAL_IP) --browse='http://localhost:8080' scripts/fat.json
+	export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace=4 && export GNOS_USER && ./bin/gnos --admin --root=html --bind=$(LOCAL_IP) --browse='http://localhost:8080' scripts/sat.json
 
 run-net:
-	$(SCP) scripts/*.json scripts/*.py jjones@10.8.0.179: && ssh jjones@10.8.0.179 "python net-modeler.py -vvvv --stdout  --dont-put --duration=0 --ip=10.6.210.115 --port=8080 mini-fat.json"
+	$(SCP) scripts/*.json scripts/*.py jjones@10.8.0.149: && ssh jjones@10.8.0.149 "python net-modeler.py -vvvvvv --stdout  --dont-put --duration=0 --ip=10.6.210.115 --port=8080 mini-sat.json"
 
 run-invert:
 	$(SCP) scripts/*.json scripts/*.py jjones@10.4.0.3: && ssh jjones@10.4.0.3 "python invert-modeler.py -vvvv --stdout  --dont-put --duration=0 blos-c2.json"
