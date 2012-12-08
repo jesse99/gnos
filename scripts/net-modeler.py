@@ -255,43 +255,47 @@ class Poll(object):
 				if route.via_ip != None and route.via_ip != '0.0.0.0':
 					route.via_interface = interface_by_device_ip(devices, route.via_ip)
 				if route.dst_subnet and route.dst_mask:
-					route.dst_admin_ips = self.admin_ip_by_subnet(devices, device, route.dst_subnet, ip_to_int(route.dst_mask), 'all')
+					route.dst_admin_ips = self.admin_ips_for_route(devices, device, route)
 		
-	def admin_ip_by_subnet(self, devices, src_device, network_ip, netmask, flags = ''):
-		candidates = []
+	def admin_ips_for_route(self, devices, in_device, route):
+		ips = []
 		
-		# 1) If the subnet is zero then anything is a candidate for matching network_ip.
-		# 2) If admin ips are not shared across devices we can proceed.
-		# 3) If admin ips are shared across devices then only proceed if the subnet is not an admin ip
-		# (when we try and find the devices connected to a local LAN hanging off a router we don't
-		# want to return every device that is part of the admin network).
-		subnet = ip_to_int(network_ip) & netmask
-		if network_ip and (subnet == 0 or "admin_network" not in env.config or subnet != ip_to_int(src_device.admin_ip) & netmask):
-			# First try the devices we don't know about (these are the devices we want to use when 
-			# forwarding to a device on an attached subnet).
-			for (name, device) in env.config["devices"].items():
-				if device['type'] != 'snmp' and device['type'] != 'linux_ssh':
-					candidate = ip_to_int(device['ip']) & netmask
-					if subnet == 0 or candidate == subnet:
-						if device['ip'] != src_device.admin_ip:
-							add_if_missing(candidates, device['ip'])
-							
-			# Then try to find a device we do know about that isn't src_admin.
-			# This will tend to be the direct link to a peer machine case.
-			for device in devices:
-				for interface in device.interfaces:
-					if interface.ip:
-						candidate = ip_to_int(interface.ip) & netmask
-						if subnet == 0 or candidate == subnet:
-							if device.admin_ip != src_device.admin_ip:
-								add_if_missing(candidates, device.admin_ip)
-		
-		if flags == 'all':
-			return candidates
-		elif len(candidates) == 1:
-			return candidates[0]
+		# 1) If the dst mask is all 1s then the route is to a single machine.
+		if route.dst_mask == '255.255.255.255':
+			ips.append(self.admin_ip_by_device_ip(devices, route.dst_subnet))
+			
+		# 2) If the dst mask is a subnet then the route is to all devices in that subnet.
+		elif route.dst_mask != '0.0.0.0':
+			netmask = ip_to_int(route.dst_mask)
+			subnet = ip_to_int(route.dst_subnet) & netmask
+			for candidate in devices:
+				if candidate.admin_ip != in_device.admin_ip:
+					candidate_ips = [i.ip for i in candidate.interfaces if i.ip and (ip_to_int(i.ip) & netmask) == subnet]
+					if candidate_ips:
+						ips.append(candidate.admin_ip)
+			
+		# 2) If the dst mask is all 0s then the route is to every device
 		else:
-			return None
+			for candidate in devices:
+				if candidate.admin_ip != in_device.admin_ip:
+					ips.append(candidate.admin_ip)
+		
+		return ips
+		
+	def admin_ip_by_device_ip(self, devices, ip):
+		# See if the ip is already an admin ip (we do this to ensure that we can
+		# find an admin ip even for downed devices).
+		for device in env.config["devices"].values():
+			if device['ip'] == ip:
+				return ip
+		
+		# Otherwise try and find a device with that ip.
+		for device in devices:
+			for interface in device.interfaces:
+				if interface.ip == ip:
+					return device.admin_ip
+				
+		return None
 		
 	def device_name(self, devices, src_device, ip, flags = ''):
 		# First try to get the actual name.
@@ -308,13 +312,31 @@ class Poll(object):
 			return None
 		
 		# Then try to get the admin ip
-		admin_ip = self.admin_ip_by_subnet(devices, src_device, ip, 0xFFFFFFFF)
+		admin_ip = self.admin_ip_by_device_ip(devices, ip)
 		if admin_ip:
 			return admin_ip
 		
 		# As a last result just return the ip.
 		return ip
 		
+	# Returns admin ips of the devices connected to device (via json network file).
+	def __find_config_link_ips(self, device):
+		ips = []
+		
+		for (name, candidate) in env.config["devices"].items():
+			if name != device.name:
+				if device.name in candidate.get('links', []):
+					ips.append(candidate['ip'])
+			else:
+				for n in candidate.get('links', []):
+					d = env.config["devices"][n]
+					if 'ip' in d:
+						ips.append(d['ip'])
+					else:
+						env.logger.error("%s has no ip key" % d)
+		
+		return ips
+			
 	def __set_pim_routers(self, devices):
 		rps = set()
 		bsrs = set()
@@ -414,9 +436,8 @@ class Poll(object):
 			subnet = mask_to_subnet(route.dst_mask)
 			dest = '%s/%s' % (dest, subnet)
 			
-			dst_admin_ip = self.admin_ip_by_subnet(devices, device, route.dst_subnet, ip_to_int(route.dst_mask))
-			if dst_admin_ip:
-				name = self.device_name(devices, device, dst_admin_ip, 'name-only')
+			if len(route.dst_admin_ips) == 1:
+				name = self.device_name(devices, device, route.dst_admin_ips[0], 'name-only')
 				if name:
 					dest = name + ' ' + dest
 			
@@ -452,20 +473,42 @@ class Poll(object):
 		routes = {}			# (src admin ip, via admin ip, dst admin ip) => Route
 		for device in devices:
 			for route in device.routes:
+				# We're forwarding through a known waypoint.
 				if route.via_interface:
-					# Used when forwarding (through a router or through an interface and locally to the router).
 					via_admin = route.via_interface.admin_ip
 					for dst in route.dst_admin_ips:
 						if dst != via_admin:
 							key = (device.admin_ip, via_admin, dst)
 							routes[key] = route
+				
+				# We're forwarding through a waypoint that we don't know about (could be something wacky 
+				# like a radio acting as an L3 device that we aren't modeling). In this case we have no way
+				# of knowing for sure what the next device is so we'll make the assumption that the links info
+				# from the config is accurate.
+				elif route.via_ip and route.via_ip != '0.0.0.0':
+					admin_ips = self.__find_config_link_ips(device)
+					if len(admin_ips) == 1:				# if there is one link we'll use it
+						for dst in route.dst_admin_ips:
+							if dst != admin_ips[0]:
+								key = (device.admin_ip, admin_ips[0], dst)
+								routes[key] = route
+					else:
+						old_len = len(routes)				# otherwise we'll use links matching the dst
+						netmask = ip_to_int(route.dst_mask)
+						subnet = ip_to_int(route.dst_subnet) & netmask
+						for admin_ip in admin_ips:
+							if ip_to_int(admin_ip) & netmask == subnet:
+								key = (device.admin_ip, admin_ip, admin_ip)
+								routes[key] = route
+						if len(routes) == old_len:
+							env.logger.error("Couldn't find dst %s via %s from %s", route.dst_subnet, route.via_ip, device.admin_ip)
+						
+				# We're forwarding directly to the destination (or destinations for routers connected to a LAN).
 				else:
-					# If the netmask is all ones then this will be a direct link to a peer machine.
-					# Otherwise it is used when forwarding to a device on an attached subnet.
 					for dst in route.dst_admin_ips:
 						key = (device.admin_ip, dst, dst)
 						routes[key] = route
-				
+		
 		for (key, route) in routes.items():
 			(src_admin, via_admin, dst_admin) = key
 			left = 'entities:%s' % src_admin
@@ -478,7 +521,12 @@ class Poll(object):
 				if route.src_interface.mac_addr:
 					left_labels.append({'label': route.src_interface.mac_addr, 'level': 4, 'style': 'font-size:xxx-small'})
 			
-			middle_labels = [{'label': '%s cost %s' % (route.protocol, route.metric), 'level': 1, 'style': 'font-size:x-small'}]
+			color = 'blue'
+			middle_labels = []
+			middle_labels.append({'label': '%s cost %s' % (route.protocol, route.metric), 'level': 1, 'style': 'font-size:x-small'})
+			if not route.via_interface and route.via_ip and route.via_ip != '0.0.0.0':
+				color = 'darkviolet'
+				middle_labels.append({'label': "via isn't modeled", 'level': 4, 'style': 'font-size:x-small'})
 			
 			right_labels = []
 			if route.via_interface:
@@ -492,14 +540,14 @@ class Poll(object):
 				right_labels.append({'label': route.via_interface.mac_addr, 'level': 4, 'style': 'font-size:xxx-small'})
 			
 			predicate = "options.ospf options.routes or selection.name '%s' ends_with and" % dst_admin
-			add_relation(data, left, right, 'line-type:directed line-color:blue line-width:3', left_labels = left_labels, middle_labels = middle_labels, right_labels = right_labels, predicate = predicate)
+			add_relation(data, left, right, 'line-type:directed line-color:%s line-width:3' % color, left_labels = left_labels, middle_labels = middle_labels, right_labels = right_labels, predicate = predicate)
 		
 	def __add_link_relations(self, data, devices):
 		links = {}			# (src admin ip, peer admin ip, predicate) => Link
 		for device in devices:
 			for link in device.links:
 				if link.peer_ip:
-					peer_admin_ip = self.admin_ip_by_subnet(devices, device, link.peer_ip, 0xFFFFFFFF)
+					peer_admin_ip = self.admin_ip_by_device_ip(devices, link.peer_ip)
 					if peer_admin_ip:
 						links[(link.admin_ip, peer_admin_ip, link.predicate)] = link
 					else:
@@ -568,7 +616,7 @@ class Poll(object):
 					
 					# handle upstream from mroute
 					if route.source != '0.0.0.0':
-						up_admin_ip = self.admin_ip_by_subnet(devices, device, route.upstream, 0xFFFFFFFF)
+						up_admin_ip = self.admin_ip_by_device_ip(devices, route.upstream)
 						if up_admin_ip:
 							left = 'entities:%s' % up_admin_ip
 							right = 'entities:%s' % route.admin_ip
@@ -585,7 +633,7 @@ class Poll(object):
 					# handle downstream from igmp
 					for igmp in device.igmps:
 						if igmp.group == route.group:
-							reporter_admin_ip = self.admin_ip_by_subnet(devices, device, igmp.reporter, 0xFFFFFFFF)
+							reporter_admin_ip = self.admin_ip_by_device_ip(devices, igmp.reporter)
 							if reporter_admin_ip:
 								left = 'entities:%s' % device.admin_ip
 								right = 'entities:%s' % reporter_admin_ip
@@ -612,7 +660,7 @@ class Poll(object):
 	def __add_igmp(self, data, devices):
 		for device in devices:
 			for igmp in device.igmps:
-				reporter_admin_ip = self.admin_ip_by_subnet(devices, device, igmp.reporter, 0xFFFFFFFF)
+				reporter_admin_ip = self.admin_ip_by_device_ip(devices, igmp.reporter)
 				if reporter_admin_ip:
 					style = 'line-type:directed'
 					left = 'entities:%s' % device.admin_ip
