@@ -3,7 +3,6 @@
 	"poll-rate": 30,
 	"client": "10.4.0.3",
 	"path": "/modeler",
-	"admin_network" : "10.10.4.0",
 	"devices":
 	{
 		"CAP1-IMG-R7":

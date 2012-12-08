@@ -9,7 +9,6 @@ The json files are used by the modelers to discover which devices need to be mod
 * poll-rate - is the interval in seconds at which modelers should probe devices.
 * client - is the IP address of the machine which should run the modelers. 
 * path - is the path component of the URL modelers should use when PUTing.
-* admin_network - is set when multiple devices share a network admin ip address. (Setting this prevents gnos from thinking that every device part of the admin network is one hop away from every other device).
 
 Each device in the network should also be listed. Devices have the following required entries:
 * <key> - The device entries are keyed using their name. This is the name used by clients in the main view.
