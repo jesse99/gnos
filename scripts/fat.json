@@ -1,6 +1,6 @@
 {
 	"network": "Auto-Fat",
-	"poll-rate": 20,
+	"poll-rate": 30,
 	"client": "10.8.0.179",
 	"path": "/modeler",
 	"devices":

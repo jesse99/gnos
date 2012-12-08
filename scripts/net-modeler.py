@@ -260,8 +260,13 @@ class Poll(object):
 	def admin_ip_by_subnet(self, devices, src_device, network_ip, netmask, flags = ''):
 		candidates = []
 		
+		# 1) If the subnet is zero then anything is a candidate for matching network_ip.
+		# 2) If admin ips are not shared across devices we can proceed.
+		# 3) If admin ips are shared across devices then only proceed if the subnet is not an admin ip
+		# (when we try and find the devices connected to a local LAN hanging off a router we don't
+		# want to return every device that is part of the admin network).
 		subnet = ip_to_int(network_ip) & netmask
-		if network_ip and (subnet == 0 or subnet != ip_to_int(src_device.admin_ip) & netmask):	# admin network is not there for the devices so don't return results for it
+		if network_ip and (subnet == 0 or "admin_network" not in env.config or subnet != ip_to_int(src_device.admin_ip) & netmask):
 			# First try the devices we don't know about (these are the devices we want to use when 
 			# forwarding to a device on an attached subnet).
 			for (name, device) in env.config["devices"].items():
@@ -270,7 +275,7 @@ class Poll(object):
 					if subnet == 0 or candidate == subnet:
 						if device['ip'] != src_device.admin_ip:
 							add_if_missing(candidates, device['ip'])
-			
+							
 			# Then try to find a device we do know about that isn't src_admin.
 			# This will tend to be the direct link to a peer machine case.
 			for device in devices:
@@ -495,8 +500,6 @@ class Poll(object):
 			for link in device.links:
 				if link.peer_ip:
 					peer_admin_ip = self.admin_ip_by_subnet(devices, device, link.peer_ip, 0xFFFFFFFF)
-					if link.predicate == "options.ospf selection.name 'map' == and":
-						print '%s: %s => %s' % (link.admin_ip, link.peer_ip, peer_admin_ip)
 					if peer_admin_ip:
 						links[(link.admin_ip, peer_admin_ip, link.predicate)] = link
 					else:

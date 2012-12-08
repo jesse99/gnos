@@ -1,16 +1,25 @@
 {
 	"network": "Mini-Fat",
-	"poll-rate": 20,
+	"poll-rate": 30,
 	"client": "10.8.0.179",
 	"path": "/modeler",
 	"devices":
 	{
+		"GRS-1":
+		{
+			"ip": "10.101.0.2",
+			"links": ["GRS-2", "GRS-4", "App-1"],
+			"authentication": "-v2c -c public",
+			"mibs": "linux-router",
+			"modeler": "net-modeler.py",
+			"type": "snmp"
+		},
 		"App-1":
 		{
 			"ip": "10.101.0.10",
 			"ssh": "sshpass -p root ssh -f root@",
-			"mibs": "linux-host",
 			"modeler": "net-modeler.py",
+			"mibs": "linux-host",
 			"type": "linux_ssh"
 		}
 	}
