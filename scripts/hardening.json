@@ -139,7 +139,7 @@
 			"links": ["CAP2-VORTEX", "GCE-RTR", "CAP2-IMG-R7", "CAP2-AID-L1"],
 			"authentication": "-v3 -m all -u net_user -l authPriv -a md5 -A authpass -x des -X privpass",
 			"mibs": "cisco-router",
-			"modeler": "invert-modeler.py",
+			"modeler": "net-modeler.py",
 			"type": "snmp"
 		},
 		"GCE-RTR":
