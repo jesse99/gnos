@@ -34,7 +34,23 @@ def find_interface(device, ifindex):
 	interface.index = ifindex
 	device.interfaces.append(interface)
 	return interface
-	
+
+# http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput=sysDescr&translate=Translate&submitValue=SUBMIT&submitClicked=true
+# SNMPv2-MIB::sysDescr.0 Linux RTR-4 2.6.39.4 #1 Fri Apr 27 02:41:53 PDT 2012 i686
+# SNMPv2-MIB::sysObjectID.0 NET-SNMP-MIB::netSnmpAgentOIDs.10
+# DISMAN-EVENT-MIB::sysUpTimeInstance 397724214
+# SNMPv2-MIB::sysContact.0 support@blargh.com
+# SNMPv2-MIB::sysName.0 RTR
+# SNMPv2-MIB::sysLocation.0 closet
+# SNMPv2-MIB::sysORLastChange.0 1
+def process_up_time(data, contents, query):
+	#dump_snmp(query.device.admin_ip, 'system', contents)
+	up_time = get_value(contents, "%s", 'sysUpTime')
+	if not up_time:
+		up_time = get_value(contents, "%s", 'sysUpTimeInstance')
+	if up_time:
+		query.device.uptime = float(up_time)/100.0
+
 # http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput=sysDescr&translate=Translate&submitValue=SUBMIT&submitClicked=true
 # SNMPv2-MIB::sysDescr.0 Linux RTR-4 2.6.39.4 #1 Fri Apr 27 02:41:53 PDT 2012 i686
 # SNMPv2-MIB::sysObjectID.0 NET-SNMP-MIB::netSnmpAgentOIDs.10
@@ -45,12 +61,6 @@ def find_interface(device, ifindex):
 # SNMPv2-MIB::sysORLastChange.0 1
 def process_misc(data, contents, query):
 	#dump_snmp(query.device.admin_ip, 'system', contents)
-	up_time = get_value(contents, "%s", 'sysUpTime')
-	if not up_time:
-		up_time = get_value(contents, "%s", 'sysUpTimeInstance')
-	if up_time:
-		query.device.uptime = float(up_time)/100.0
-	
 	query.device.system_info += get_value(contents, '* %s\n', 'sysDescr')
 	query.device.system_info += get_value(contents, '* %s\n', 'sysContact')
 	
@@ -62,8 +72,7 @@ def process_misc(data, contents, query):
 		query.device.system_info += '* ip forwarding is on\n'
 	else:
 		query.device.system_info += '* ip forwarding is off\n'
-		
-	
+
 # key = [ipAdEntAddr]
 # IP-MIB::ipAdEntAddr[10.0.4.2] 10.0.4.2
 # IP-MIB::ipAdEntIfIndex[10.0.4.2] 7
@@ -830,7 +839,7 @@ class QueryDevice(object):
 		# TODO: 
 		# alert if hrSystemDate is too far from admin machine's datetime (5min maybe)
 		# might be nice to do something with tcp and udp stats
-		self.__mibs = ['sysUpTime sysUpTimeInstance sysDescr sysContact ipForwarding', 'ipAddrTable', 'interfaces', 'ifXTable']
+		self.__mibs = ['sysUpTime sysUpTimeInstance', 'sysDescr sysContact ipForwarding', 'ipAddrTable', 'interfaces', 'ifXTable']
 		for mib in device.config.get('mibs', '').split(' '):
 			if mib == 'cisco-router':
 				add_if_missing(self.__mibs, 'ciscoFlashPartitionTable')
@@ -862,7 +871,8 @@ class QueryDevice(object):
 				else:
 					env.logger.error("Don't know how to parse %s mib" % mib)
 		self.__handlers = {
-			'sysUpTime sysUpTimeInstance sysDescr sysContact ipForwarding': process_misc,
+			'sysUpTime sysUpTimeInstance': process_up_time,
+			'sysDescr sysContact ipForwarding': process_misc,
 			'ipAddrTable': process_ip_addr,
 			'ipRouteTable': process_ip_route,
 			'ipCidrRouteTable': process_ip_cidr,
@@ -908,6 +918,9 @@ class QueryDevice(object):
 		if self.__results:
 			close_alert(data, target, key = 'device down')
 			for (mib, contents) in self.__results.items():
-				self.__handlers[mib](data, contents, self)
+				try:
+					self.__handlers[mib](data, contents, self)
+				except:
+					env.logger.error("Failed to process %s" % mib, exc_info=True)
 		else:
 			open_alert(data, target, key = 'device down', mesg = 'Device is down.', resolution = 'Check the power cable, power it on if it is off, check the IP address, verify routing.', kind = 'error')
