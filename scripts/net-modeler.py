@@ -194,6 +194,7 @@ class Poll(object):
 	def __query_devices(self, data, devices):
 		threads = []
 		queriers = []
+		num_queries = 0
 		check_queries = threading.Condition(threading.Lock())
 		
 		# Query the devices using a thread to get the raw data and possibly
@@ -204,8 +205,10 @@ class Poll(object):
 				thread = SnmpThread(device, queriers, check_queries)
 				thread.start()
 				threads.append(thread)
+				num_queries += 1
 			elif device.config['type'] == 'linux_ssh':
 				ssh.add_device(device)
+				num_queries += 1
 			else:
 				env.logger.error("bad modeler: %s" % device.config['modeler'])
 				
@@ -219,7 +222,7 @@ class Poll(object):
 		# But the data argument is a shared resource so only update that from one
 		# thread.
 		count = 0
-		while count < len(threads):
+		while count < num_queries:
 			check_queries.acquire()
 			try:
 				while len(queriers) == 0:
@@ -228,7 +231,7 @@ class Poll(object):
 					queriers.pop().process(data)
 					count += 1
 			except RuntimeError:
-				env.logger.error("Failed to get data for a device (probably timed out)", exc_info=True)
+				env.logger.error("Failed to get data for a device (probably timed out)", exc_info=True)	# i.e. wait timed out
 				count = len(threads)
 			finally:
 				check_queries.release()
