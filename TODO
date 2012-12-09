@@ -31,21 +31,43 @@ restful uris: http://redrata.com/restful-uri-design/
 javascript model/view: http://documentcloud.github.com/backbone/
 
 
+* env! didn't work on Linux:
+	- should we just get rid of GNOS_USER?
+* Firefox didnt work very well
+	- might be the layout css
+* Use saturated colors only for emphasis
+	- even blue and green
+* Don't use white for the background
+* Seems to be a delay opening details window
+	- might be related to poll interval
+* Had problems restarting server on linux
+	- maybe reuse addr related
+	  rust: ~"Couldn\'t start web server at 10.4.0.3: bind failed to find an address"
+* Make sure gnos works without --admin
+* Use  autofocus="autofocus" in the query page
+* Rust doesn't collect managed box cycles so rrdf memory usage is awful:
+	- once rust fixes this need to verify that memory usage is stable
 * It would be nice to support virtual networks better:
 	- modeler could run on a virtual host
 	- would have to do PUTs to a unique store
 	- gnos home page would have to have a way to pick which store to show
-* Need to detect server ip (so it works on different machines and after re-connecting to VPN)
-	- or just switch to using libuv and fix that up as neccesary
-	- add some code to socket to enumerate over local IPs
-		http://www.doctort.org/adam/nerd-notes/enumerating-network-interfaces-on-linux.html
-	- add a --server command line option to gnos and modelers
-	- probably --port too
-	- maybe add --url to modelers
-	- --server should support (explicit) subnets
-		try and find a matching local IP
-	- allow multiple subnets
-		makefile should use 10.4.0.0/24,10.0.0.0/8
+* Support multiple networks
+	- modelers need a --name argument
+	- data goes into a store named using that name
+	- gnos maintains an index store
+	- home page shows entries in the index store
+		modelers should add relations to a networks entity?
+	- double click shows info for that store
+	- need to time out entries in the index store
+* If a lot of traffic is going over a link relation show it:
+	- dashs or fatter lines
+	- probably log scaled based on bandwidth and capacity
+	- possible animation as well (might tie in better with NetFlow)
+* Switch to using libuv.
+* Need to enable smux in order to access quagga's MIBs
+	- net-snmp must be built with --with-mib-modules=smux
+	- quagga must be built with --enable-snmp
+	- http://www.nongnu.org/quagga/docs/docs-info.html#SEC143
 * Need an L2 option:
 	- also snmp: http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&ved=0CFUQFjAA&url=http%3A%2F%2Fwww.cisco.com%2Fen%2FUS%2Ftech%2Ftk648%2Ftk362%2Ftechnologies_tech_note09186a00801c9199.shtml&ei=KDAdUMWsBYOGyQHmpIDQDw&usg=AFQjCNG7O3ox230HFyYMKT6966T399Z8wg&sig2=F3LAXDBFGp4L1ZdXMfWsyQ
 	- add dynamic entities for each VLAN, only shown if options.L2
@@ -57,17 +79,21 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	vmMembershipSummaryMemberPorts maps ports to VLANs
 	vlanTrunkPortVlansEnabled maps VLANs to trunks
 	ifPhysAddress MAC for the switch port
-* Support snmp traps
+* A modeler should listen for generic traps and at least a few custom ones admins can add
+	- standard generic traps are: coldStart, warmStart, linkDown, linkUp, authenticationFailure, egpNeighborLoss
+	- net-snmp has fewer: http://www.net-snmp.org/tutorial/tutorial-5/commands/snmptrap.html
+	- net-snmp can be configured to send custom traps: http://serverfault.com/questions/248332/set-up-snmp-trap-for-disk-usage
+* Start using cargo to fetch dependencies?
+	- erickt's server does that
 * net-modeler should be its own project
 * Sliders and option dropdown values should be persisted in a pref:
 	- use web storage?
 	- not exactly clear when the prefs should be applied
 	- set the pref when the associated value changes
 	- use the pref when the associated widget is (re)initialized
-* modeler should listen for generic traps and at least a few custom ones admins can add
-	- standard generic traps are: coldStart, warmStart, linkDown, linkUp, authenticationFailure, egpNeighborLoss
-	- net-snmp has fewer: http://www.net-snmp.org/tutorial/tutorial-5/commands/snmptrap.html
-	- net-snmp can be configured to send custom traps: http://serverfault.com/questions/248332/set-up-snmp-trap-for-disk-usage
+* Would be nice to be able to show syslogs.
+* Network files should support comments
+	- will probably have to preprocess them
 * Balloon layout is interesting:
 	http://lab.kapit.fr/display/visualizationlayouts/Balloon+layout
 * Add a details list for dropped packets:
@@ -76,14 +102,7 @@ javascript model/view: http://documentcloud.github.com/backbone/
 * Interesting wayts to connect html thingies:
 	- http://jsplumb.org/doc/usage.html
 	- http://js-graph-it.sourceforge.net/index.html
-* UI
-	- widget at upper left in window shows how deep naved in, click navs out
-	- widget at entity upper right shows how far can nav in
-	- widget at bottom left shows how far can zoom out
-	- widget at bottom right shows how far can zoom in
-	- can we have two names for in and out?
-	- some entires could be just a label so maybe only show widgets when hover over
-* Maps
+* Other maps
 	- snmp
 	- rust docs
 	- rust project
@@ -114,10 +133,6 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	  </menu>
 	</section>
 	- but it's not in chrome yet: http://caniuse.com/#search=contextmenu
-* Switch to using libuv:
-	- write a tcp example
-	- don't use libc sleep
-	- may want to timeout sse and connections
 * Should be able to support different dashboard styles:
 	- operational: largely an easy to interpret view of network health
 	- analysis: details on network behavior
@@ -161,10 +176,7 @@ javascript model/view: http://documentcloud.github.com/backbone/
 	- check-all runs all unit tests
 	- make defaults to building everything
 * Probably should have a pref to control canvas size (maybe on the map inspector).
-* Use valid time? Also look at Owl-Time
 * Should validate the network.json file.
-* Might be nice if subject page color coded fields that change as new results come in.
-* Protege is an open source ontology editor.
 * Maybe allow people to do tcpdumps on device(s)
 	- possibly use something like http://www.tcptrace.org/index.html views
 * Make the licensing explicit
@@ -190,7 +202,6 @@ javascript model/view: http://documentcloud.github.com/backbone/
 * Rmon
 	- supports packet level stats
 	- allows traps for stats that go above or below a threshold
-* Admins should be able to set which origins the server accepts.
 * Syslog can be used to send logs elsewhere
 * Next generation network management
 	- http://books.google.com/books?id=9WWereKFb54C&dq=rdf+schema+%22network+management%22&source=gbs_navlinks_s
