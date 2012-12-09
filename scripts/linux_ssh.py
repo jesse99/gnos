@@ -284,7 +284,10 @@ class QueryDevice(object):
 			close_alert(data, target, key = 'device down')
 			assert len(self.__runner.results) == len(self.__handlers)
 			for i in xrange(0, len(self.__runner.results)):
-				self.__handlers[i].process(data, self.__runner.results[i], self)
+				try:
+					self.__handlers[i].process(data, self.__runner.results[i], self)
+				except:
+					env.logger.error("Failed to process %s" % self.__handlers[i].command, exc_info=True)
 		else:
 			open_alert(data, target, key = 'device down', mesg = 'Device is down.', resolution = 'Check the power cable, power it on if it is off, check the IP address, verify routing.', kind = 'error')
 		
