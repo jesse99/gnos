@@ -62,7 +62,7 @@ pub impl RingBuffer
 
 pub impl RingBuffer : ops::Index<uint, float>
 {
-	pure fn index(index: uint) -> float
+	pure fn index(&self, index: uint) -> float
 	{
 		assert index < self.size;
 		
@@ -79,7 +79,7 @@ pub impl RingBuffer : ops::Index<uint, float>
 
 pub impl RingBuffer : BaseIter<float>
 {
-	pure fn each(blk: fn(v: &float) -> bool)
+	pure fn each(&self, blk: fn(v: &float) -> bool)
 	{
 		let mut i = 0;
 		while i < self.size
@@ -92,7 +92,7 @@ pub impl RingBuffer : BaseIter<float>
 		}
 	}
 	
-	pure fn size_hint() -> option::Option<uint>
+	pure fn size_hint(&self) -> option::Option<uint>
 	{
 		option::Some(self.size)
 	}

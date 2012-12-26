@@ -1,4 +1,5 @@
 //! Command line options processing.
+use core::path::{GenericPath};
 use io::WriterUtil;
 use Path = path::Path;
 use std::getopts::*;
@@ -62,7 +63,7 @@ pub fn parse_command_line(args: ~[~str]) -> Options
 		result::Ok(copy m) => {m}
 		result::Err(copy f) => {io::stderr().write_line(fail_str(f)); libc::exit(1_i32)}
 	};
-	if opt_present(copy matched, ~"version")
+	if opt_present(&matched, ~"version")
 	{
 		io::println(fmt!("gnos %s", get_version()));
 		libc::exit(0);
@@ -73,23 +74,23 @@ pub fn parse_command_line(args: ~[~str]) -> Options
 		libc::exit(1);
 	}
 	
-	let path: path::Path = path::from_str(matched.free[0]);
+	let path: path::Path = GenericPath::from_str(matched.free[0]);
 	let network = load_network_file(&path);
 	
 	Options
 	{
-		root: path::from_str(opt_str(copy matched, ~"root")),
-		admin: opt_present(copy matched, ~"admin"),
+		root: GenericPath::from_str(opt_str(&matched, ~"root")),
+		admin: opt_present(&matched, ~"admin"),
 		network_file: path.filename().get(),
-		db: opt_present(copy matched, ~"db"),
-		browse: if opt_present(copy matched, ~"browse") {opt_str(copy matched, ~"browse")} else {~""},
-		bind_ip: if opt_present(copy matched, ~"bind") {endpoint_to_ip(opt_str(copy matched, ~"bind"))} else {~"127.0.0.1"},
-		bind_port: if opt_present(copy matched, ~"bind") {endpoint_to_port(opt_str(copy matched, ~"bind"))} else {8080},
+		db: opt_present(&matched, ~"db"),
+		browse: if opt_present(&matched, ~"browse") {opt_str(&matched, ~"browse")} else {~""},
+		bind_ip: if opt_present(&matched, ~"bind") {endpoint_to_ip(opt_str(&matched, ~"bind"))} else {~"127.0.0.1"},
+		bind_port: if opt_present(&matched, ~"bind") {endpoint_to_port(opt_str(&matched, ~"bind"))} else {8080},
 		
-		network_name: network.network,
-		client_ip: network.client,
+		network_name: copy network.network,
+		client_ip: copy network.client,
 		poll_rate: network.poll_rate,
-		devices: network.devices,
+		devices: copy network.devices,
 	}
 }
 
@@ -188,7 +189,7 @@ priv fn get_network_device(path: &Path, name: &str, value: &std::json::Json) -> 
 		std::json::Object(ref value) =>
 		{
 			Device {
-				name: name.to_unique(),
+				name: name.to_owned(),
 				managed_ip: get_network_str(path, *value, &~"ip"),
 				modeler: get_network_str(path, *value, &~"modeler"),
 			}
@@ -207,7 +208,7 @@ priv fn get_network_str(path: &Path, data: &send_map::linear::LinearMap<~str, st
 	{
 		option::Some(std::json::String(ref value)) =>
 		{
-			value.to_unique()
+			value.to_owned()
 		}
 		option::Some(ref x) =>
 		{
@@ -321,7 +322,7 @@ priv fn endpoint_to_ip(endpoint: &str) -> ~str
 	let addr = match str::find_char(endpoint, ':')
 	{
 		option::Some(i) => endpoint.slice(0, i),
-		option::None => endpoint.to_unique(),
+		option::None => endpoint.to_owned(),
 	};
 	if str::all(addr, |c| char::is_digit(c) || c == '.')	// TODO: could do some better validation here
 	{

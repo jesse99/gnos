@@ -1,15 +1,16 @@
 /// This is the code that handles PUTs from the modeler scripts. It parses the
 /// incoming json, converts it into triplets, and updates the model.
+use core::path::{GenericPath};
 use core::io::{WriterUtil, ReaderUtil};
 use std::json::{Json};
 use json = std::json;
 use std::map::*;
 use model::{Msg, UpdateMsg, UpdatesMsg, QueryMsg, eval_query};
 use options::{Options, Device};
-use rrdf::rrdf::*;
+use rrdf::*;
 use task_runner::*;
-use comm::{Chan, Port};
-use server = rwebserve::rwebserve;
+use oldcomm::{Chan, Port};
+use server = rwebserve;
 use mustache::{Context, Template};
 
 pub type SamplesChan = Chan<samples::Msg>;
@@ -18,7 +19,7 @@ pub type SamplesChan = Chan<samples::Msg>;
 // are expected to be more likely) will retain correspondingly longer time spans.
 pub const samples_capacity: uint = 180;
 
-pub fn put_json(options: &Options, state_chan: Chan<Msg>, samples_chan: SamplesChan, request: &server::Request, response: &server::Response) -> server::Response
+pub fn put_json(options: &Options, state_chan: Chan<Msg>, samples_chan: SamplesChan, request: &server::Request, response: server::Response) -> server::Response
 {
 	// Unfortunately we don't send an error back to the modeler if the json was invalid.
 	// Of course that shouldn't happen...
@@ -26,9 +27,9 @@ pub fn put_json(options: &Options, state_chan: Chan<Msg>, samples_chan: SamplesC
 	info!("-------- got %? bytes from %s --------", request.body.len(), addr);
 	
 	let options = copy *options;
-	comm::send(state_chan, UpdateMsg(~"primary", |s, d, move options| {handle_update(&options, addr, s, d, samples_chan)}, copy request.body));
+	oldcomm::send(state_chan, UpdateMsg(~"primary", |s, d, move options| {handle_update(&options, addr, s, d, samples_chan)}, copy request.body));
 	
-	server::Response {body: rwebserve::configuration::StringBody(@~""), ..*response}
+	server::Response {body: rwebserve::configuration::StringBody(@~""), ..response}
 }
 
 priv fn handle_update(options: &Options, remote_addr: &str, store: &Store, body: &str, samples_chan: SamplesChan) -> bool
@@ -203,7 +204,7 @@ priv fn add_relations(store: &Store, modeler: &Option<Object>, list: &json::List
 				{
 					sub_entries.push((~"gnos:modeler-subject", @modeler.get()));
 				}
-				sub_entries.push((~"gnos:target",		@BlankValue(target.to_unique())));
+				sub_entries.push((~"gnos:target",		@BlankValue(target.to_owned())));
 				sub_entries.push((~"gnos:label",		@StringValue(get_str(sub_object, ~"label"), ~"")));
 				sub_entries.push((~"gnos:level", 		@IntValue(get_i64(sub_object, ~"level"))));
 				sub_entries.push((~"gnos:sort_key",	@StringValue(i.to_str(), ~"")));
@@ -342,7 +343,7 @@ priv fn build_sparkline(options: &Options, samples_chan: SamplesChan, name: &str
 {
 	let port = Port();
 	let chan = Chan(&port);
-	samples_chan.send(samples::GetSampleSet(name.to_unique(), chan));
+	samples_chan.send(samples::GetSampleSet(name.to_owned(), chan));
 	let (buffer, _num_adds) = port.recv();
 	
 	if (buffer.len() > 1)
@@ -378,7 +379,7 @@ priv fn run_r_script(script: &str)
 	let action: JobFn =
 		||
 		{
-			let path = path::from_str("/tmp/gnos-sparkline.R");		// TODO use a better path once rust has a better tmp file function
+			let path = GenericPath::from_str("/tmp/gnos-sparkline.R");		// TODO use a better path once rust has a better tmp file function
 			match io::file_writer(&path, ~[io::Create, io::Truncate])
 			{
 				result::Ok(writer) =>
@@ -421,7 +422,7 @@ priv fn prune_modeler(store: &Store, value: &Json) -> Option<Object>
 			do utils::remove_entry_if(store.subjects) |_key, value|
 			{
 				let entry = value.get_elt(0);
-				entry.predicate == ~"http://www.gnos.org/2012/schema#modeler-subject" && *entry.object == mine.get()
+				entry.predicate == ~"http://www.gnos.org/2012/schema#modeler-subject" && *entry.object == *mine.get_ref()
 			}
 		}
 		_ =>

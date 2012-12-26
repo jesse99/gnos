@@ -2,20 +2,20 @@
 //! 
 //! Used to test the client-side code.
 use model::*;
-use rrdf::rrdf::*;
+use rrdf::*;
 
 // TODO: In the future this should be replaced with a turtle file
 // and --db should take a path to it (and maybe others).
-pub fn setup(state_chan: comm::Chan<model::Msg>, poll_rate: u16) 
+pub fn setup(state_chan: oldcomm::Chan<model::Msg>, poll_rate: u16) 
 {
-	comm::send(state_chan, model::UpdateMsg(~"primary", |store, _data| {add_got(store, state_chan, poll_rate); true}, ~""));
+	oldcomm::send(state_chan, model::UpdateMsg(~"primary", |store, _data| {add_got(store, state_chan, poll_rate); true}, ~""));
 	add_alerts(state_chan);
 }
 
 // This is designed to test live updating of views. What we do is degrade the loyalty (to the crown) of
 // winterfell and knight's landing. The color and level settings of the layalty gauges are adjusted
 // based on the current loyalty value.
-priv fn update_got(state_chan: comm::Chan<model::Msg>, winterfell_loyalty_subject: ~str, winterfell_loyalty_value: f64, kings_landing_loyalty_subject: ~str, kings_landing_loyalty_value: f64, poll_rate: u16)
+priv fn update_got(state_chan: oldcomm::Chan<model::Msg>, winterfell_loyalty_subject: ~str, winterfell_loyalty_value: f64, kings_landing_loyalty_subject: ~str, kings_landing_loyalty_value: f64, poll_rate: u16)
 {
 	fn degrade_loyalty(value: f64, delta: f64) -> f64
 	{
@@ -56,7 +56,7 @@ priv fn update_got(state_chan: comm::Chan<model::Msg>, winterfell_loyalty_subjec
 	error!("winterfell_loyalty_value = %?", winterfell_loyalty_value);
 	error!("kings_landing_loyalty_value = %?", kings_landing_loyalty_value);
 	
-	comm::send(state_chan, model::UpdateMsg(~"primary",
+	oldcomm::send(state_chan, model::UpdateMsg(~"primary",
 		|store, _data, copy winterfell_loyalty_subject, copy kings_landing_loyalty_subject|
 		{
 			store.replace_triple(~[], {subject: copy winterfell_loyalty_subject, predicate: ~"gnos:gauge", object: @FloatValue(winterfell_loyalty_value)});
@@ -75,7 +75,7 @@ priv fn update_got(state_chan: comm::Chan<model::Msg>, winterfell_loyalty_subjec
 	update_got(state_chan, winterfell_loyalty_subject, winterfell_loyalty_value, kings_landing_loyalty_subject, kings_landing_loyalty_value, poll_rate);
 }
 
-priv fn add_got(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
+priv fn add_got(store: &Store, state_chan: oldcomm::Chan<model::Msg>, poll_rate: u16)
 {
 	add_globals(store, poll_rate);
 	add_entities(store);
@@ -237,7 +237,7 @@ priv fn add_entities(store: &Store)
 	]);
 }
 
-priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: u16)
+priv fn add_infos(store: &Store, state_chan: oldcomm::Chan<model::Msg>, poll_rate: u16)
 {
 	// wall labels
 	store.add(get_blank_name(store, ~"wall-label"), ~[
@@ -332,10 +332,10 @@ priv fn add_infos(store: &Store, state_chan: comm::Chan<model::Msg>, poll_rate: 
 	do task::spawn_sched(task::SingleThreaded) |copy winterfell_loyalty_subject, copy kings_landing_loyalty_subject| {update_got(state_chan, copy winterfell_loyalty_subject, winterfell_loyalty_value, copy kings_landing_loyalty_subject, kings_landing_loyalty_value, poll_rate);}
 }
 
-priv fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool
+priv fn add_alerts(state_chan: oldcomm::Chan<model::Msg>) -> bool
 {
 	// container
-	comm::send(state_chan, model::UpdateMsg(~"primary", |store, _msg|
+	oldcomm::send(state_chan, model::UpdateMsg(~"primary", |store, _msg|
 	{
 		model::open_alert(store, &Alert {target: ~"gnos:container", id: ~"m1", level: ~"error", mesg: ~"Detonation in 5s", resolution: ~"Cut the blue wire."});
 		model::open_alert(store, &Alert {target: ~"gnos:container", id: ~"m2", level: ~"warning", mesg: ~"Approaching critical mass", resolution: ~"Reduce mass."});
@@ -345,7 +345,7 @@ priv fn add_alerts(state_chan: comm::Chan<model::Msg>) -> bool
 	}, ~""));
 	
 	// entities
-	comm::send(state_chan, model::UpdateMsg(~"primary", |store, _msg|
+	oldcomm::send(state_chan, model::UpdateMsg(~"primary", |store, _msg|
 	{
 		model::open_alert(store, &Alert {target: ~"entities:wall", id: ~"wa1", level: ~"error", mesg: ~"Night is falling.", resolution: ~"I am the fire that burns against the cold."});
 		

@@ -1,6 +1,7 @@
+use core::path::{GenericPath};
 use std::json::ToJson;
 use io::WriterUtil;
-use rrdf::rrdf::*;
+use rrdf::*;
 use model::*;
 use Namespace = rrdf::solution::Namespace;
 
@@ -44,8 +45,8 @@ fn check_solutions(actual: &Solution, expected: &Solution) -> bool
 	// Both sides should have the same number of rows.
 	if actual.rows.len() != expected.rows.len()
 	{
-		print_failure(#fmt["Actual result had %? rows but expected %? rows.", 
-			actual.rows.len(), expected.rows.len()], actual, expected);
+		print_failure(fmt!("Actual result had %? rows but expected %? rows.", 
+			actual.rows.len(), expected.rows.len()), actual, expected);
 		return false;
 	}
 	
@@ -55,8 +56,8 @@ fn check_solutions(actual: &Solution, expected: &Solution) -> bool
 		let row2 = copy expected.rows[i];
 		if actual.num_selected != row2.len()
 		{
-			print_failure(#fmt["Row %? had size %? but expected %?.",
-				i, row1.len(), row2.len()], actual, expected);
+			print_failure(fmt!("Row %? had size %? but expected %?.",
+				i, row1.len(), row2.len()), actual, expected);
 			return false;
 		}
 		
@@ -67,8 +68,8 @@ fn check_solutions(actual: &Solution, expected: &Solution) -> bool
 			let value2 = row2[j];
 			if value1 != value2
 			{
-				print_failure(#fmt["Row %? actual %s was %s but expected %s.",
-					i, *name1, value1.to_str(), value2.to_str()], actual, expected);
+				print_failure(fmt!("Row %? actual %s was %s but expected %s.",
+					i, *name1, value1.to_str(), value2.to_str()), actual, expected);
 				return false;
 			}
 		}
@@ -77,7 +78,7 @@ fn check_solutions(actual: &Solution, expected: &Solution) -> bool
 	return true;
 }
 
-fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
+fn update(state_chan: oldcomm::Chan<Msg>, data: ~[(~str, ~str)])
 {
 	fn get_str(entry: &[std::json::Json], index: uint) -> ~str
 	{
@@ -85,7 +86,7 @@ fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
 		{
 			std::json::String(ref value) =>
 			{
-				value.to_unique()
+				value.to_owned()
 			}
 			ref x =>
 			{
@@ -132,15 +133,15 @@ fn update(state_chan: comm::Chan<Msg>, data: ~[(~str, ~str)])
 	}
 	
 	let json = data.to_json();
-	comm::send(state_chan, UpdateMsg(~"primary", do_update, json.to_str()));
+	oldcomm::send(state_chan, UpdateMsg(~"primary", do_update, json.to_str()));
 }
 
 #[test]
 fn test_query()
 {
-	let state_chan = do task::spawn_listener |port| {model::manage_state(port, "127.0.0.1", 8080)};
-	let sync_port = comm::Port();
-	let sync_chan = comm::Chan(&sync_port);
+	let state_chan = do utils::spawn_moded_listener(task::ThreadPerCore) |port| {model::manage_state(port, "127.0.0.1", 8080)};
+	let sync_port = oldcomm::Port();
+	let sync_chan = oldcomm::Chan(&sync_port);
 	
 	let query = ~"
 SELECT
@@ -149,9 +150,9 @@ WHERE
 {
 	?subject gnos:ttl ?ttl
 }";
-	let query_port = comm::Port();
-	let query_chan = comm::Chan(&query_port);
-	comm::send(state_chan, QueryMsg(~"primary", copy query, query_chan));
+	let query_port = oldcomm::Port();
+	let query_chan = oldcomm::Chan(&query_port);
+	oldcomm::send(state_chan, QueryMsg(~"primary", copy query, query_chan));
 	
 	// store starts out empty
 	let solution = query_chan.recv();
@@ -159,30 +160,30 @@ WHERE
 	
 	// after adding ttl can query for it
 	update(state_chan, ~[(~"ttl", ~"50")]);
-	comm::send(state_chan, QueryMsg(~"primary", copy query, query_chan));
+	oldcomm::send(state_chan, QueryMsg(~"primary", copy query, query_chan));
 	let solution = query_chan.recv();
 	assert check_strs(solution.to_str(), ~"[{\"ttl\":\"50\"}]");
 	
 	// after changing ttl can query for it
 	update(state_chan, ~[(~"ttl", ~"75")]);
-	comm::send(state_chan, QueryMsg(~"primary", query, query_chan));
+	oldcomm::send(state_chan, QueryMsg(~"primary", query, query_chan));
 	let solution = query_chan.recv();
 	assert check_strs(solution.to_str(), ~"[{\"ttl\":\"75\"}]");
 	
 	// only get a solution after a change if we request it
 	update(state_chan, ~[(~"ttl", ~"80")]);
-	comm::send(state_chan, SyncMsg(sync_chan)); sync_chan.recv();
+	oldcomm::send(state_chan, SyncMsg(sync_chan)); sync_chan.recv();
 	assert !query_chan.peek();
 	
-	comm::send(state_chan, ExitMsg);
+	oldcomm::send(state_chan, ExitMsg);
 }
 
 #[test]
 fn test_registration()
 {
-	let state_chan = do task::spawn_listener |port| {model::manage_state(port, "127.0.0.1", 8080)};
-	let sync_port = comm::Port();
-	let sync_chan = comm::Chan(&sync_port);
+	let state_chan = do utils::spawn_moded_listener(task::ThreadPerCore) |port| {model::manage_state(port, "127.0.0.1", 8080)};
+	let sync_port = oldcomm::Port();
+	let sync_chan = oldcomm::Chan(&sync_port);
 	
 	// register queries
 	let ttl_query = ~"
@@ -192,9 +193,9 @@ WHERE
 {
 	?subject gnos:ttl ?ttl
 }";
-	let ttl_port = comm::Port();
-	let ttl_chan = comm::Chan(&ttl_port);
-	comm::send(state_chan, RegisterMsg(~"primary", ~"ttl-query", ~[ttl_query], ttl_chan));
+	let ttl_port = oldcomm::Port();
+	let ttl_chan = oldcomm::Chan(&ttl_port);
+	oldcomm::send(state_chan, RegisterMsg(~"primary", ~"ttl-query", ~[ttl_query], ttl_chan));
 	
 	let fwd_query = ~"
 SELECT
@@ -203,9 +204,9 @@ WHERE
 {
 	?subject gnos:fwd ?fwd
 }";
-	let fwd_port = comm::Port();
-	let fwd_chan = comm::Chan(&fwd_port);
-	comm::send(state_chan, RegisterMsg(~"primary", ~"fwd-query", ~[fwd_query], fwd_chan));
+	let fwd_port = oldcomm::Port();
+	let fwd_chan = oldcomm::Chan(&fwd_port);
+	oldcomm::send(state_chan, RegisterMsg(~"primary", ~"fwd-query", ~[fwd_query], fwd_chan));
 	
 	// get solutions on registration,
 	let solutions = ttl_chan.recv().get();
@@ -219,12 +220,12 @@ WHERE
 	let solutions = ttl_chan.recv().get();
 	assert check_strs(solutions.to_str(), ~"[{\"ttl\":\"50\"}]");
 	
-	comm::send(state_chan, SyncMsg(sync_chan)); sync_chan.recv();
+	oldcomm::send(state_chan, SyncMsg(sync_chan)); sync_chan.recv();
 	assert !fwd_chan.peek();
 	
 	// no solutions when replacing a triplet with the same triplet
 	update(state_chan, ~[(~"ttl", ~"50")]);
-	comm::send(state_chan, SyncMsg(sync_chan)); sync_chan.recv();
+	oldcomm::send(state_chan, SyncMsg(sync_chan)); sync_chan.recv();
 	assert !ttl_chan.peek();
 	assert !fwd_chan.peek();
 	
@@ -235,15 +236,15 @@ WHERE
 	assert !fwd_chan.peek();
 	
 	// bail
-	comm::send(state_chan, ExitMsg);
+	oldcomm::send(state_chan, ExitMsg);
 }
 
 #[test]
 fn test_deregistration()
 {
-	let state_chan = do task::spawn_listener |port| {model::manage_state(port, "127.0.0.1", 8080)};
-	let sync_port = comm::Port();
-	let sync_chan = comm::Chan(&sync_port);
+	let state_chan = do utils::spawn_moded_listener(task::ThreadPerCore) |port| {model::manage_state(port, "127.0.0.1", 8080)};
+	let sync_port = oldcomm::Port();
+	let sync_chan = oldcomm::Chan(&sync_port);
 	
 	// register queries
 	let ttl_query = ~"
@@ -253,9 +254,9 @@ WHERE
 {
 	?subject gnos:ttl ?ttl
 }";
-	let ttl_port = comm::Port();
-	let ttl_chan = comm::Chan(&ttl_port);
-	comm::send(state_chan, RegisterMsg(~"primary", ~"ttl-query", ~[ttl_query], ttl_chan));
+	let ttl_port = oldcomm::Port();
+	let ttl_chan = oldcomm::Chan(&ttl_port);
+	oldcomm::send(state_chan, RegisterMsg(~"primary", ~"ttl-query", ~[ttl_query], ttl_chan));
 	
 	// get solutions on registration,
 	let solutions = ttl_chan.recv().get();
@@ -267,14 +268,14 @@ WHERE
 	assert check_strs(solutions.to_str(), ~"[{\"ttl\":\"50\"}]");
 	
 	// but once we deregister we don't get solutions
-	comm::send(state_chan, DeregisterMsg(~"primary", ~"ttl-query"));
+	oldcomm::send(state_chan, DeregisterMsg(~"primary", ~"ttl-query"));
 	update(state_chan, ~[(~"ttl", ~"75")]);
 	
-	comm::send(state_chan, SyncMsg(sync_chan)); sync_chan.recv();
+	oldcomm::send(state_chan, SyncMsg(sync_chan)); sync_chan.recv();
 	assert !ttl_chan.peek();
 	
 	// bail
-	comm::send(state_chan, ExitMsg);
+	oldcomm::send(state_chan, ExitMsg);
 	assert !ttl_chan.peek();
 }
 
@@ -304,7 +305,7 @@ fn test_alerts()
 			}
 			result::Err(ref err) =>
 			{
-				fail *err;
+				fail copy *err;
 			}
 		}
 	}

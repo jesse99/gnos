@@ -47,8 +47,7 @@ pub fn sequence(jobs: ~[Job], cleanup: ~[ExitFn])
 {
 	do task::spawn_sched(task::SingleThreaded)
 	{
-		for jobs.each
-		|job|
+		for jobs.each |job|
 		{
 			do_run(job, cleanup);
 		}
@@ -61,7 +60,7 @@ priv fn do_run(job: &Job, cleanup: &[ExitFn])
 	{
 		IgnoreFailures =>
 		{
-			let err = job.action();
+			let err = (job.action)();
 			if err.is_some()
 			{
 				let errors = err.get().split_char('\n');
@@ -70,7 +69,7 @@ priv fn do_run(job: &Job, cleanup: &[ExitFn])
 		}
 		NotifyOnFailure(ref notify) =>
 		{
-			let err = job.action();
+			let err = (job.action)();
 			if err.is_some()
 			{
 				(*notify)(err.get());
@@ -78,11 +77,11 @@ priv fn do_run(job: &Job, cleanup: &[ExitFn])
 		}
 		NotifyOnExit(ref notify) =>
 		{
-			(*notify)(job.action())
+			(*notify)((job.action)())
 		}
 		ShutdownOnFailure =>
 		{
-			let err = job.action();
+			let err = (job.action)();
 			if err.is_some()
 			{
 				error!("%s", err.get());

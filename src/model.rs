@@ -1,10 +1,10 @@
 /// Functions and types used to manage a task responsible for managing RDF stores.
 use std::map::{HashMap};
 use std::time;
-use comm::{Chan, Port};
+use oldcomm::{Chan, Port};
 use std::json::ToJson;
 use std::json::to_str;
-use rrdf::rrdf::*;
+use rrdf::*;
 use Namespace = rrdf::solution::Namespace;
 
 /// Function used to update a store within the model task.
@@ -97,13 +97,13 @@ pub fn manage_state(port: Port<Msg>, server: &str,  server_port: u16)
 	
 	loop
 	{
-		match comm::recv(port)
+		match oldcomm::recv(port)
 		{
 			QueryMsg(copy name, copy expr, channel) =>
 			{
 				let solutions = eval_queries(stores.get(name), queries, ~[expr]).get();		// always a canned query so we want to fail fast on error
 				assert solutions.len() == 1;
-				comm::send(channel, solutions_to_json(solutions));
+				oldcomm::send(channel, solutions_to_json(solutions));
 			}
 			UpdateMsg(copy name, ref f, ref data) =>
 			{
@@ -119,7 +119,7 @@ pub fn manage_state(port: Port<Msg>, server: &str,  server_port: u16)
 				// 1) It allows multiple stores to be updated atomically.
 				// 2) At the moment json is not sendable so we can use this message to avoid re-parsing
 				// the (potentially very large) json strings modelers send us.
-				let ss = do names.map |name| {stores.get(name.to_unique())};
+				let ss = do names.map |name| {stores.get(name.to_owned())};
 				if (*f)(ss, *data)
 				{
 					info!("Updated %s stores", str::connect(names, ~", "));
@@ -141,32 +141,32 @@ pub fn manage_state(port: Port<Msg>, server: &str,  server_port: u16)
 					{
 						result::Ok(move solutions) =>
 						{
-							comm::send(channel, result::Ok(solutions_to_json(solutions)));
+							oldcomm::send(channel, result::Ok(solutions_to_json(solutions)));
 							
 							let added = registered[name].insert(key, {queries: exprs, channel: channel, solutions: @mut solutions});
 							assert added;
 						}
 						result::Err(copy err) =>
 						{
-							comm::send(channel, result::Err(~"Expected " + err));
+							oldcomm::send(channel, result::Err(~"Expected " + err));
 						}
 					}
 				}
 				else
 				{
-					comm::send(channel, result::Err(fmt!("%s is not a valid store name", name)));
+					oldcomm::send(channel, result::Err(fmt!("%s is not a valid store name", name)));
 				}
 			}
 			DeregisterMsg(ref name, copy key) =>
 			{
 				if registered.contains_key(copy *name)
 				{
-					registered[*name].remove(key);
+					registered[copy *name].remove(key);
 				}
 			}
 			SyncMsg(channel) =>
 			{
-				comm::send(channel, true);
+				oldcomm::send(channel, true);
 			}
 			ExitMsg =>
 			{
@@ -181,8 +181,8 @@ pub fn get_state(name: &str, channel: Chan<Msg>, query: &str) -> std::json::Json
 {
 	let port = Port();
 	let chan = Chan(&port);
-	comm::send(channel, QueryMsg(name.to_unique(), query.to_unique(), chan));
-	let result = comm::recv(port);
+	oldcomm::send(channel, QueryMsg(name.to_owned(), query.to_owned(), chan));
+	let result = oldcomm::recv(port);
 	return result;
 }
 
@@ -205,7 +205,7 @@ priv fn get_prefixes(store: &Store) -> ~str
 /// Helper used to add a new alert to a store (if there is not already one open).
 pub fn open_alert(store: &Store, alert: &Alert) -> bool
 {
-	let expr = #fmt["
+	let expr = fmt!("
 	%s
 	SELECT
 		?subject ?end
@@ -217,7 +217,7 @@ pub fn open_alert(store: &Store, alert: &Alert) -> bool
 		{
 			?subject gnos:end ?end .
 		}
-	}", get_prefixes(store), alert.target, alert.id];
+	}", get_prefixes(store), alert.target, alert.id);
 	
 	match eval_query(store, expr)
 	{
@@ -260,7 +260,7 @@ pub fn open_alert(store: &Store, alert: &Alert) -> bool
 /// Helper used to close any open alerts from the store.
 pub fn close_alert(store: &Store, target: &str, id: &str) -> bool
 {
-	let expr = #fmt["
+	let expr = fmt!("
 	%s
 	SELECT
 		?subject ?style ?end
@@ -273,7 +273,7 @@ pub fn close_alert(store: &Store, target: &str, id: &str) -> bool
 		{
 			?subject gnos:end ?end
 		}
-	}" , get_prefixes(store),id, target];
+	}" , get_prefixes(store),id, target);
 	
 	match eval_query(store, expr)
 	{
@@ -321,12 +321,12 @@ pub fn eval_query(store: &Store, expr: &str) -> result::Result<Solution, ~str>
 	{
 		result::Ok(selector) =>
 		{
-			let start = time::precise_time_s();
+			let start = std::time::precise_time_s();
 			match selector(store)
 			{
 				result::Ok(copy solution) =>
 				{
-					let elapsed = time::precise_time_s() - start;
+					let elapsed = std::time::precise_time_s() - start;
 					if elapsed > 0.333
 					{
 						//error!("evaluated %s", expr);
@@ -350,10 +350,10 @@ pub fn eval_query(store: &Store, expr: &str) -> result::Result<Solution, ~str>
 // ---- Internal functions ----------------------------------------------------
 priv fn update_registered(stores: HashMap<~str, @Store>, name: &str, queries: HashMap<~str, Selector>, registered: HashMap<~str, HashMap<~str, Registration>>)
 {
-	let store = stores.find(name.to_unique());
+	let store = stores.find(name.to_owned());
 	if store.is_some()
 	{
-		let map = registered.find(name.to_unique());
+		let map = registered.find(name.to_owned());
 		if option::is_some(&map)
 		{
 			for map.get().each_value
@@ -362,7 +362,7 @@ priv fn update_registered(stores: HashMap<~str, @Store>, name: &str, queries: Ha
 				let solutions = eval_queries(store.get(), queries, r.queries).get();	// query that worked once so should be OK to fail fast
 				if solutions != *r.solutions
 				{
-					comm::send(r.channel, result::Ok(solutions_to_json(solutions)));
+					oldcomm::send(r.channel, result::Ok(solutions_to_json(solutions)));
 					*r.solutions = solutions;
 				}
 			}
@@ -397,7 +397,7 @@ priv fn update_err_count(store: &Store, delta: i64)
 // much more efficient to cache the selectors.
 priv fn get_selector(queries: HashMap<~str, Selector>, query: &str) -> result::Result<Selector, ~str>
 {
-	match queries.find(query.to_unique())
+	match queries.find(query.to_owned())
 	{
 		option::Some(s) =>
 		{
@@ -409,7 +409,7 @@ priv fn get_selector(queries: HashMap<~str, Selector>, query: &str) -> result::R
 			{
 				result::Ok(s) =>
 				{
-					queries.insert(query.to_unique(), s);
+					queries.insert(query.to_owned(), s);
 					result::Ok(s)
 				}
 				result::Err(copy err) =>
@@ -433,12 +433,12 @@ priv fn eval_queries(store: &Store, queries: HashMap<~str, Selector>, exprs: &[~
 		{
 			result::Ok(selector) =>
 			{
-				let start = time::precise_time_s();
+				let start = std::time::precise_time_s();
 				match selector(store)
 				{
 					result::Ok(copy solution) =>
 					{
-						let elapsed = time::precise_time_s() - start;
+						let elapsed = std::time::precise_time_s() - start;
 						if elapsed > 0.333
 						{
 							//error!("evaluated %s", expr);

@@ -2,14 +2,11 @@ use Path = path::Path;
 use io::WriterUtil;
 use std::json;
 use std::map::*;
-use server = rwebserve::rwebserve;
+//use server = rwebserve;
 use handlers::*;
-use rrdf::rrdf::*;
+use rrdf::*;
 use task_runner::*;
-use ConnConfig = rwebserve::connection::ConnConfig;
-use Request = rwebserve::rwebserve::Request;
-use Response = rwebserve::rwebserve::Response;
-use ResponseHandler = rwebserve::rwebserve::ResponseHandler;
+use rwebserve::{Config, Request, Response, ResponseHandler, OpenSse, linear_map_from_vector, Route};
 
 priv fn copy_scripts(root: &Path, user: &str, host: &str) -> option::Option<~str>
 {
@@ -20,7 +17,7 @@ priv fn copy_scripts(root: &Path, user: &str, host: &str) -> option::Option<~str
 	utils::scp_files(files, user, host)
 }
 
-priv fn modeler_exited(script: &str, err: option::Option<~str>, state_chan: comm::Chan<model::Msg>)
+priv fn modeler_exited(script: &str, err: option::Option<~str>, state_chan: oldcomm::Chan<model::Msg>)
 {
 	let mesg =
 		if err.is_some()
@@ -36,7 +33,7 @@ priv fn modeler_exited(script: &str, err: option::Option<~str>, state_chan: comm
 	for lines.each |line| {error!("%s", *line)};
 	
 	let alert = model::Alert {target: ~"gnos:container", id: fmt!("%s exited", script), level: ~"error", mesg: mesg, resolution: ~"Restart gnos."};	// TODO: probably should have a button somewhere to restart the script (would have to close the alert)
-	comm::send(state_chan, model::UpdateMsg(~"primary", |store, _err| {model::open_alert(store, &alert)}, ~""));
+	oldcomm::send(state_chan, model::UpdateMsg(~"primary", |store, _err| {model::open_alert(store, &alert)}, ~""));
 }
 
 priv fn run_modeler(user: &str, host: &str, script: &str, network_file: &str, ip: &str, port: u16) -> option::Option<~str>
@@ -44,7 +41,7 @@ priv fn run_modeler(user: &str, host: &str, script: &str, network_file: &str, ip
 	utils::run_remote_command(user, host, fmt!("python %s --ip=%s --port=%? -v %s", script, ip, port, network_file))
 }
 
-priv fn setup(options: &options::Options, state_chan: comm::Chan<model::Msg>) -> ~[ExitFn]
+priv fn setup(options: &options::Options, state_chan: oldcomm::Chan<model::Msg>) -> ~[ExitFn]
 {
 	let mut cleanup = ~[];
 	
@@ -101,20 +98,20 @@ priv fn update_globals(store: &Store, options: &options::Options) -> bool
 	store.add(~"gnos:globals", devices);
 	
 	let names = model::get_standard_store_names();
-	let stores = vec::zip(vec::from_elem(names.len(), ~"gnos:store"), do names.map |n| {@StringValue(n.to_unique(), ~"")});
+	let stores = vec::zip(vec::from_elem(names.len(), ~"gnos:store"), do names.map |n| {@StringValue(n.to_owned(), ~"")});
 	store.add(~"gnos:globals", stores);
 	
 	true
 }
 
-priv fn static_view(options: &options::Options, config: &rwebserve::connection::ConnConfig, request: &Request, response: &Response) -> Response
+priv fn static_view(options: &options::Options, config: &Config, request: &Request, response: Response) -> Response
 {
-	let response = rwebserve::configuration::static_view(config, request, response);
+	let mut response = rwebserve::configuration::static_view(config, request, response);
 	
 	// Generated images can be cached but, in general, they should expire just before we get new info.
 	if request.path.starts_with("/generated/")
 	{
-		response.headers.insert(@~"Cache-Control", @fmt!("max-age=%?", options.poll_rate - 1));
+		response.headers.insert(~"Cache-Control", fmt!("max-age=%?", options.poll_rate - 1));
 	}
 	response
 }
@@ -131,8 +128,8 @@ fn main()
 	let mut options = options::parse_command_line(os::args());
 	options::validate(&options);
 	
-	let state_chan = do task::spawn_listener |port, copy options| {model::manage_state(port, options.bind_ip, options.bind_port)};
-	let samples_chan = do task::spawn_listener |port| {samples::manage_samples(port)};
+	let state_chan = do utils::spawn_moded_listener(task::ThreadPerCore) |port, copy options| {model::manage_state(port, options.bind_ip, options.bind_port)};
+	let samples_chan = do utils::spawn_moded_listener(task::ThreadPerCore) |port| {samples::manage_samples(port)};
 	let cleanup = if !options.db
 		{
 			setup(&options, state_chan)
@@ -144,24 +141,24 @@ fn main()
 		};
 	
 	let options1 = copy options;
-	comm::send(state_chan, model::UpdateMsg(~"globals", |store, _err| {update_globals(store, &options1)}, ~""));
+	oldcomm::send(state_chan, model::UpdateMsg(~"globals", |store, _err| {update_globals(store, &options1)}, ~""));
 	
 	// TODO: Shouldn't need all of these damned explicit types but rustc currently
 	// has problems with type inference woth closures and borrowed pointers.
-	let models_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, response: &Response, copy options| {get_models::get_models(&options, response, state_chan)};
-	let subject_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {get_subject::get_subject(&options, request, response)};
-	let details_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {get_details::get_details(&options, request, response)};
-	let home_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, response: &Response, copy options| {get_home::get_home(&options, response)};
-	let modeler_p: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {put_json::put_json(&options, state_chan, samples_chan, request, response)};
-	let query_store_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response, copy options| {get_query_store::get_query_store(&options, request, response)};
-	let bail_v: ResponseHandler = |_config: &ConnConfig, _request: &Request, _response: &Response| {get_shutdown(copy cleanup)};
-	let static_v: ResponseHandler = |config: &ConnConfig, request: &Request, response: &Response, copy options| {static_view(&options, config, request, response)};
-	let test_v: ResponseHandler = |_config: &ConnConfig, request: &Request, response: &Response| {get_test::get_test(request, response)};
+	let models_v: ResponseHandler = |_config, _request, response, copy options| {get_models::get_models(&options, response, state_chan)};
+	let subject_v: ResponseHandler = |_config, request, response, copy options| {get_subject::get_subject(&options, request, response)};
+	let details_v: ResponseHandler = |_config, request, response, copy options| {get_details::get_details(&options, request, response)};
+	let home_v: ResponseHandler = |_config, _request, response, copy options| {get_home::get_home(&options, response)};
+	let modeler_p: ResponseHandler = |_config, request, response, copy options| {put_json::put_json(&options, state_chan, samples_chan, request, response)};
+	let query_store_v: ResponseHandler = |_config, request, response, copy options| {get_query_store::get_query_store(&options, request, response)};
+	let bail_v: ResponseHandler = |_config, _request, _response| {get_shutdown(copy cleanup)};
+	let static_v: ResponseHandler = |config, request, response, copy options| {static_view(&options, config, request, response)};
+	let test_v: ResponseHandler = |_config, request, response| {get_test::get_test(request, response)};
 	
-	let query_s: server::OpenSse = |_config: &ConnConfig, request: &Request, push| {sse_query::sse_query(state_chan, request, push)};
-	let samples_s: server::OpenSse = |_config: &ConnConfig, request: &Request, push| {sse_samples::sse_query(samples_chan, request, push)};
+	let query_s: OpenSse = |_config, request, push| {sse_query::sse_query(state_chan, request, push)};
+	let samples_s: OpenSse = |_config, request, push| {sse_samples::sse_query(samples_chan, request, push)};
 	
-	let config = server::Config
+	let config = Config
 	{
 		// We need to bind to the server addresses so that we receive modeler PUTs.
 		// We bind to localhost to ensure that we can hit the web server using a local
@@ -169,18 +166,19 @@ fn main()
 		hosts: if options.db {~[~"localhost"]} else if options.admin {~[copy options.bind_ip, ~"localhost"]} else {~[copy options.bind_ip]},
 		port: options.bind_port,
 		server_info: ~"gnos " + options::get_version(),
-		resources_root: options.root,
+		resources_root: copy options.root,
 		routes: ~[
-			(~"GET", ~"/", ~"home"),
-			(~"GET", ~"/details/{name}/*subject", ~"details"),
-			(~"GET", ~"/shutdown", ~"shutdown"),		// TODO: enable this via debug cfg (or maybe via a command line option)
-			(~"GET", ~"/models", ~"models"),
-			(~"GET", ~"/query-store", ~"query_store"),
-			(~"GET", ~"/subject/{name}/*subject", ~"subject"),
-			(~"GET", ~"/test", ~"test"),
-			(~"PUT", ~"/modeler", ~"modeler"),
+			Route(~"home", ~"GET", ~"/"),
+			Route(~"details", ~"GET", ~"/details/{name}/*subject"),
+			Route(~"shutdown", ~"GET", ~"/shutdown"),		// TODO: enable this via debug cfg (or maybe via a command line option)
+			Route(~"models", ~"GET", ~"/models"),
+			Route(~"query_store", ~"GET", ~"/query-store"),
+			Route(~"subject", ~"GET", ~"/subject/{name}/*subject"),
+			Route(~"test", ~"GET", ~"/test"),
+			Route(~"modeler", ~"GET", ~"/modeler"),
+			Route(~"modeler", ~"PUT", ~"/modeler"),
 		],
-		views: ~[
+		views: linear_map_from_vector(~[
 			(~"home",  home_v),
 			(~"details",  details_v),
 			(~"shutdown",  bail_v),
@@ -189,11 +187,11 @@ fn main()
 			(~"subject",  subject_v),
 			(~"modeler",  modeler_p),
 			(~"test",  test_v),
-		],
+		]),
 		static_handler: static_v,
-		sse: ~[(~"/query", query_s), (~"/samples", samples_s)],
-		settings: ~[(~"debug",  ~"true")],		// TODO: make this a command-line option
-		..server::initialize_config()
+		sse: linear_map_from_vector(~[(~"/query", query_s), (~"/samples", samples_s)]),
+		settings: linear_map_from_vector(~[(~"debug",  ~"true")]),		// TODO: make this a command-line option
+		..rwebserve::initialize_config()
 	};
 	
 	// There is a bit of a chicken and egg problem here: ideally we'd start up the web page after the server
@@ -206,6 +204,6 @@ fn main()
 		do task::spawn {core::run::program_output("git", ~[~"web--browse", copy url]);}
 	}
 	
-	server::start(&config);
+	rwebserve::start(&config);
 	info!("exiting gnos");						// won't normally land here
 }

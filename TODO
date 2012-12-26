@@ -1,4 +1,4 @@
-Built with: 39c0d3591e0326874b7263a621ce09ecd64f0eb2 (0.4)
+Built with: 8b98e5a296d95c5e832db0756828e5bec31c6f50 (0.5)
 
 http://www.springerlink.com/content/v2182674723t39g7/
 http://www.google.com/url?sa=t&rct=j&q=rdf%20ontologies%20nms&source=web&cd=25&ved=0CEwQFjAEOBQ&url=http%3A%2F%2Fntnu.diva-portal.org%2Fsmash%2Fget%2Fdiva2%3A347850%2FFULLTEXT01&ei=rdjMT7uuK8KC2AWA6uC9DQ&usg=AFQjCNGg-wBiogJofkZLy4BQ2id48-CVRw
@@ -29,8 +29,13 @@ http://www.backtoessentials.com/tools/40-useful-print-ready-cheat-sheet-for-web-
 http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=13&ved=0CIYBEBYwAjgK&url=http%3A%2F%2Fnet.tutsplus.com%2Ftutorials%2Fhtml-css-techniques%2F30-html-best-practices-for-beginners%2F&ei=CuSjT5WvG_POiALRrdWABA&usg=AFQjCNFd0gD9wjSLpiSRWcUkUgR8RUH91w&sig2=oINB1YByitNzzJHODujABg
 restful uris: http://redrata.com/restful-uri-design/
 javascript model/view: http://documentcloud.github.com/backbone/
+http://www.haskell.org/haskellwiki/Reactive-banana
+http://kramdown.rubyforge.org/quickref.html		good markdown ref
 
+snmpbulkwalk -v3 -m all -u net_user -l authPriv -a md5 -A authpass -x des -X privpass  -Oq -Ot -OU -OX  192.168.0.30 cviRoutedVlanIfIndex 2> /dev/null
 
+* Do we even need a database?
+	- if not, do we need rust?
 * env! didn't work on Linux:
 	- should we just get rid of GNOS_USER?
 * Firefox didnt work very well

@@ -3,6 +3,22 @@ use Path = path::Path;
 use std::getopts::*;
 use std::time::*;
 
+// Like spawn_listener except that it supports custom modes. This allows code that blocks
+// within a foreign function to avoid blocking other tasks which may be on its thread.
+pub fn spawn_moded_listener<A: Owned>(mode: task::SchedMode, +f: fn~(oldcomm::Port<A>)) -> oldcomm::Chan<A>
+{
+	let setup_po = oldcomm::Port();
+	let setup_ch = oldcomm::Chan(&setup_po);
+	do task::spawn_sched(mode)
+	{
+		let po = oldcomm::Port();
+		let ch = oldcomm::Chan(&po);
+		oldcomm::send(setup_ch, ch);
+		f(po);
+	}
+	oldcomm::recv(setup_po)
+}
+
 pub fn title_case(s: &str) -> ~str
 {
 	if s.is_not_empty() && char::is_lowercase(s[0] as char)
@@ -11,7 +27,7 @@ pub fn title_case(s: &str) -> ~str
 	}
 	else
 	{
-		s.to_unique()
+		s.to_owned()
 	}
 }
 
@@ -52,7 +68,7 @@ pub fn scp_files(files: &[~Path], user: &str, host: &str) -> option::Option<~str
 /// Returns an error if the command returned a non-zero result code
 pub fn run_remote_command(user: &str, host: &str, command: &str) -> option::Option<~str>
 {
-	let args = ~[fmt!("%s@%s", user, host)] + ~[command.to_unique()];
+	let args = ~[fmt!("%s@%s", user, host)] + ~[command.to_owned()];
 	
 	info!("ssh %s \"%s\"", args.head(), str::connect(args.tail(), ~" "));
 	run_command(~"ssh", args)
@@ -67,7 +83,7 @@ pub fn list_dir_path(dir: &Path, extensions: &[~str]) -> ~[~Path]
 	do files.filter |file|
 	{
 		let ftype = file.filetype();
-		assert ftype.is_none() || ftype.get().starts_with(".");
+		assert ftype.is_none() || ftype.get_ref().starts_with(".");
 		match ftype
 		{
 			option::Some(ref ext) 	=> extensions.contains(ext),
@@ -93,7 +109,7 @@ pub fn tm_to_delta_str(time: Tm) -> {elapsed: float, delta: ~str}
 {
 	fn tm_to_secs(time: Tm) -> float
 	{
-		let {sec: seconds, nsec: nanosecs} = time.to_timespec();
+		let Timespec {sec: seconds, nsec: nanosecs} = time.to_timespec();
 		seconds as float + (nanosecs as float)*0.000_000_001
 	}
 	

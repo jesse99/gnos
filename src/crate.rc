@@ -15,7 +15,7 @@
 
 extern mod std;
 extern mod mustache (name = "mustache", vers = "0.3pre");
-extern mod rrdf (name = "rrdf", vers = "0.2");
+extern mod rrdf (name = "rrdf", vers = "0.3");
 extern mod runits (name = "runits", vers = "0.1");
 extern mod rwebserve (name = "rwebserve", vers = "0.2");
 

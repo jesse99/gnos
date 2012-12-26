@@ -1,7 +1,7 @@
 /// Provides a view of the results of running javascript unit tests.
-use server = rwebserve::rwebserve;
+use server = rwebserve;
 
-pub fn get_test(_request: &server::Request, response: &server::Response) -> server::Response
+pub fn get_test(_request: &server::Request, response: server::Response) -> server::Response
 {
-	server::Response {template: ~"test.html", ..*response}
+	server::Response {template: ~"test.html", ..response}
 }

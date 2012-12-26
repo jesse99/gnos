@@ -18,7 +18,8 @@ all: bin/gnos lint-js
 
 # gnos doesn't return so we start the client before the browser.
 run: bin/gnos lint-js
-	export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace=4 && export GNOS_USER && ./bin/gnos --admin --root=html --bind=$(LOCAL_IP) --browse='http://localhost:8080' scripts/sat.json
+	export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace=4 && export GNOS_USER && ./bin/gnos --admin --root=html --bind=$(LOCAL_IP) --browse='http://localhost:8080' scripts/blos-c2.json
+	#export RUST_LOG=gnos=2,rwebserve=2,socket=1,::rt::backtrace=4 && export GNOS_USER && ./bin/gnos --admin --root=html --bind=$(LOCAL_IP) --browse='http://localhost:8080' scripts/sat.json
 
 run-net:
 	$(SCP) scripts/*.json scripts/*.py jjones@10.8.0.149: && ssh jjones@10.8.0.149 "python net-modeler.py -vvvvvv --stdout  --dont-put --duration=0 --ip=10.6.210.115 --port=8080 mini-sat.json"
@@ -50,7 +51,7 @@ update-libraries:
 	cp /usr/local/lib/rust/libmustache-*-0.3pre.* bin
 	cp /usr/local/lib/rust/libsocket-*-0.1.* bin
 	cp /usr/local/lib/rust/librparse-*-0.6.* bin
-	cp /usr/local/lib/rust/librrdf-*-0.2.* bin
+	cp /usr/local/lib/rust/librrdf-*-0.3.* bin
 	cp /usr/local/lib/rust/librunits-*-0.1.* bin
 	cp /usr/local/lib/rust/librwebserve-*-0.2.* bin
 	rm -f bin/gnos

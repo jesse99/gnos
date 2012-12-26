@@ -1,5 +1,6 @@
 /// Functions and types used to manage a task responsible for managing sample data.
-use comm::{Chan, Port};
+use core::path::{GenericPath};
+use oldcomm::{Chan, Port};
 use core::io::{WriterUtil, ReaderUtil};
 use std::map::{HashMap};
 use RingBuffer = ring_buffer::RingBuffer;
@@ -29,7 +30,7 @@ pub struct Detail
 	units: ~str,
 }
 
-pub fn manage_samples(port: comm::Port<Msg>)
+pub fn manage_samples(port: oldcomm::Port<Msg>)
 {
 	let sample_sets = HashMap();		// sample name => (owner, RingBuffer)
 	let registered = HashMap();		// key => (owner, Chan<[Detail]>)
@@ -37,7 +38,7 @@ pub fn manage_samples(port: comm::Port<Msg>)
 	
 	loop
 	{
-		match comm::recv(port)
+		match oldcomm::recv(port)
 		{
 			AddSample(copy owner, copy name, value, capacity) =>
 			{
@@ -58,7 +59,7 @@ pub fn manage_samples(port: comm::Port<Msg>)
 			}
 			GetSampleSets(ref names, ch) =>
 			{
-				let buffers = do names.map |n| {copy *sample_sets[@n.to_unique()].second()};
+				let buffers = do names.map |n| {copy *sample_sets[@n.to_owned()].second()};
 				ch.send(buffers);
 			}
 			RegisterMsg(copy key, copy owner, channel) =>
@@ -75,7 +76,7 @@ pub fn manage_samples(port: comm::Port<Msg>)
 			{
 				for registered.each_value |value|
 				{
-					send_update(sample_sets, value.first().to_unique(), value.second());
+					send_update(sample_sets, value.first().to_owned(), value.second());
 				}
 			}
 			ExitMsg =>
@@ -125,7 +126,7 @@ pub fn create_charts(id: ~str, charts: &[Chart], samples_chan: Chan<Msg>)
 	let action: JobFn =
 		|move script, move id|
 		{
-			let path = path::from_str(fmt!("/tmp/gnos-%s.R", id));
+			let path = GenericPath::from_str(fmt!("/tmp/gnos-%s.R", id));
 			match io::file_writer(&path, ~[io::Create, io::Truncate])
 			{
 				result::Ok(writer) =>
@@ -235,7 +236,7 @@ priv fn append_r_script(chart: &Chart, samples: &[RingBuffer], script: &mut ~str
 	};
 	*script += fmt!("times = -c(%s)\n\n", str::connect(times, ", "));
 	
-	for num_lines.timesi |i|
+	for uint::range(0, num_lines) |i|
 	{
 		*script += fmt!("max_samples%? = max(samples%?)\n", i+1, i+1);
 	}
@@ -311,5 +312,5 @@ priv fn get_detail(sample_name: &str, buffer: &RingBuffer) -> Detail
 		mean += *x;
 	}
 	mean /= buffer.len() as float;
-	Detail {sample_name: sample_name.to_unique(), min: min, mean: mean, max: max, units: ~"kbps"}	// TODO: use better units
+	Detail {sample_name: sample_name.to_owned(), min: min, mean: mean, max: max, units: ~"kbps"}	// TODO: use better units
 }
